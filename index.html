@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TopPath Blade</title>
+<link rel="stylesheet" href="css/game.css?v=0.3">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div id="heroPanel" class="pframe">
+    <img src="assets/portraits/hero.png" alt="" onerror="this.style.visibility='hidden'">
+    <div><b>主帥</b><div class="hp"><i id="hpFill"></i></div><small id="hpText"></small></div>
+  </div>
+  <div id="objective" class="pframe"></div>
+  <div id="squads"></div>
+  <div id="skills"></div>
+  <div id="kills"></div>
+  <div id="perf"></div>
+  <div id="keys">WASD 移動・J 普攻・K 格擋・Q/E/R 技能｜Tab 指揮對象・1 跟隨 2 駐守 3 進攻・F 陣型・Z/X 兵團技能｜G 開關城門（守城）・-/= 縮放・V 震動開關・Esc 回選單</div>
+  <div id="toast"></div>
+</div>
+
+<div id="result"><div class="plate"><h2></h2><p></p></div><small>R 再打一次・Esc 回選單</small></div>
+
+<div id="title">
+  <canvas id="embers"></canvas>
+  <div class="bar top"></div><div class="bar bottom"></div>
+  <div class="banner left"><i></i></div><div class="banner right"><i></i></div>
+  <div class="logo">
+    <div class="plate"><h1 data-text="TopPath Blade">TopPath Blade</h1><p>千軍萬馬・攻城略地</p></div>
+  </div>
+  <div class="press">◆ 按任意鍵開始 ◆</div>
+  <small class="ver">原型 v0.3</small>
+  <div class="flash"></div>
+</div>
+
+<div id="menu">
+  <div class="pframe menuBox">
+    <div class="menuHead"><h1>TopPath Blade</h1></div>
+    <section><h3 class="ribbon">戰場</h3><div id="scenarios" class="row"></div></section>
+    <section><h3 class="ribbon">武將武器（決定技能）</h3><div id="weapons" class="row"></div></section>
+    <section class="two">
+      <div><h3 class="ribbon">裝備</h3><div id="equip"></div></div>
+      <div><h3 class="ribbon">帶兵（兩個兵團）</h3><div id="squadPick"></div></div>
+    </section>
+    <button id="startBtn">開戰（Enter）</button>
+    <section><h3 class="ribbon">兵種圖鑑・克制表</h3><div id="codex"></div></section>
+  </div>
+</div>
+
+<script src="js/data/config.js?v=0.3"></script>
+<script src="js/core/util.js?v=0.3"></script>
+<script src="js/core/input.js?v=0.3"></script>
+<script src="js/data/sprites-meta.js?v=0.3"></script>
+<script src="js/data/tiles.js?v=0.3"></script>
+<script src="js/data/units.js?v=0.3"></script>
+<script src="js/data/counters.js?v=0.3"></script>
+<script src="js/data/formations.js?v=0.3"></script>
+<script src="js/data/skills.js?v=0.3"></script>
+<script src="js/data/heroes.js?v=0.3"></script>
+<script src="js/core/sprites.js?v=0.3"></script>
+<script src="js/entities/fx.js?v=0.3"></script>
+<script src="js/entities/unit.js?v=0.3"></script>
+<script src="js/entities/hero.js?v=0.3"></script>
+<script src="js/world/map.js?v=0.3"></script>
+<script src="js/systems/combat.js?v=0.3"></script>
+<script src="js/systems/skills.js?v=0.3"></script>
+<script src="js/systems/ai.js?v=0.3"></script>
+<script src="js/ui/hud.js?v=0.3"></script>
+<script src="js/ui/menu.js?v=0.3"></script>
+<script src="js/game.js?v=0.3"></script>
+<script src="js/main.js?v=0.3"></script>
+</body>
+</html>

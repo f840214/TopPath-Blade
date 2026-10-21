@@ -1,0 +1,168 @@
+/* ============ 像素中世紀風格介面 ============
+ * 外框 assets/ui/frame.png、標題框 assets/ui/plate.png 都是 PixelLab 生成的原創素材；
+ * 字型 Cubic 11（俐方體 11 號，assets/fonts/LICENSE-Cubic11.txt）。
+ */
+@font-face { font-family: "Cubic11"; src: url("../assets/fonts/Cubic_11.woff2") format("woff2"); font-display: swap; }
+:root {
+  --gold: #f0c35a; --gold2: #e2862f; --bronze: #a9713c; --ink: #241a15; --panel: #2c211b; --panel2: #3a2b22;
+  --text: #f1e4c8; --muted: #c4ad88; --red: #b8322a; --red2: #7d1f1a;
+  --px: "Cubic11", "PingFang TC", "Noto Sans TC", monospace;
+}
+html, body { margin: 0; height: 100%; overflow: hidden; background: #14100c; color: var(--text); font-family: var(--px); }
+canvas { display: block; image-rendering: pixelated; }
+button, select { font-family: var(--px); }
+
+/* 九宮格外框：外框圖 + 深褐內底 */
+.pframe {
+  border: 14px solid transparent;
+  border-image: url("../assets/ui/frame.png") 40 / 14px stretch;
+  background: linear-gradient(var(--panel2), var(--panel)) padding-box;
+  image-rendering: pixelated;
+  box-shadow: 0 4px 0 rgba(0,0,0,.35);
+}
+.plate {
+  background: url("../assets/ui/plate.png") center / 100% 100% no-repeat;
+  image-rendering: pixelated; text-align: center;
+}
+/* 金色像素標題字 */
+.goldText, #title h1, .menuHead h1, #result h2 {
+  font-family: var(--px); color: var(--gold); letter-spacing: 2px; margin: 0;
+  background: linear-gradient(#ffe79a 0%, #f0c35a 45%, #e2862f 100%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  filter: drop-shadow(2px 0 0 #3a1a0c) drop-shadow(-2px 0 0 #3a1a0c) drop-shadow(0 2px 0 #3a1a0c) drop-shadow(0 -2px 0 #3a1a0c) drop-shadow(0 4px 0 rgba(0,0,0,.5));
+}
+/* 紅色緞帶標題 */
+.ribbon {
+  display: inline-block; position: relative; margin: 18px 0 10px 14px; padding: 4px 22px; font-size: 15px; font-weight: normal;
+  color: #fff3dc; background: linear-gradient(var(--red), var(--red2)); border-top: 2px solid #e0574b; border-bottom: 2px solid #4a100d;
+  text-shadow: 0 2px 0 #4a100d;
+}
+.ribbon::before, .ribbon::after { content: ""; position: absolute; top: 4px; bottom: -6px; width: 14px; background: var(--red2); z-index: -1; }
+.ribbon::before { left: -10px; clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 40% 50%); }
+.ribbon::after { right: -10px; clip-path: polygon(0 0, 100% 0, 60% 50%, 100% 100%, 0 100%); }
+
+/* ---------- 開場畫面 ---------- */
+#title { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 55%, rgba(80,20,5,0) 0%, rgba(30,8,2,.35) 55%, rgba(0,0,0,.85) 100%); }
+#title::before { /* 遠方戰火的暖色光 */
+  content: ""; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen;
+  background: radial-gradient(ellipse at 50% 110%, rgba(255,110,30,.45), rgba(255,80,20,0) 55%);
+  animation: glow 3s ease-in-out infinite alternate; }
+@keyframes glow { from { opacity: .6; } to { opacity: 1; } }
+#embers { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+#title .bar { position: absolute; left: 0; right: 0; height: 9vh; background: #000; z-index: 2; animation: barIn .9s cubic-bezier(.2,.8,.2,1) both; }
+#title .bar.top { top: 0; } #title .bar.bottom { bottom: 0; transform-origin: bottom; }
+@keyframes barIn { from { transform: scaleY(0); } }
+#title .bar.top { transform-origin: top; }
+/* 戰旗 */
+.banner { position: absolute; top: 9vh; width: clamp(54px, 9vw, 110px); height: clamp(170px, 42vh, 360px); z-index: 1; transform-origin: top center; animation: sway 4s ease-in-out infinite alternate, dropIn 1.1s .3s cubic-bezier(.2,.9,.3,1.2) both; }
+.banner.left { left: 5vw; } .banner.right { right: 5vw; animation-delay: -2s, .45s; }
+.banner::before { content: ""; position: absolute; left: -10%; right: -10%; top: 0; height: 8px; background: linear-gradient(#c49a55, #6b4a22); border: 2px solid #2a1a0c; }
+.banner i { position: absolute; inset: 8px 0 0; background: linear-gradient(90deg, #6e1712, #b52c22 30%, #8a1e18 70%, #5a110d);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 86%, 0 100%); box-shadow: inset 0 0 0 3px #d9a64a; }
+.banner i::after { /* 旗面徽記：交叉雙劍 */
+  content: "⚔"; position: absolute; left: 0; right: 0; top: 28%; text-align: center; font-size: clamp(26px, 4.5vw, 54px); color: #f0c35a; text-shadow: 0 3px 0 #3a0d08; }
+@keyframes sway { from { transform: rotate(-2deg) skewX(-1deg); } to { transform: rotate(2deg) skewX(1deg); } }
+@keyframes dropIn { from { transform: translateY(-120%); } }
+/* 標題 */
+#title .logo { position: relative; z-index: 3; animation: slam .55s .55s cubic-bezier(.3,1.6,.5,1) both; }
+@keyframes slam { 0% { transform: scale(2.6); opacity: 0; filter: blur(6px); } 70% { opacity: 1; filter: blur(0); } 100% { transform: scale(1); } }
+#title .plate { width: min(600px, 66vw); aspect-ratio: 688 / 384; display: flex; flex-direction: column; justify-content: center; filter: drop-shadow(0 12px 18px rgba(0,0,0,.7)); }
+#title h1 { font-size: clamp(30px, 6vw, 70px); position: relative; }
+#title h1::after { /* 掃過標題的光澤 */
+  content: attr(data-text); position: absolute; inset: 0; color: transparent; -webkit-text-fill-color: transparent;
+  background: linear-gradient(110deg, transparent 35%, rgba(255,255,255,.95) 50%, transparent 65%) no-repeat; background-size: 250% 100%;
+  -webkit-background-clip: text; background-clip: text; animation: shine 3.2s 1.4s ease-in-out infinite; filter: none; }
+@keyframes shine { 0% { background-position: 150% 0; } 45%, 100% { background-position: -100% 0; } }
+#title p { margin: 12px 0 0; font-size: clamp(15px, 2.4vw, 22px); color: #f6e3c0; letter-spacing: 6px; text-shadow: 0 2px 0 #000; animation: fadeUp .8s 1.2s both; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } }
+#title .press { position: relative; z-index: 3; margin-top: 28px; font-size: 20px; letter-spacing: 4px; color: #ffe2a0; text-shadow: 0 0 10px rgba(255,140,40,.8), 0 2px 0 #000; animation: fadeUp .6s 1.6s both, pulse 1.4s 2.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+#title .ver { position: absolute; right: 14px; bottom: calc(9vh + 8px); color: var(--muted); z-index: 3; }
+#title .flash { position: absolute; inset: 0; background: #fff; pointer-events: none; z-index: 4; opacity: 0; animation: flash .5s .9s ease-out both; }
+@keyframes flash { 0% { opacity: 0; } 15% { opacity: .85; } 100% { opacity: 0; } }
+#title.leaving .logo { animation: leave .5s ease-in forwards; }
+#title.leaving .flash { animation: flash .5s ease-out both; }
+@keyframes leave { to { transform: scale(1.6); opacity: 0; filter: blur(4px); } }
+body.shake { animation: shake .35s 1.05s; }
+@keyframes shake { 0%,100% { transform: none; } 20% { transform: translate(6px,-4px); } 40% { transform: translate(-5px,5px); } 60% { transform: translate(4px,3px); } 80% { transform: translate(-3px,-2px); } }
+
+/* ---------- 選單（浮在背景對戰上） ---------- */
+#menu { display: none; position: fixed; inset: 0; overflow: auto; padding: 18px 16px 40px; box-sizing: border-box; background: rgba(10,7,5,.45); }
+.menuBox { max-width: 920px; margin: 0 auto; padding: 4px 18px 18px; box-sizing: border-box; }
+.menuHead { margin: -6px auto 0; width: min(420px, 80%); aspect-ratio: 688 / 200; background: url("../assets/ui/plate.png") center / 100% 100% no-repeat; display: flex; align-items: center; justify-content: center; image-rendering: pixelated; }
+.menuHead h1 { font-size: clamp(22px, 4vw, 34px); }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.card {
+  flex: 1 1 200px; text-align: left; color: var(--text); cursor: pointer; font-size: 14px; padding: 10px 12px;
+  background: var(--ink); border: 2px solid #5a4029; box-shadow: inset 0 0 0 2px #120c09, 0 2px 0 #000;
+}
+.card:hover { border-color: var(--bronze); }
+.card.on { border-color: var(--gold); box-shadow: inset 0 0 0 2px #120c09, 0 0 0 2px rgba(240,195,90,.35); background: #33241a; }
+.card b { display: block; color: var(--gold); margin-bottom: 4px; font-weight: normal; font-size: 16px; }
+.card small { display: block; color: var(--muted); line-height: 1.6; } .card .sk { color: var(--text); margin-top: 4px; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 720px) { .two { grid-template-columns: 1fr; } }
+#menu label { display: block; margin: 8px 0; font-size: 14px; color: var(--muted); }
+#menu select { display: block; width: 100%; margin-top: 4px; background: var(--ink); color: var(--text); border: 2px solid #5a4029; padding: 6px; font-size: 13px; }
+#startBtn {
+  display: block; margin: 24px auto 4px; padding: 12px 56px; font-size: 20px; letter-spacing: 6px; color: #fff3dc; cursor: pointer;
+  background: linear-gradient(#c8463b, #8a231c); border: 2px solid var(--gold); box-shadow: inset 0 2px 0 #e86a5c, inset 0 -3px 0 #5a120e, 0 3px 0 #000;
+  text-shadow: 0 2px 0 #4a100d;
+}
+#startBtn:hover { filter: brightness(1.1); }
+#codex table { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--ink); }
+#codex th, #codex td { border: 2px solid #4a3424; padding: 6px 8px; text-align: center; font-weight: normal; }
+#codex th { color: var(--gold); }
+#codex td.good { color: #9be27f; } #codex td.bad { color: #f08a7c; }
+#codex .note { font-size: 13px; color: var(--muted); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+.unitCard { background: var(--ink); border: 2px solid #5a4029; padding: 8px 10px; }
+.unitCard b { color: var(--gold); font-weight: normal; } .unitCard small { display: block; color: var(--muted); margin-top: 4px; line-height: 1.6; }
+
+/* ---------- 戰鬥 HUD ---------- */
+#hud { display: none; position: fixed; inset: 0; pointer-events: none; font-size: 13px; }
+#hud > div { position: absolute; }
+#heroPanel { left: 8px; top: 8px; display: flex; gap: 8px; align-items: center; padding: 2px 8px 2px 2px; }
+#heroPanel img { width: 56px; height: 56px; image-rendering: pixelated; border: 2px solid var(--bronze); background: #1a120d; object-fit: cover; }
+#heroPanel b { color: var(--gold); font-weight: normal; font-size: 15px; }
+.hp { width: 170px; height: 10px; border: 2px solid #120c09; margin: 4px 0 2px; background: #3a1410; }
+.hp i { display: block; height: 100%; background: repeating-linear-gradient(90deg, #e5574a 0 7px, #b8322a 7px 8px); box-shadow: inset 0 2px 0 #ff8a7a; }
+#heroPanel small { color: var(--muted); }
+#objective { left: 50%; top: 8px; transform: translateX(-50%); padding: 2px 12px; text-align: center; min-width: 240px; color: var(--gold); font-size: 15px; }
+#objective div { color: var(--text); font-size: 12px; }
+.bar { position: relative; height: 14px; background: #120c09; border: 2px solid #4a3424; margin-top: 4px; }
+.bar i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(#d7a94a, #9a6b2a); }
+.bar.cap i { background: linear-gradient(#e5574a, #8a231c); }
+.bar span { position: relative; z-index: 1; font-size: 11px; line-height: 14px; text-shadow: 0 1px 0 #000; }
+#squads { right: 8px; top: 8px; width: 236px; }
+.sq { padding: 0 6px 2px; margin-bottom: 6px; }
+.sq.sel { border-image: url("../assets/ui/frame.png") 40 / 14px stretch; filter: drop-shadow(0 0 3px rgba(240,195,90,.9)); }
+.sq.dead { opacity: .4; }
+.sqTop { display: flex; justify-content: space-between; } .sqTop b { color: var(--gold); font-weight: normal; }
+.sqMid { font-size: 12px; color: var(--muted); }
+.usk { display: inline-block; font-size: 11px; margin: 3px 4px 0 0; padding: 1px 5px; background: var(--ink); border: 2px solid #4a3424; }
+.usk.cd { opacity: .5; } .usk.on { border-color: var(--gold); color: var(--gold); }
+.selHint { font-size: 12px; color: var(--gold); text-align: right; text-shadow: 0 1px 0 #000; }
+#skills { left: 50%; bottom: 30px; transform: translateX(-50%); display: flex; gap: 6px; padding: 6px; background: rgba(36,26,21,.85); border: 2px solid var(--bronze); box-shadow: inset 0 0 0 2px #120c09, 0 3px 0 rgba(0,0,0,.5); }
+.skill { position: relative; width: 70px; height: 48px; background: var(--ink); border: 2px solid #5a4029; box-shadow: inset 0 0 0 2px #120c09; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.skill b { color: var(--gold); font-size: 13px; font-weight: normal; } .skill span { font-size: 12px; }
+.skill.cd { opacity: .6; } .skill.basic { width: 54px; opacity: .85; }
+.skill i { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 22px; background: rgba(0,0,0,.55); color: #fff; }
+#kills { right: 14px; bottom: 36px; text-align: right; font-size: 15px; text-shadow: 0 2px 0 #000; }
+#kills b { font-size: 24px; color: var(--gold); font-weight: normal; }
+.combo { font-size: 44px; font-style: italic; color: #fff; text-shadow: 3px 3px 0 #3a1a0c; } .combo small { font-size: 15px; }
+#perf { left: 10px; bottom: 30px; font-size: 11px; color: #9f9; text-shadow: 0 1px 1px #000; }
+#keys { left: 0; right: 0; bottom: 6px; text-align: center; font-size: 11px; color: var(--muted); text-shadow: 0 1px 0 #000; }
+#toast { left: 50%; top: 100px; transform: translateX(-50%); font-size: 22px; color: var(--gold); text-shadow: 0 2px 0 #000; opacity: 0; transition: opacity .3s; }
+
+#result { display: none; position: fixed; inset: 0; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,.5); }
+#result .plate { width: min(460px, 86vw); aspect-ratio: 688 / 384; display: flex; flex-direction: column; justify-content: center; }
+#result h2 { font-size: 56px; letter-spacing: 10px; }
+#result.lose h2 { background: linear-gradient(#ffb0a4, #e5574a 50%, #8a231c); -webkit-background-clip: text; background-clip: text; }
+#result p { margin: 8px 0 0; color: var(--text); }
+#result small { color: var(--muted); margin-top: 12px; text-shadow: 0 1px 0 #000; }
+
+@media (max-width: 1000px) {
+  #objective { top: auto; bottom: 92px; left: 8px; transform: none; min-width: 200px; }
+  #squads { width: 206px; }
+}

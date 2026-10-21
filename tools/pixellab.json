@@ -1,0 +1,137 @@
+{
+  "_說明": "tools/import_pixellab.py 讀這個檔，下載 PixelLab 角色並轉成遊戲用的精靈圖。anims 的 key 是遊戲裡的動畫名，source 是 PixelLab 的動畫名稱（animation_name），fps/loop/hit 是播放設定；group 只是紀錄，補方向時要用。",
+  "hero_sword": {
+    "id": "cd9d2809-0ce5-43fa-80c8-7cd4e36a394e",
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true,
+        "group": "37c774e6-3eda-4bbd-9751-5156a7e0640c"
+      },
+      "Attack": {
+        "source": "Attack",
+        "fps": 16,
+        "loop": false,
+        "hit": 2,
+        "group": "86d21da8-26d1-4b2d-a186-3b90328c45e1"
+      },
+      "Spin": {
+        "source": "Spin",
+        "fps": 16,
+        "loop": false,
+        "hit": 3,
+        "group": "cf7f3b7a-dea7-45b4-b339-3f136d172a64"
+      },
+      "Shout": {
+        "source": "Shout",
+        "fps": 8,
+        "loop": false,
+        "group": "f62d1fea-848e-461e-8927-42815135501d"
+      }
+    }
+  },
+  "hero_glaive": {
+    "id": "8ec0be4c-1bd0-40bb-bb82-9b5a87f1281f",
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Attack",
+        "fps": 12,
+        "loop": false,
+        "hit": 3
+      },
+      "Whirl": {
+        "source": "Whirl",
+        "fps": 16,
+        "loop": true
+      }
+    }
+  },
+  "pikeman": {
+    "id": "b09d6fce-edc2-4a91-803c-45c2ce93f101",
+    "red": true,
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true,
+        "group": "f3c6fe23-62bf-458f-98d8-7827b1581301"
+      },
+      "Attack": {
+        "source": "Attack",
+        "fps": 12,
+        "loop": false,
+        "hit": 3
+      }
+    }
+  },
+  "shieldman": {
+    "id": "4e729481-0eff-4e1b-b223-2abbe7122c0b",
+    "red": true,
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 9,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Attack",
+        "fps": 12,
+        "loop": false,
+        "hit": 3
+      }
+    }
+  },
+  "archer": {
+    "id": "ca8b4395-1fa7-48a5-aa12-100c65e5fd85",
+    "red": true,
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Attack",
+        "fps": 8,
+        "loop": false,
+        "hit": 4
+      }
+    }
+  },
+  "horse": {
+    "id": "4799e799-aa03-4535-9622-cd37e5b13630",
+    "red": true,
+    "saddle": true,
+    "anims": {
+      "Walk": {
+        "source": "Run",
+        "fps": 12,
+        "loop": true
+      }
+    },
+    "_說明": "舊版：馬和騎士分開疊圖，已由 cavalry 取代"
+  },
+  "rider": {
+    "id": "321d74dd-8170-4a6c-b929-6dde53f336a7",
+    "red": true,
+    "upperBody": 0.58,
+    "anims": {}
+  },
+  "cavalry": {
+    "id": "e56f508d-acc4-47c2-9b25-13c60ebcc528",
+    "red": true,
+    "anims": {
+      "Walk": {
+        "source": "Run",
+        "fps": 12,
+        "loop": true
+      }
+    }
+  }
+}
