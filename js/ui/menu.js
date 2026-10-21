@@ -1,16 +1,50 @@
-/* ============ menu.js — 出戰準備：場景、武器、裝備、武將、軍團名冊，以及兵種圖鑑 ============
- * 兵團來自軍團名冊（G.Army）；這裡只記場景、武器、裝備的選擇（tpb-loadout）。
+/* ============ menu.js — 登入、出戰準備（場景、武器、裝備、武將、軍團名冊），以及兵種圖鑑 ============
+ * 開場畫面 → 登入／註冊（G.Api）→ 載入伺服器上的存檔（G.Army）→ 選單。
+ * 場景、武器、裝備的選擇存在存檔的 settings 裡。
  */
 G.Menu = (() => {
   const $ = id => document.getElementById(id);
-  const KEY = 'tpb-loadout';
-  let lo = { scenario: 'field', weapon: 'sword', equip: { helm: 'helm_iron', armor: 'armor_mail', gloves: 'gloves_leather', cape: 'cape_wool' } };
-  try { Object.assign(lo, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {}
-  delete lo.squads;   // 舊版存的兵種選擇，現在改由名冊決定
+  const DEFAULT_LO = { scenario: 'field', weapon: 'sword', equip: { helm: 'helm_iron', armor: 'armor_mail', gloves: 'gloves_leather', cape: 'cape_wool' } };
+  let lo = JSON.parse(JSON.stringify(DEFAULT_LO));
+  let user = null;             // 登入中的帳號名稱
   let confirmDismiss = null;   // 解散要按兩次：第一次記下 id
   let openVet = null;          // 展開老兵技能樹的兵團 id
 
   function msg(text) { $('menuMsg').textContent = text || ''; }
+
+  /* ---------- 登入 ---------- */
+  /** 離開開場畫面後：已登入就直接進選單，否則顯示登入框 */
+  async function enter() {
+    try { const me = await G.Api.me(); await afterLogin(me.username); }
+    catch (e) { showLogin(e.status === 401 ? '' : e.message); }
+  }
+  function showLogin(text) {
+    $('menu').style.display = 'none'; $('login').style.display = 'flex';
+    $('lgMsg').textContent = text || '';
+    $('lgUser').focus();
+  }
+  async function afterLogin(name) {
+    const { data } = await G.Api.loadProfile();
+    user = name;
+    G.Army.useProfile(data);
+    lo = { ...JSON.parse(JSON.stringify(DEFAULT_LO)), ...((data && data.settings) || {}) };
+    if (!G.Game.SCENARIOS[lo.scenario]) lo.scenario = DEFAULT_LO.scenario;
+    $('login').style.display = 'none';
+    open();
+  }
+  async function submitLogin(action) {
+    const u = $('lgUser').value.trim(), pw = $('lgPass').value;
+    $('lgMsg').textContent = action === 'register' ? '註冊中…' : '登入中…';
+    try {
+      const r = await (action === 'register' ? G.Api.register(u, pw) : G.Api.login(u, pw));
+      $('lgPass').value = '';
+      await afterLogin(r.username);
+    } catch (e) { $('lgMsg').textContent = e.message; }
+  }
+  async function logout() {
+    try { await G.Api.logout(); } catch (e) {}
+    user = null; showLogin('已登出');
+  }
 
   const statText = st => Object.entries(st).map(([k, v]) => ({
     hp: `生命 +${v}`, armor: `護甲 +${v}`, atk: `攻擊 +${v}%`, cdr: `冷卻 -${v}%`,
@@ -18,6 +52,7 @@ G.Menu = (() => {
   }[k])).join('、');
 
   function render() {
+    $('userBar').innerHTML = user ? `${user}　<button class="mini" id="logoutBtn">登出</button>` : '';
     $('scenarios').innerHTML = Object.entries(G.Game.SCENARIOS).map(([k, s]) =>
       `<button class="card ${lo.scenario === k ? 'on' : ''}" data-sc="${k}"><b>${s.name}</b><small>${s.desc}</small></button>`).join('');
     $('weapons').innerHTML = Object.entries(G.WEAPONS).map(([k, w]) =>
@@ -93,6 +128,7 @@ G.Menu = (() => {
     $('menu').addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;
       if (b.id === 'startBtn') return go();
+      if (b.id === 'logoutBtn') return logout();
       const d = b.dataset, A = G.Army;
       let err;
       if (d.sc) lo.scenario = d.sc;
@@ -115,11 +151,16 @@ G.Menu = (() => {
       if (s.dataset.eq) lo.equip[s.dataset.eq] = s.value;
     });
     addEventListener('keydown', e => { if (e.code === 'Enter' && $('menu').style.display !== 'none') go(); });
+    // 登入框：Enter 送出＝登入；「註冊新帳號」另外一個按鈕
+    $('loginForm').addEventListener('submit', e => { e.preventDefault(); submitLogin('login'); });
+    $('registerBtn').addEventListener('click', () => submitLogin('register'));
+    // 存檔上傳失敗：登入過期就回登入框，其他錯誤顯示在選單上
+    G.Army.onSaveError(e => e.status === 401 ? showLogin('登入已過期，請重新登入') : msg(`存檔失敗：${e.message}`));
   }
 
   /** 用目前選單設定＋名冊出戰；結算畫面按 R 也走這裡（名冊已經更新） */
   function go() {
-    try { localStorage.setItem(KEY, JSON.stringify(lo)); } catch (e) {}
+    G.Army.saveSettings(JSON.parse(JSON.stringify(lo)));
     const squads = G.Army.loadout();
     if (!squads.length && !G.Game.SCENARIOS[lo.scenario].test) { open(); msg('至少勾選一支有兵的兵團出戰'); return; }
     $('menu').style.display = 'none';
@@ -138,7 +179,7 @@ G.Menu = (() => {
       if (leaving) return; leaving = true;
       removeEventListener('keydown', go, true); t.removeEventListener('click', go);
       t.classList.add('leaving');
-      setTimeout(() => { t.style.display = 'none'; stopEmbers(); open(); }, 480);
+      setTimeout(() => { t.style.display = 'none'; stopEmbers(); enter(); }, 480);
     };
     addEventListener('keydown', go, true); t.addEventListener('click', go);
   }

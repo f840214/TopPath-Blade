@@ -2,3 +2,6 @@
 __pycache__/
 # PixelLab 下載快取，用 tools/import_pixellab.py --refresh 重新產生
 tools/cache/
+# 後端套件與本機資料庫（PGlite）
+/server/node_modules/
+/data/

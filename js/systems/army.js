@@ -1,11 +1,13 @@
 /* ============ army.js — 軍團名冊：存檔、統率編成、招募補員、戰後結算 ============
- * 存檔放在 localStorage（tpb-profile）：
- *   { gold, hero: { level, xp }, roster: [{ id, type, men, level, xp, deployed, vet: [分支0 已點節數, 分支1 已點節數] }] }
- * 戰鬥只拿 loadout() 給的出戰兵團；打完由 settle() 寫回傷亡、經驗、金幣。
+ * 存檔放在伺服器（PUT /api/profile），登入後由選單呼叫 useProfile() 載入：
+ *   { gold, hero: { level, xp }, roster: [{ id, type, men, level, xp, deployed, vet: [分支0 已點節數, 分支1 已點節數] }],
+ *     settings: { scenario, weapon, equip } }
+ * 戰鬥只拿 loadout() 給的出戰兵團；打完由 settle() 寫回傷亡、經驗、金幣。每次變動都會上傳。
  */
 G.Army = (() => {
-  const KEY = 'tpb-profile', A = () => G.ARMY;
-  let p = null, nextId = 1;
+  const A = () => G.ARMY;
+  let p = null, nextId = 1, saving = Promise.resolve();
+  let onSaveError = () => {};
 
   function fresh() {
     const s = A().start;
@@ -15,15 +17,22 @@ G.Army = (() => {
     return { id: nextId++, type, men: G.UNITS[type].count, level: 1, xp: 0, deployed, vet: [0, 0] };
   }
 
-  function load() {
-    try { p = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { p = null; }
-    if (!p || !Array.isArray(p.roster)) p = fresh();
+  /** 登入後載入伺服器上的存檔；新帳號（data 是 null）建立新存檔並上傳 */
+  function useProfile(data) {
+    const isNew = !data || !Array.isArray(data.roster);
+    p = isNew ? fresh() : data;
     for (const s of p.roster) if (!s.vet) s.vet = [0, 0];   // 舊存檔沒有老兵樹
     nextId = Math.max(0, ...p.roster.map(s => s.id)) + 1;
-    return p;
+    if (isNew) save();
   }
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch (e) {} }
-  const profile = () => p || load();
+  /** 上傳存檔；依序排隊，避免舊的請求比新的晚到把資料蓋回去 */
+  function save() {
+    const snapshot = JSON.parse(JSON.stringify(p));
+    saving = saving.then(() => G.Api.saveProfile(snapshot)).catch(e => onSaveError(e));
+    return saving;
+  }
+  const profile = () => p || (p = fresh());
+  function saveSettings(settings) { profile().settings = settings; save(); }
 
   /* ---------- 統率 ---------- */
   const cap = () => A().leadershipCap(profile().hero.level);
@@ -122,11 +131,10 @@ G.Army = (() => {
     return rep;
   }
 
-  function reset() { p = fresh(); save(); }
-
   return {
+    useProfile, saveSettings, onSaveError(fn) { onSaveError = fn; },
     profile, cap, used, costOf, toggleDeploy, refill, refillCost, recruit, recruitCost, dismiss,
     vetPoints, buyVet, resetVet, modsOf,
-    loadout, heroLevel, settle, reset,
+    loadout, heroLevel, settle,
   };
 })();

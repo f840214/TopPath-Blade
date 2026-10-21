@@ -1,5 +1,7 @@
 .git
 docs
 tools
+data
+server/node_modules
 *.md
 serve.cmd

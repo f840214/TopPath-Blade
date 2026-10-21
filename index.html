@@ -38,9 +38,23 @@
   <div class="flash"></div>
 </div>
 
+<div id="login">
+  <div class="pframe loginBox">
+    <div class="menuHead"><h1>TopPath Blade</h1></div>
+    <form id="loginForm">
+      <label>帳號<input id="lgUser" autocomplete="username" maxlength="16" spellcheck="false"></label>
+      <label>密碼<input id="lgPass" type="password" autocomplete="current-password" maxlength="128"></label>
+      <div id="lgMsg"></div>
+      <button type="submit" id="loginBtn">登入（Enter）</button>
+      <button type="button" id="registerBtn" class="mini">註冊新帳號</button>
+      <small>帳號 2～16 個字（文字、數字、底線），密碼至少 8 個字</small>
+    </form>
+  </div>
+</div>
+
 <div id="menu">
   <div class="pframe menuBox">
-    <div class="menuHead"><h1>TopPath Blade</h1></div>
+    <div class="menuHead"><h1>TopPath Blade</h1><div id="userBar"></div></div>
     <section><h3 class="ribbon">戰場</h3><div id="scenarios" class="row"></div></section>
     <section><h3 class="ribbon">武將武器（決定技能）</h3><div id="weapons" class="row"></div></section>
     <section class="two">
@@ -57,6 +71,7 @@
 <script src="lib/pixi.min.js?v=8.22.0"></script>
 <script src="js/data/config.js?v=0.3"></script>
 <script src="js/core/util.js?v=0.3"></script>
+<script src="js/core/api.js?v=0.4"></script>
 <script src="js/core/input.js?v=0.3"></script>
 <script src="js/data/sprites-meta.js?v=0.3"></script>
 <script src="js/data/tiles.js?v=0.3"></script>

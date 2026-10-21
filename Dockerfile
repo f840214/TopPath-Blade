@@ -1,8 +1,15 @@
-# TopPath Blade：純靜態網站，用 nginx 提供檔案（容器內 port 80，對外 8899 見 compose.yaml）
-FROM nginx:1.27-alpine
-COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
-COPY index.html /usr/share/nginx/html/
-COPY css/ /usr/share/nginx/html/css/
-COPY js/ /usr/share/nginx/html/js/
-COPY lib/ /usr/share/nginx/html/lib/
-COPY assets/ /usr/share/nginx/html/assets/
+# TopPath Blade：Node 後端同時提供遊戲檔案與 /api（帳號、存檔）
+# 資料庫預設用 PGlite，存在 /app/data（compose.yaml 掛到主機的 ./data）
+FROM node:24-alpine
+WORKDIR /app
+COPY server/package.json server/package-lock.json server/
+RUN npm ci --omit=dev --prefix server
+COPY server/src/ server/src/
+COPY index.html ./
+COPY css/ css/
+COPY js/ js/
+COPY lib/ lib/
+COPY assets/ assets/
+ENV PORT=8765 NODE_ENV=production
+EXPOSE 8765
+CMD ["node", "server/src/index.js"]

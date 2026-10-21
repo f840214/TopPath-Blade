@@ -1,5 +1,6 @@
 @echo off
-rem 用本機伺服器開遊戲（PixiJS / WebGL 不能讀 file:// 的圖片）。需要安裝 Node.js。
-cd /d "%~dp0"
+rem 開遊戲伺服器（帳號、存檔、遊戲檔案），需要安裝 Node.js。資料存在 data\ 資料夾。
+cd /d "%~dp0server"
+if not exist node_modules call npm ci --omit=dev
 start "" http://localhost:8765/
-npx -y http-server -p 8765 -c-1
+node src\index.js

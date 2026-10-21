@@ -4,5 +4,12 @@ services:
     image: toppath-blade
     container_name: toppath-blade
     ports:
-      - "8899:80"
+      - "8899:8765"
+    volumes:
+      - ./data:/app/data          # 帳號與存檔（PGlite）存在主機的 data/ 資料夾，重建容器也不會不見
+    environment:
+      # 架在 HTTPS 後面（反向代理）時打開，登入 cookie 只走加密連線
+      # COOKIE_SECURE: "1"
+      # 之後玩家多了要換成獨立的 PostgreSQL：設定連線字串即可，程式不用改
+      # DATABASE_URL: postgres://user:password@db:5432/toppath
     restart: unless-stopped
