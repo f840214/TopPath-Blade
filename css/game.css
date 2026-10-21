@@ -10,6 +10,7 @@
 }
 html, body { margin: 0; height: 100%; overflow: hidden; background: #14100c; color: var(--text); font-family: var(--px); }
 canvas { display: block; image-rendering: pixelated; }
+#overlay { position: fixed; left: 0; top: 0; pointer-events: none; }   /* 疊在 PixiJS 畫布上的 Canvas 2D（粒子、旗標、特寫） */
 button, select { font-family: var(--px); }
 
 /* 九宮格外框：外框圖 + 深褐內底 */

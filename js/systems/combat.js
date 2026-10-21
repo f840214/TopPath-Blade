@@ -99,13 +99,8 @@ G.Combat = (() => {
     if (stats.comboT > 0 && (stats.comboT -= dt) <= 0) stats.combo = 0;
   }
 
-  function drawGround(ctx) {
-    for (const z of zones) {
-      const k = 1 - z.t / z.dur;
-      const g = ctx.createRadialGradient(z.x, z.y, 2, z.x, z.y, z.r);
-      g.addColorStop(0, `rgba(255,160,40,${0.45 * k})`); g.addColorStop(1, 'rgba(255,60,0,0)');
-      ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(z.x, z.y, z.r, z.r * 0.6, 0, 0, Math.PI * 2); ctx.fill();
-    }
+  function drawGround() {
+    for (const z of zones) G.Render.zone(z.x, z.y, z.r, z.r * 0.6, 0xffa028, 0.45 * (1 - z.t / z.dur));
   }
   function drawAir(ctx) {
     ctx.strokeStyle = '#3b2a1a'; ctx.lineWidth = 1;

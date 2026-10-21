@@ -1,7 +1,7 @@
 /* ============ game.js — 戰場：場景、主迴圈、武將操作、物理、繪製 ============ */
 G.Game = (() => {
   const W = () => G.CONFIG.world;
-  let cv, ctx, state = 'menu', loadout = null;
+  let ctx, state = 'menu', loadout = null;
   let heroes = [], squads = [], timers = [];
   let player = null, select = 'all', cam = { x: 0, y: 0 }, zoom = 1;
   let thinkT = 0, result = null, scenario = null, showPerf = false, fps = 0, frameMs = 0;
@@ -304,7 +304,7 @@ G.Game = (() => {
   }
 
   function draw() {
-    const vw = cv.width / zoom, vh = cv.height / zoom;
+    const vw = G.Render.width / zoom, vh = G.Render.height / zoom;
     let fx = player.x, fy = player.y;
     if (demo) {   // 開場：鏡頭慢慢跟著交戰中心
       const f = nearestFoe(0, player.x, player.y, 99999); if (f) { fx = (player.x + f.x) / 2; fy = (player.y + f.y) / 2; }
@@ -313,19 +313,17 @@ G.Game = (() => {
     cam.x = G.U.clamp(fx - vw / 2, 0, Math.max(0, W().w - vw));
     cam.y = G.U.clamp(fy - vh / 2, 0, Math.max(0, W().h - vh));
     const sh = G.FX.shakeOffset();
-    ctx.setTransform(zoom, 0, 0, zoom, Math.round((-cam.x + sh.x) * zoom), Math.round((-cam.y + sh.y) * zoom));
-    ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = '#1b1f17'; ctx.fillRect(cam.x - 20, cam.y - 20, vw + 40, vh + 40);
-    G.Map.drawGround(ctx);
-    G.Combat.drawGround(ctx);
-    G.Map.drawCapture(ctx, api.time);
+    // 地面、影子、單位、樹石城牆走 PixiJS；ctx 是疊在上面的 Canvas 2D（見 js/core/render.js）
+    G.Render.begin(zoom, Math.round((-cam.x + sh.x) * zoom), Math.round((-cam.y + sh.y) * zoom));
+    G.Map.drawGround();
+    G.Combat.drawGround();
+    G.Map.drawCapture(api.time);
     // 依 y 排序繪製
-    const list = [], shadows = [];
+    const list = [];
     for (const u of allUnits()) if (u.x > cam.x - 60 && u.x < cam.x + vw + 60 && u.y > cam.y - 60 && u.y < cam.y + vh + 80) {
       list.push({ y: u.y, draw: c => u.draw(c) });
-      if (!u.isHero) shadows.push(u);
+      if (!u.isHero) G.Render.shadow(u.x, u.y, u.radius + 1, 3, 0.25);
     }
-    drawShadows(shadows);
     list.push(...G.Map.wallDrawables({ x: cam.x, y: cam.y, w: vw, h: vh }));
     list.sort((a, b) => a.y - b.y);
     for (const d of list) d.draw(ctx);
@@ -333,15 +331,9 @@ G.Game = (() => {
     G.FX.drawWorld(ctx);
     drawBanners();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    G.FX.drawScreen(ctx, cv.width, cv.height);
+    G.FX.drawScreen(ctx, G.Render.width, G.Render.height);
+    G.Render.end();
     if (!demo) G.HUD.update({ player, squads: squadsOf(0), select, time: api.time, scenario, castle: G.Map.castle, stats: G.Combat.stats, foes: allUnits().filter(u => u.team === 1 && !u.dead).length, perf: showPerf && { fps, frameMs, units: allUnits().length }, zoom });
-  }
-
-  /** 士兵影子：全部併成一條路徑一次填色（一個一個 fill 在上千人時很慢） */
-  function drawShadows(units) {
-    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath();
-    for (const u of units) { const rx = u.radius + 1; ctx.moveTo(u.x + rx, u.y); ctx.ellipse(u.x, u.y, rx, 3, 0, 0, Math.PI * 2); }
-    ctx.fill();
   }
 
   /** 兵團旗標：藍色我方、紅色敵方，顯示人數；選中的兵團有金框 */
@@ -377,9 +369,7 @@ G.Game = (() => {
   }
 
   function init() {
-    cv = document.getElementById('game'); ctx = cv.getContext('2d');
-    const resize = () => { cv.width = innerWidth; cv.height = innerHeight; };
-    addEventListener('resize', resize); resize();
+    ctx = G.Render.ctx;   // 上層 Canvas 2D；畫布大小由 G.Render 跟著視窗調整
     zoom = G.CONFIG.zoom;
     requestAnimationFrame(loop);
   }

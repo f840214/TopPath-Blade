@@ -56,10 +56,10 @@ G.Sprites = (() => {
   function duration(sprite, anim) { const a = animOf(sprite, anim); return a ? a.n / a.fps : 0; }
 
   /**
-   * 畫一格。t = 動畫已播放秒數；loop 動畫會循環，非 loop 停在最後一格。
+   * 畫一格（交給 G.Render 放進依 y 排序層）。t = 動畫已播放秒數；loop 動畫會循環，非 loop 停在最後一格。
    * 回傳實際使用的動畫資料（找不到時回傳 null）。
    */
-  function draw(ctx, sprite, anim, angle, t, x, y, o = {}) {
+  function draw(sprite, anim, angle, t, x, y, o = {}) {
     const a = animOf(sprite, anim);
     if (!a) return null;
     const rec = load(`assets/units/${sprite}/${o.red && G.SPRITE_META[sprite].red ? 'red/' : ''}${a.name}.png`);
@@ -67,14 +67,9 @@ G.Sprites = (() => {
     let f = Math.floor(t * a.fps);
     f = a.loop ? f % a.n : Math.min(f, a.n - 1);
     const row = a.dirs === 1 ? 0 : G.U.dirRow(angle);
-    const dx = Math.round(x - a.ax), dy = Math.round(y - a.ay);
-    if (o.alpha !== undefined) ctx.globalAlpha = o.alpha;
-    ctx.drawImage(rec.img, f * a.w, row * a.h, a.w, a.h, dx, dy, a.w, a.h);
-    if (o.flash > 0) {
-      ctx.globalAlpha = Math.min(1, o.flash * 6) * (o.alpha ?? 1);
-      ctx.drawImage(white(rec.img), f * a.w, row * a.h, a.w, a.h, dx, dy, a.w, a.h);
-    }
-    ctx.globalAlpha = 1;
+    const dx = Math.round(x - a.ax), dy = Math.round(y - a.ay), alpha = o.alpha ?? 1;
+    G.Render.frame(rec.img, f * a.w, row * a.h, a.w, a.h, dx, dy, alpha);
+    if (o.flash > 0) G.Render.frame(white(rec.img), f * a.w, row * a.h, a.w, a.h, dx, dy, Math.min(1, o.flash * 6) * alpha);
     return a;
   }
 

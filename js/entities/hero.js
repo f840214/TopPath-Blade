@@ -34,16 +34,15 @@ G.Hero = class {
 
   draw(ctx) {
     const alpha = this.dead ? 0.5 : 1, y = this.y - this.z;
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.beginPath(); ctx.ellipse(this.x, this.y, 9, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+    G.Render.shadow(this.x, this.y, 9, 3.5, 0.3);
     // 腳下的主將光圈
-    ctx.strokeStyle = this.team === 0 ? 'rgba(255,210,90,0.8)' : 'rgba(230,80,70,0.8)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.ellipse(this.x, this.y, 12, 4.5, 0, 0, Math.PI * 2); ctx.stroke();
+    G.Render.under.ellipse(this.x, this.y, 12, 4.5).stroke({ width: 1, color: this.team === 0 ? 0xffd25a : 0xe65046, alpha: 0.8 });
     let anim = 'Idle', t = 0;
     if (this.whirl > 0) { anim = 'Whirl'; t = this.animT; }
     else if (this.action) { anim = this.action.anim; t = this.animT; }
     else if (this.moving) { anim = 'Walk'; t = this.animT; }
-    G.Sprites.draw(ctx, this.sprite, anim, this.face, t, this.x, y, { alpha, flash: this.flash });
+    G.Sprites.draw(this.sprite, anim, this.face, t, this.x, y, { alpha, flash: this.flash });
+    // 格擋弧線畫在上層 canvas（ctx）
     if (this.blocking) {
       ctx.strokeStyle = 'rgba(150,210,255,0.9)'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(this.x, y - 14, 16, this.face - G.CONFIG.heroBlockArc, this.face + G.CONFIG.heroBlockArc); ctx.stroke();

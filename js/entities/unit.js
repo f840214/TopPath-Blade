@@ -68,7 +68,8 @@ G.Unit = class {
     const t = anim === 'Idle' ? 0 : this.animT;
     // 騎兵沒有攻擊動畫，衝鋒時用奔跑代替
     const a = this.def.mounted && anim === 'Attack' ? 'Walk' : anim;
-    G.Sprites.draw(ctx, this.def.sprite, a, this.face, t, this.x, y, { red, alpha, flash: this.flash });
+    G.Sprites.draw(this.def.sprite, a, this.face, t, this.x, y, { red, alpha, flash: this.flash });
+    // 下面這些畫在上層 canvas（ctx）
     if (this.stun > 0 && !this.dead) {
       ctx.fillStyle = '#ffe680';
       for (let i = 0; i < 3; i++) { const a = this.animT * 6 + i * 2.1; ctx.fillRect(Math.round(this.x + Math.cos(a) * 6), Math.round(y - 36 + Math.sin(a) * 2), 2, 2); }
