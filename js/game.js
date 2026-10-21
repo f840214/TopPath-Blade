@@ -44,6 +44,14 @@ G.Game = (() => {
       ],
       timeLimit: 0,
     },
+    stress: {
+      name: '大軍測試', desc: '效能測試：雙方合計約 2000 人自動交戰，按 F3 看 fps。', seed: 31,
+      player: { x: 560, y: 800, face: 0 },
+      enemyHero: { weapon: 'glaive', x: 1950, y: 800 },
+      enemies: [],
+      army: 2000,   // 開戰後雙方輪流補 50 人的兵團，直到全場總人數到這個數字；我方補的兵團由電腦指揮
+      timeLimit: 0,
+    },
   };
 
   function start(lo, isDemo = false) {
@@ -75,9 +83,23 @@ G.Game = (() => {
       const face = Math.atan2(p.y - e.y, p.x - e.x);
       squads.push(new G.Squad(1, e.type, e.x, e.y, face, { cmd: 'hold' }));
     }
+    if (scenario.army) spawnArmy(scenario.army);
     state = demo ? 'demo' : 'battle';
     G.HUD.show(!demo);
     if (demo) for (const s of squads) s.cmd = 'attack';
+  }
+
+  /** 大軍測試：雙方輪流補 50 人兵團（四兵種輪替），我方在左、敵方在右，直到全場總人數到 n */
+  function spawnArmy(n) {
+    const types = ['pikeman', 'shieldman', 'archer', 'cavalry'], total = () => squads.reduce((a, s) => a + s.units.length, 0);
+    for (let i = 0; total() < n; i++) {
+      const team = i % 2, col = Math.floor(i / 2) % 6, y = 200 + ((i * 97) % 1200);
+      const x = team ? 1500 + col * 60 : 700 - col * 60, cmdPoint = { x: team ? 700 : 1500, y };
+      const sq = new G.Squad(team, types[(i >> 1) % 4], x, y, team ? Math.PI : 0, { cmd: 'attack', count: 50 });
+      sq.cmdPoint = cmdPoint; sq.army = true;   // army：電腦指揮時一直往敵人推進（見 G.AI.think）
+      if (team === 0) sq.ai = true;              // ai：我方補的兵團由電腦指揮，不算玩家的兵團
+      squads.push(sq);
+    }
   }
 
   /* ---------- 查詢工具（給 AI、技能用） ----------
@@ -127,6 +149,7 @@ G.Game = (() => {
     return best && { center: best.center, face: best.face };
   }
   const squadsOf = team => squads.filter(s => s.team === team);
+  const playerSquads = () => squads.filter(s => s.team === 0 && !s.ai);   // 玩家能指揮的兵團（HUD、Tab、指令）
   const heroOf = team => heroes.find(h => h.team === team);
   function later(sec, fn) { timers.push({ t: api.time + sec, fn }); }
 
@@ -149,7 +172,7 @@ G.Game = (() => {
   function handleInput() {
     const I = G.Input;
     if (I.pressed('Tab')) select = select === 'all' ? 0 : select === 0 ? 1 : 'all';
-    const mine = squadsOf(0), sel = select === 'all' ? mine : [mine[select]].filter(Boolean);
+    const mine = playerSquads(), sel = select === 'all' ? mine : [mine[select]].filter(Boolean);
     const cmd = I.pressed('Digit1') ? 'follow' : I.pressed('Digit2') ? 'hold' : I.pressed('Digit3') ? 'attack' : null;
     if (cmd) for (const sq of sel) {
       sq.cmd = cmd; sq.waypoint = null;
@@ -295,7 +318,7 @@ G.Game = (() => {
     unitCache = null; rebuildGrid();
     if (!result && !demo) handleInput();
     for (const h of heroes) updateHero(h, dt);
-    if ((thinkT -= dt) <= 0) { thinkT = 0.5; for (const s of squads) if (s.team === 1 || demo) G.AI.think(s); }
+    if ((thinkT -= dt) <= 0) { thinkT = 0.5; for (const s of squads) if (s.team === 1 || demo || s.ai) G.AI.think(s); }
     for (const s of squads) G.AI.updateSquad(s, dt);
     G.Combat.updateProjectiles(dt, allUnits());
     physics(dt);
@@ -333,7 +356,7 @@ G.Game = (() => {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     G.FX.drawScreen(ctx, G.Render.width, G.Render.height);
     G.Render.end();
-    if (!demo) G.HUD.update({ player, squads: squadsOf(0), select, time: api.time, scenario, castle: G.Map.castle, stats: G.Combat.stats, foes: allUnits().filter(u => u.team === 1 && !u.dead).length, perf: showPerf && { fps, frameMs, units: allUnits().length }, zoom });
+    if (!demo) G.HUD.update({ player, squads: playerSquads(), select, time: api.time, scenario, castle: G.Map.castle, stats: G.Combat.stats, foes: allUnits().filter(u => u.team === 1 && !u.dead).length, perf: showPerf && { fps, frameMs, units: allUnits().length }, zoom });
   }
 
   /** 兵團旗標：藍色我方、紅色敵方，顯示人數；選中的兵團有金框 */
@@ -342,7 +365,7 @@ G.Game = (() => {
     squads.forEach(s => {
       const a = s.alive.length; if (!a) return;
       const c = s.center, x = Math.round(c.x), y = Math.round(c.y - 44);
-      const mine = s.team === 0, selected = mine && (select === 'all' || squadsOf(0)[select] === s);
+      const mine = s.team === 0, selected = mine && !s.ai && (select === 'all' || playerSquads()[select] === s);
       ctx.fillStyle = mine ? '#2f5fb0' : '#a8322a';
       ctx.fillRect(x - 13, y - 6, 26, 12);
       if (selected) { ctx.strokeStyle = '#f2c94c'; ctx.lineWidth = 1; ctx.strokeRect(x - 13.5, y - 6.5, 27, 13); }

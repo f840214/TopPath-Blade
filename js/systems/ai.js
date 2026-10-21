@@ -151,6 +151,10 @@ G.AI = (() => {
     else if (castle && !defending) {
       // 攻城方：沒遇到敵人就往主堡推進（城門沒破時會先去打城門）
       sq.cmd = 'attack'; sq.cmdPoint = { x: castle.capture.x, y: castle.capture.y };
+    } else if (sq.army) {
+      // 大軍測試的兵團：附近沒敵人就往全場最近的敵人推進，不回原位駐守
+      const f = G.Game.nearestFoe(sq.team, c.x, c.y, 99999);
+      sq.cmd = 'attack'; if (f) sq.cmdPoint = { x: f.x, y: f.y };
     } else { sq.cmd = 'hold'; sq.cmdPoint = sq.home; }
 
     // 技能
