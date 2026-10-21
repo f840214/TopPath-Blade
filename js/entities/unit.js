@@ -13,6 +13,7 @@ G.Squad = class {
     this.label = o.label || this.def.name;
     this.level = o.level || 1;
     this.levelMul = 1 + G.ARMY.squadLevelBonus * (this.level - 1);   // 兵團等級：生命與攻擊加成
+    this.mods = o.mods || {};   // 老兵技能樹的效果（G.Army.modsOf）
     this.kills = 0;
     this.waypoint = null;
     this.units = [];
@@ -34,9 +35,13 @@ G.Squad = class {
     return { x: cx + s.x * c - s.y * sn, y: cy + s.x * sn + s.y * c };
   }
   get fm() { return G.FORMATIONS[this.formation]; }
-  atkMul(now) { return (1 + this.bonus.atk / 100) * this.levelMul * (now < this.buff.until ? this.buff.atkMul : 1); }
+  /** 老兵效果：mod('atkMul', 1)；skillMod('cdMul', 'brace', 1) 取某個兵團技能的值。沒點到的回傳預設值 d */
+  mod(k, d) { const v = this.mods[k]; return v === undefined ? d : v; }
+  skillMod(k, skill, d) { const o = this.mods[k]; return o && o[skill] !== undefined ? o[skill] : d; }
+  get range() { return this.def.range * this.mod('rangeMul', 1); }
+  atkMul(now) { return (1 + this.bonus.atk / 100) * this.levelMul * this.mod('atkMul', 1) * (now < this.buff.until ? this.buff.atkMul : 1); }
   speedMul(now) {
-    let m = (1 + this.bonus.speed / 100) * (this.fm.speedMul || 1) * (now < this.buff.until ? this.buff.speedMul : 1);
+    let m = (1 + this.bonus.speed / 100) * (this.fm.speedMul || 1) * this.mod('speedMul', 1) * (now < this.buff.until ? this.buff.speedMul : 1);
     if (this.fx.charge > 0) m *= G.UNIT_SKILLS.charge.speedMul;
     return m;
   }
@@ -52,14 +57,14 @@ G.Unit = class {
     this.squad = squad; this.team = squad.team; this.def = squad.def; this.slot = slot;
     this.x = x; this.y = y; this.z = 0; this.vz = 0;
     this.vx = 0; this.vy = 0; this.kx = 0; this.ky = 0;   // 擊退速度
-    this.hp = this.maxHp = this.def.hp * squad.levelMul;
+    this.hp = this.maxHp = this.def.hp * squad.levelMul * squad.mod('hpMul', 1);
     this.face = squad.face; this.cd = Math.random() * this.def.atkCd;
     this.anim = 'Idle'; this.animT = Math.random(); this.moving = false;
     this.target = null; this.seekT = Math.random() * 0.2; this.stun = 0; this.flash = 0; this.dead = 0;
     this.radius = this.def.radius;
   }
   get type() { return this.def.type; }
-  get armor() { return this.def.armor + this.squad.bonus.armor; }
+  get armor() { return this.def.armor + this.squad.bonus.armor + this.squad.mod('armor', 0); }
 
   play(anim) { if (this.anim !== anim) { this.anim = anim; this.animT = 0; } }
 

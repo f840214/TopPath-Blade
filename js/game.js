@@ -68,13 +68,13 @@ G.Game = (() => {
     player = new G.Hero(0, lo.weapon, lo.equip, p.x, p.y, lo.heroLevel || 1); player.face = p.face;
     heroes.push(player);
     const bonus = { atk: player.stats.squadAtk, speed: player.stats.squadSpeed, armor: player.stats.squadArmor };
-    // lo.squads：名冊給的 { id, type, men, level }；開場對戰只給兵種字串
+    // lo.squads：名冊給的 { id, type, men, level, mods }；開場對戰只給兵種字串
     lo.squads.map(s => typeof s === 'string' ? { type: s } : s).forEach((s, i) => {
       const side = i % 2 === 0 ? -1 : 1, back = 60 + Math.floor(i / 2) * 110;   // 兩隊一排，多的往後排
       const sx = p.x - Math.cos(p.face) * back + Math.cos(p.face + Math.PI / 2) * 50 * side;
       const sy = p.y - Math.sin(p.face) * back + Math.sin(p.face + Math.PI / 2) * 50 * side;
       const lv = s.level || 1;
-      const sq = new G.Squad(0, s.type, sx, sy, p.face, { cmd: 'follow', bonus, count: s.men, level: lv, label: `第${i + 1}隊・${G.UNITS[s.type].name}${lv > 1 ? ` Lv${lv}` : ''}` });
+      const sq = new G.Squad(0, s.type, sx, sy, p.face, { cmd: 'follow', bonus, count: s.men, level: lv, mods: s.mods, label: `第${i + 1}隊・${G.UNITS[s.type].name}${lv > 1 ? ` Lv${lv}` : ''}` });
       sq.followSide = 46 * side; sq.followOffset = 20 + Math.floor(i / 2) * 70; sq.rosterId = s.id;
       squads.push(sq);
     });

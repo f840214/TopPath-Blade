@@ -55,7 +55,7 @@ G.AI = (() => {
       // 找目標：離自己近、而且沒跑離陣地太遠的敵人
       let t = u.target && !u.target.dead && !u.target.gate ? u.target : null;
       // 沒有目標時每 0.2～0.35 秒才重找一次（人多時找目標是最花時間的地方）
-      if (!t && engage && (u.seekT -= dt) <= 0) { u.seekT = G.U.rand(0.2, 0.35); t = G.Game.nearestFoe(u.team, u.x, u.y, engage + (u.def.ranged ? u.def.range * 0.5 : 0)); }
+      if (!t && engage && (u.seekT -= dt) <= 0) { u.seekT = G.U.rand(0.2, 0.35); t = G.Game.nearestFoe(u.team, u.x, u.y, engage + (u.def.ranged ? sq.range * 0.5 : 0)); }
       if (t && Math.hypot(t.x - anchor.x, t.y - anchor.y) > engage + C().squadLeash) t = null;
       // 攻城：目標在牆的另一邊、城門還沒破 → 打城門
       const castle = G.Map.castle;
@@ -110,12 +110,13 @@ G.AI = (() => {
     const braced = t.squad && t.squad.fx.brace > 0 && G.Combat.isFront(u, t);
     if (braced) {
       // 撞上長槍陣：衝鋒無效、反傷、暈眩
-      G.Combat.damage(t, u, C().braceReflect, { noCounter: true, stun: C().braceStun, knock: 10, big: true });
+      const reflect = C().braceReflect * t.squad.mod('reflectMul', 1) * sq.mod('braceTakenMul', 1);   // 老兵：倒刺、馬鎧
+      G.Combat.damage(t, u, reflect, { noCounter: true, stun: C().braceStun, knock: 10, big: true });
       u.vx *= -0.3; u.vy *= -0.3;
       G.FX.hit(u.x, u.y - 14, '#ffffff', 8);
       return;
     }
-    let mul = C().chargeMul * (sq.fm.chargeMul || 1) * (sq.fx.charge > 0 ? G.UNIT_SKILLS.charge.chargeMul : 1);
+    const mul = C().chargeMul * (sq.fm.chargeMul || 1) * sq.mod('chargeMul', 1) * (sq.fx.charge > 0 ? G.UNIT_SKILLS.charge.chargeMul : 1);
     const a = Math.atan2(t.y - u.y, t.x - u.x);
     G.Game.forEachFoe(u.team, u.x + Math.cos(a) * 10, u.y + Math.sin(a) * 10, 16, o =>
       G.Combat.damage(u, o, u.def.atk * mul, { knock: C().chargeKnockback, launch: 50, big: true }));
@@ -131,7 +132,7 @@ G.AI = (() => {
       move(u, u.x + Math.cos(a) * 40, u.y + Math.sin(a) * 40, sq, 0);
       return;
     }
-    if (d > u.def.range) { move(u, t.x, t.y, sq, 0); return; }
+    if (d > sq.range) { move(u, t.x, t.y, sq, 0); return; }
     u.vx = u.vy = 0; u.moving = false; u.face = Math.atan2(t.y - u.y, t.x - u.x);
     if (u.cd <= 0) { u.cd = u.def.atkCd * G.U.rand(0.85, 1.2); u.play('Attack'); G.Combat.arrow(u, t); }
   }
@@ -164,7 +165,7 @@ G.AI = (() => {
     switch (sq.def.type) {
       case 'pike':   if (near(['cav'], 170)) tryUse(s1); else if (near(['pike', 'shield', 'archer', 'cav'], 40)) tryUse(s2); break;
       case 'shield': if (near(['archer'], 230)) tryUse(s1); else if (near(['pike', 'shield', 'cav'], 30)) tryUse(s2); break;
-      case 'archer': if (foe && G.U.dist(foe, c) < sq.def.range) { if (!tryUse(s2)) tryUse(s1); } break;
+      case 'archer': if (foe && G.U.dist(foe, c) < sq.range) { if (!tryUse(s2)) tryUse(s1); } break;
       case 'cav':    if (foe && G.U.dist(foe, c) < 320) { if (Math.random() < 0.3) tryUse(s2); else tryUse(s1); } break;
     }
   }

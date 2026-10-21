@@ -25,11 +25,11 @@ G.Combat = (() => {
     let dmg = base;
     if (!att.isHero && !def.isHero && !o.noCounter) dmg *= G.counterMul(att.type, def.type);
     if (!o.fire) dmg *= sideMul(att, def);
-    if (att.squad) dmg *= att.squad.atkMul(G.Game.time);
+    if (att.squad) dmg *= att.squad.atkMul(G.Game.time) * att.squad.skillMod('vsMul', def.type, 1);   // 老兵：對特定兵種加傷
     if (o.ranged) {
       if (def.squad) dmg *= def.squad.fm.rangedTakenMul || 1;
       if (def.def && def.def.frontRangedMul && isFront(att, def))
-        dmg *= def.squad.fx.shieldwall > 0 ? G.UNIT_SKILLS.shieldwall.frontRangedMul : def.def.frontRangedMul;
+        dmg *= (def.squad.fx.shieldwall > 0 ? G.UNIT_SKILLS.shieldwall.frontRangedMul : def.def.frontRangedMul) * def.squad.mod('frontRangedMul', 1);
     } else if (def.squad && def.squad.fx.shieldwall > 0 && isFront(att, def)) dmg *= G.UNIT_SKILLS.shieldwall.meleeTakenMul;
     if (def.isHero && def.blocking && G.U.angDiff(Math.atan2(att.y - def.y, att.x - def.x), def.face) < C().heroBlockArc) {
       dmg *= 1 - C().heroBlockReduction;

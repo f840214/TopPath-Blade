@@ -1,6 +1,6 @@
 /* ============ army.js — 軍團名冊：存檔、統率編成、招募補員、戰後結算 ============
  * 存檔放在 localStorage（tpb-profile）：
- *   { gold, hero: { level, xp }, roster: [{ id, type, men, level, xp, deployed }] }
+ *   { gold, hero: { level, xp }, roster: [{ id, type, men, level, xp, deployed, vet: [分支0 已點節數, 分支1 已點節數] }] }
  * 戰鬥只拿 loadout() 給的出戰兵團；打完由 settle() 寫回傷亡、經驗、金幣。
  */
 G.Army = (() => {
@@ -12,12 +12,13 @@ G.Army = (() => {
     return { gold: s.gold, hero: { level: 1, xp: 0 }, roster: s.roster.map((t, i) => newSquad(t, i < 2)) };
   }
   function newSquad(type, deployed = false) {
-    return { id: nextId++, type, men: G.UNITS[type].count, level: 1, xp: 0, deployed };
+    return { id: nextId++, type, men: G.UNITS[type].count, level: 1, xp: 0, deployed, vet: [0, 0] };
   }
 
   function load() {
     try { p = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { p = null; }
     if (!p || !Array.isArray(p.roster)) p = fresh();
+    for (const s of p.roster) if (!s.vet) s.vet = [0, 0];   // 舊存檔沒有老兵樹
     nextId = Math.max(0, ...p.roster.map(s => s.id)) + 1;
     return p;
   }
@@ -55,10 +56,39 @@ G.Army = (() => {
   }
   function dismiss(id) { p.roster = profile().roster.filter(s => s.id !== id); save(); }
 
+  /* ---------- 老兵技能樹（G.VETERAN） ---------- */
+  /** 還沒用的老兵點：每升一級 1 點 */
+  const vetPoints = s => (s.level - 1) - s.vet[0] - s.vet[1];
+  /** 點下一節；branch 是 0 或 1，同一條要依序點 */
+  function buyVet(id, branch) {
+    const s = find(id); if (!s) return;
+    if (vetPoints(s) <= 0) return '老兵點不夠：兵團升級才會得到點數';
+    if (s.vet[branch] >= G.VETERAN[s.type][branch].nodes.length) return '這條分支已經點滿';
+    s.vet[branch]++; save();
+  }
+  function resetVet(id) {
+    const s = find(id); if (!s || !(s.vet[0] + s.vet[1])) return;
+    if (profile().gold < G.VETERAN_RESET_COST) return `金幣不足（需要 ${G.VETERAN_RESET_COST}）`;
+    p.gold -= G.VETERAN_RESET_COST; s.vet = [0, 0]; save();
+  }
+  /** 把已點的節點效果合併成一個 mods 物件：名稱以 Mul 結尾的相乘、其他相加，巢狀物件照同樣規則 */
+  function modsOf(type, vet = [0, 0]) {
+    const out = {};
+    const merge = (dst, src, mul) => {
+      for (const [k, v] of Object.entries(src)) {
+        const m = mul || k.endsWith('Mul');
+        if (typeof v === 'object') merge(dst[k] || (dst[k] = {}), v, m);
+        else dst[k] = m ? (dst[k] ?? 1) * v : (dst[k] ?? 0) + v;
+      }
+    };
+    (G.VETERAN[type] || []).forEach((b, i) => b.nodes.slice(0, vet[i]).forEach(n => merge(out, n.mod, false)));
+    return out;
+  }
+
   /* ---------- 出戰與結算 ---------- */
   /** 給 G.Game.start 的兵團清單 */
   function loadout() {
-    return profile().roster.filter(s => s.deployed && s.men > 0).map(s => ({ id: s.id, type: s.type, men: s.men, level: s.level }));
+    return profile().roster.filter(s => s.deployed && s.men > 0).map(s => ({ id: s.id, type: s.type, men: s.men, level: s.level, mods: modsOf(s.type, s.vet) }));
   }
   const heroLevel = () => profile().hero.level;
 
@@ -96,6 +126,7 @@ G.Army = (() => {
 
   return {
     profile, cap, used, costOf, toggleDeploy, refill, refillCost, recruit, recruitCost, dismiss,
+    vetPoints, buyVet, resetVet, modsOf,
     loadout, heroLevel, settle, reset,
   };
 })();

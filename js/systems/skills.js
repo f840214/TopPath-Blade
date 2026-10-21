@@ -8,11 +8,13 @@ G.Skills = (() => {
   function useUnit(sq, key) {
     if (!canUnit(sq, key)) return false;
     const S = G.UNIT_SKILLS[key], foe = G.Game.nearestFoeSquad(sq);
-    sq.skillCd[key] = S.cd;
+    // 老兵技能樹：冷卻、持續、傷害、暈眩、輪數、範圍（G.VETERAN）
+    const M = (k, d) => sq.skillMod(k, key, d), dur = S.dur + M('durAdd', 0), dmgMul = (S.dmgMul || 1) * M('dmgMul', 1);
+    sq.skillCd[key] = S.cd * M('cdMul', 1);
     switch (key) {
       case 'brace':
       case 'shieldwall':
-        sq.fx[key] = S.dur;
+        sq.fx[key] = dur;
         if (foe) sq.face = Math.atan2(foe.center.y - sq.center.y, foe.center.x - sq.center.x);
         if (sq.cmd !== 'hold') sq.prevCmd = sq.cmd;   // 技能結束後恢復原本的指令
         sq.cmd = 'hold'; sq.cmdPoint = sq.center;
@@ -22,7 +24,7 @@ G.Skills = (() => {
         for (const u of sq.alive) {
           u.play('Attack');
           G.Game.forEachFoe(u.team, u.x, u.y, S.reach + 8, o => {
-            if (G.U.angDiff(Math.atan2(o.y - u.y, o.x - u.x), u.face) < 0.6) Dmg(u, o, u.def.atk * S.dmgMul, { knock: 6 });
+            if (G.U.angDiff(Math.atan2(o.y - u.y, o.x - u.x), u.face) < 0.6) Dmg(u, o, u.def.atk * dmgMul, { knock: 6 });
           });
         }
         break;
@@ -30,16 +32,16 @@ G.Skills = (() => {
         for (const u of sq.alive) {
           u.play('Attack');
           G.Game.forEachFoe(u.team, u.x, u.y, 24, o => {
-            if (G.U.angDiff(Math.atan2(o.y - u.y, o.x - u.x), u.face) < 0.8) Dmg(u, o, u.def.atk * S.dmgMul, { knock: S.knock, stun: S.stun });
+            if (G.U.angDiff(Math.atan2(o.y - u.y, o.x - u.x), u.face) < 0.8) Dmg(u, o, u.def.atk * dmgMul, { knock: S.knock, stun: S.stun + M('stunAdd', 0) });
           });
         }
         break;
       case 'volley':
       case 'firearrow': {
-        const tgt = foe && G.U.dist(foe.center, sq.center) < sq.def.range * 1.4 ? foe.center : null;
+        const tgt = foe && G.U.dist(foe.center, sq.center) < sq.range * 1.4 ? foe.center : null;
         if (!tgt) { sq.skillCd[key] = 1; return false; }   // 範圍內沒有敵人，不扣冷卻
         if (key === 'volley') {
-          for (let w = 0; w < S.waves; w++) G.Game.later(w * S.interval, () => {
+          for (let w = 0; w < S.waves + M('wavesAdd', 0); w++) G.Game.later(w * S.interval, () => {
             for (const u of sq.alive) {
               const a = Math.random() * Math.PI * 2, r = Math.random() * S.radius;
               G.Combat.arrow(u, null, { area: { x: tgt.x + Math.cos(a) * r, y: tgt.y + Math.sin(a) * r * 0.6 } });
@@ -47,14 +49,14 @@ G.Skills = (() => {
             }
           });
         } else {
-          const shooter = sq.alive[0];
-          G.Combat.arrow(shooter, null, { area: { ...tgt }, fire: S });
-          for (const u of sq.alive.slice(1, 6)) G.Combat.arrow(u, null, { area: { x: tgt.x + G.U.rand(-20, 20), y: tgt.y + G.U.rand(-12, 12) }, fire: { ...S, radius: S.radius * 0.6 } });
+          const shooter = sq.alive[0], F = { radius: S.radius * M('radiusMul', 1), dur, dps: S.dps * dmgMul };
+          G.Combat.arrow(shooter, null, { area: { ...tgt }, fire: F });
+          for (const u of sq.alive.slice(1, 6)) G.Combat.arrow(u, null, { area: { x: tgt.x + G.U.rand(-20, 20), y: tgt.y + G.U.rand(-12, 12) }, fire: { ...F, radius: F.radius * 0.6 } });
         }
         break;
       }
       case 'charge':
-        sq.fx.charge = S.dur; sq.cmd = 'attack';
+        sq.fx.charge = dur; sq.cmd = 'attack';
         if (foe) sq.cmdPoint = foe.center;
         break;
       case 'flank': {

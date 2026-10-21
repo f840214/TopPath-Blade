@@ -123,6 +123,19 @@ button.mini { background: #3a2b22; color: var(--text); border: 1px solid var(--b
 button.mini:hover { filter: brightness(1.2); }
 button.mini.warn { border-color: #7d1f1a; color: #e5a49c; }
 #recruit { margin-top: 6px; }
+button.mini.hot { border-color: var(--gold); color: var(--gold); }
+/* 老兵技能樹 */
+tr.vetRow td { background: #1f1611; padding: 10px; }
+.vetHead { font-size: 13px; color: var(--muted); margin-bottom: 8px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.vetHead b { color: var(--gold); font-weight: normal; }
+.branches { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 720px) { .branches { grid-template-columns: 1fr; } }
+.branch > b { display: block; color: var(--gold); font-weight: normal; margin-bottom: 6px; }
+.node { display: block; width: 100%; box-sizing: border-box; text-align: left; margin: 4px 0; padding: 5px 8px; border: 1px solid #4a3528; background: #2a1e17; color: var(--muted); font-family: var(--px); }
+.node .nm { color: var(--text); margin-right: 8px; } .node small { font-size: 12px; }
+.node.taken { border-color: var(--gold); background: #3d2c1d; } .node.taken .nm { color: var(--gold); }
+.node.locked { opacity: .45; }
+button.node.next { cursor: pointer; border-color: #9fd06a; } button.node.next:hover { filter: brightness(1.2); }
 #menuMsg { min-height: 20px; margin: 10px 0 0; text-align: center; color: #ffb3a8; font-size: 14px; }
 
 #startBtn {

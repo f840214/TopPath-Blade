@@ -8,6 +8,7 @@ G.Menu = (() => {
   try { Object.assign(lo, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {}
   delete lo.squads;   // 舊版存的兵種選擇，現在改由名冊決定
   let confirmDismiss = null;   // 解散要按兩次：第一次記下 id
+  let openVet = null;          // 展開老兵技能樹的兵團 id
 
   function msg(text) { $('menuMsg').textContent = text || ''; }
 
@@ -40,18 +41,34 @@ G.Menu = (() => {
     $('roster').innerHTML = P.roster.length ? `<table class="roster">
       <tr><th>出戰</th><th>兵團</th><th>人數</th><th>經驗</th><th>統率</th><th></th></tr>
       ${P.roster.map(s => {
-        const u = G.UNITS[s.type], full = s.men >= u.count, rc = A.refillCost(s), lvMax = s.level >= G.ARMY.squadMaxLevel;
+        const u = G.UNITS[s.type], full = s.men >= u.count, rc = A.refillCost(s), lvMax = s.level >= G.ARMY.squadMaxLevel, pts = A.vetPoints(s);
         return `<tr class="${s.deployed ? 'on' : ''} ${s.men ? '' : 'wiped'}">
           <td><button class="chk" data-dep="${s.id}">${s.deployed ? '■' : '□'}</button></td>
           <td>${u.name} <b>Lv${s.level}</b></td>
           <td class="${full ? '' : 'bad'}">${s.men} / ${u.count}</td>
           <td><div class="xp"><i style="width:${lvMax ? 100 : s.xp / G.ARMY.squadXpToNext(s.level) * 100}%"></i></div></td>
           <td>${A.costOf(s)}</td>
-          <td>${full ? '' : `<button class="mini" data-refill="${s.id}">補員 ${rc} 金</button>`}
-              <button class="mini warn" data-dismiss="${s.id}">${confirmDismiss === s.id ? '確定解散？' : '解散'}</button></td></tr>`;
+          <td><button class="mini ${pts ? 'hot' : ''}" data-vet-open="${s.id}">老兵${pts ? `（${pts} 點）` : ''}</button>
+              ${full ? '' : `<button class="mini" data-refill="${s.id}">補員 ${rc} 金</button>`}
+              <button class="mini warn" data-dismiss="${s.id}">${confirmDismiss === s.id ? '確定解散？' : '解散'}</button></td></tr>
+          ${openVet === s.id ? `<tr class="vetRow"><td colspan="6">${vetTree(s, pts)}</td></tr>` : ''}`;
       }).join('')}</table>` : '<p class="note">名冊是空的，先招募兵團。</p>';
     $('recruit').innerHTML = Object.entries(G.UNITS).map(([k, u]) =>
       `<button class="mini" data-recruit="${k}">招募${u.name}（${u.count} 人・${A.recruitCost(k)} 金・統率 ${G.ARMY.leadership[k]}）</button>`).join('');
+  }
+
+  /** 老兵技能樹：兩條分支並排，已點的亮起、下一節可以點、其餘鎖住 */
+  function vetTree(s, pts) {
+    const branches = G.VETERAN[s.type].map((b, i) => `<div class="branch"><b>${b.name}</b>${b.nodes.map((n, j) => {
+      const taken = j < s.vet[i], next = j === s.vet[i];
+      const inner = `<span class="nm">${n.name}</span><small>${n.desc}</small>`;
+      return next && pts ? `<button class="node next" data-vet-buy="${s.id}:${i}">${inner}</button>`
+        : `<div class="node ${taken ? 'taken' : next ? 'next' : 'locked'}">${inner}</div>`;
+    }).join('')}</div>`).join('');
+    const spent = s.vet[0] + s.vet[1];
+    return `<div class="vet"><div class="vetHead">老兵點：<b>${pts}</b>（兵團每升一級得 1 點，Lv${G.ARMY.squadMaxLevel} 共 ${G.ARMY.squadMaxLevel - 1} 點；同一條要依序點）
+      ${spent ? `<button class="mini warn" data-vet-reset="${s.id}">重置（${G.VETERAN_RESET_COST} 金）</button>` : ''}</div>
+      <div class="branches">${branches}</div></div>`;
   }
 
   /** 兵種圖鑑：直接從 js/data 產生，數值改了這裡就跟著變 */
@@ -83,6 +100,9 @@ G.Menu = (() => {
       if (d.dep) err = A.toggleDeploy(+d.dep);
       if (d.refill) err = A.refill(+d.refill);
       if (d.recruit) err = A.recruit(d.recruit);
+      if (d.vetOpen) openVet = openVet === +d.vetOpen ? null : +d.vetOpen;
+      if (d.vetBuy) { const [id, br] = d.vetBuy.split(':').map(Number); err = A.buyVet(id, br); }
+      if (d.vetReset) err = A.resetVet(+d.vetReset);
       if (d.dismiss) {
         if (confirmDismiss === +d.dismiss) { A.dismiss(+d.dismiss); confirmDismiss = null; }
         else confirmDismiss = +d.dismiss;
