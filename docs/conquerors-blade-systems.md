@@ -1,10 +1,10 @@
 # 《戰意》（Conqueror's Blade）遊戲系統研究報告
 
-> 研究日期：2026-10-21。用途：替 TopPath Blade（2D 俯視角、致敬《戰意》玩法的原創網頁遊戲）找可以參考的系統。
+> 研究日期：初版 2026-10-21；**第二次補充 2026-10-21**（補齊武器技能概念、控制效果、兵團指令與陣型、全部模式、攻城器械細節、2023–2026 新系統與《三國》資料片，並新增第 8 節「戰場表現與回饋」與 7.5 節實作建議）。用途：替 TopPath Blade（2D 俯視角、致敬《戰意》玩法的原創網頁遊戲）找可以參考的系統。
 > **只參考玩法與系統概念**。原作的兵團名、武器技能名、數值、美術都不要照搬。文中引用的原作數字只用來說明「這個系統的規模大概多大」。
 >
 > 標記說明：**【待查證】**＝來源互相矛盾、太舊，或只有單一社群來源；**【未找到】**＝搜尋後沒有可靠資料。
-> 這個遊戲每季都在改版（2026 年已經進行到第 26 季以後），社群攻略的數字常常過時。Fandom wiki 對爬蟲回 402，所以 wiki 內容只能從搜尋摘要間接取得。
+> 這個遊戲每季都在改版：2026-09-29 起是第 28 季〈Aztec: Eclipse〉，每季約 10～15 週。社群攻略的數字常常過時。Fandom wiki 對爬蟲回 402，NamuWiki、TV Tropes、知乎回 403，所以這些站的內容只能從搜尋摘要間接取得。
 
 ---
 
@@ -16,7 +16,11 @@
 2. **成長層**：武將等級與屬性、裝備打造與重鑄、兵團樹解鎖、兵團等級與老兵技能點、戰術書（Doctrine）、精通（Mastery）。這些都受「統率值（Leadership）」上限限制：統率值決定一場戰鬥能帶多少兵團。
 3. **戰略層**：開放世界大地圖上的行軍、糧食、採集、運輸，以及家族／聯盟每週兩次的領地戰，爭奪村莊、城鎮、要塞、首都。
 
-此外還有一層把所有東西串起來的線上服務設計：賽季、通行證、多種貨幣、玩家市場。對單機原型來說，最值得借的是「統率值編成」「兵團戰損延續與補員」「兵團等級／老兵技能」「攻城器械與多段據點」「PvE 佈防模式」；家族領地戰、玩家市場、賽季通行證這類需要大量線上玩家的系統不適合照搬。
+此外還有一層把所有東西串起來的線上服務設計：賽季、通行證、多種貨幣、玩家市場。2026-07-24 另推出大型資料片《Conqueror's Blade: Three Kingdoms》（見 4.4），加入 4 種新武器、「武魂（Spirit）」技能、陣營戰、糧食與士氣，但上市初期 Steam 評價是「壓倒性負評」。
+
+**戰場表現**（第 8 節）的重點：原作的打擊回饋主要靠「控制效果動作」（擊退、擊倒、擊飛、震盪、下馬）和大量同屏士兵，而不是頓幀、慢動作或處決鏡頭；後三者都沒有找到資料。指令走快捷鍵，沒有指令輪盤。兵團頭上沒有旗幟，旗幟只出現在介面。這些空白正好是 TopPath Blade 在 2D 上可以做得比原作更清楚的地方。
+
+對單機原型來說，最值得借的是「統率值編成」「兵團戰損延續與補員」「兵團等級／老兵技能」「攻城器械與多段據點」「PvE 佈防模式」；家族領地戰、玩家市場、賽季通行證這類需要大量線上玩家的系統不適合照搬。
 
 主要來源：[Wikipedia](https://en.wikipedia.org/wiki/Conqueror%27s_Blade)、[Conqueror's Blade Players Guide（conquerorsbladehub.com）](https://www.conquerorsbladehub.com/)、[CBGG](https://cbgg.net/)、[denetax.fr](https://denetax.fr/en/)、[官方網站新聞](https://www.conquerorsblade.com/)、Fandom wiki（以搜尋摘要為主）。
 
@@ -35,7 +39,33 @@
 | 輕甲 | Dual Blades（雙刀，刺客型）、Bow / Longbow（長弓）、Short Bow（短弓）、Chain Dart & Scimitar（繩鏢彎刀）* |
 
 \* 賽季武器：通常要完成賽季挑戰才能解鎖。
-- 共 15 種，各來源一致。Wikipedia 寫「14 種」，應該是較舊的數字。社群攻略說每年大約新增一種武器，通常在年度最後一季推出。
+- 正式服共 15 種，各來源一致（CBGG 強度表也列 15 種）。Wikipedia 寫「14 種」、騰訊 2024 年新聞寫「13 種」，都是較舊的數字。社群攻略說每年大約新增一種武器，通常在年度最後一季推出。已確認的加入時間：Maul 第 3 季（2020）、Pike 第 8 季〈Dynasty〉（2021）、Chain Dart & Scimitar〈Scorpio〉（2022-12，第 13 種武器）。Spear & Shield 與 Bastard Sword 的加入季別【待查證】。
+- 2022 年前季更新後，所有武器男女角色都能用。
+- **《三國》資料片的 4 種新武器**（2026-06 公告）：Twin Swords（雙劍，起手快、近身擊殺）、Crossbow／Repeating Crossbow（弩，以控場為主，不以爆發為主）、One-Handed Sword（單手劍，攻守轉換流暢）、Halberd（戟，重型長柄、破陣、一打多）。另外重做了短劍盾、長槍、長柄刀（關刀）、弓的外觀與定位。這 4 種武器是否也進入正式服【待查證】。
+
+**15 種武器的技能概念**（只整理「這把武器靠什麼機制打架」，技能名不照搬）：
+
+| 武器 | 核心機制 | 技能概念（舉例） |
+|---|---|---|
+| 長劍盾 | 坦克＋治療 | 三段連擊最後一下踢倒；範圍治療並加防；舉盾衝鋒沿路擊飛（大招） |
+| 短劍盾 | 高防禦前排 | 盾衝撞倒第一個目標並加防；三段踢擊破防；開技能大幅加防，結束後短暫降防（取捨）；跳躍砸地擊飛 |
+| 長柄斧 | 控場＋減傷堆疊 | 大範圍推開擊倒；砸地擊退，每命中一人疊一層減傷；鉤腿拉近並緩速；五段連擊擊倒並把武將打下馬 |
+| 長柄刀 | 騎戰收割 | 迴旋兩刀造成震盪；跳斬擊飛並讓目標受傷增加；衝刺後挑飛或打下馬；大招後幾秒內暴擊與防禦大增 |
+| 戰錘 | 蓄力＋霸體 | 五段橫掃最後轉圈並免控；上挑擊退降防；按住蓄力，蓄越久段數越多、可不可格擋；抓起敵人丟出去，砸傷落點周圍 |
+| 手半劍 | 格擋反擊 | 格擋後反擊兩刀（背後命中加倍）；閃避有無敵幀並疊增傷；低防禦換高傷害的配裝取捨；大招擊飛並解控回血 |
+| 長矛 | 命中疊層 | 每次命中疊破甲與減傷（最多 10 層）；轉矛擋正面箭矢；直刺大幅削減格擋；十連刺大招；命中 4 人以上傷害遞減 |
+| 長槍 | 三段式組合技 | 三招共用冷卻、可互相接段；蓄力衝刺，蓄 0.5 秒變擊倒、1 秒變擊飛；騎乘重擊可衝開陣型 |
+| 矛盾 | 怒氣資源 | 格擋與命中累積怒氣，滿了轉成「狂怒」層數，大招要消耗它；被大招踢飛的敵人會撞倒路徑上的人；可穿過兵團直取武將 |
+| 野太刀 | 吸血與嗜血層數 | 命中疊「嗜血」，滿層進入狂暴狀態，其他技能得到額外效果；蓄力大招蓄越久範圍與控制越強；技能吸血 |
+| 火槍 | 遠程控場 | 燃燒彈讓士兵**恐慌**；散彈擊退；鐵蒺藜區域緩速流血；後跳無敵並解控；換彈技能；瞄準武將有輔助瞄準，瞄兵團則沒有 |
+| 雙刀 | 隱身刺客 | 煙霧彈後滾並隱身；飛鏢毒緩速後短暫隱身；隱身中發動的技能有額外效果；背後攻擊加傷；擊殺重置冷卻（套裝） |
+| 長弓 | 蓄力狙擊 | 蓄力越久彈道越直、傷害越高；破甲箭降防；貫穿 5～12 人的大招；高處射低處加傷，低處射高處扣傷 |
+| 短弓 | 毒與標記 | 技能命中留下 3 秒標記，普攻引爆；七連毒箭；套索擊倒並打下馬；滾動後普攻一次射三箭 |
+| 繩鏢彎刀 | 鉤拉與冷卻循環 | 扇形飛鏢，每命中一次縮短其他技能冷卻；撲向武將造成「喘息（Winded）」，**不能格擋**；煙霧後跳；鉤住目標把自己拉過去，連免控武將也能打斷 |
+
+- 共通點：幾乎每種近戰武器都有 1～2 個技能附帶「解除自身擊倒、暈眩」，大招也常附帶解控。所以原作的武將對決是「控制 → 解控 → 再控制」的循環。
+- 武器另有**圖紙專屬詞綴**：高階圖紙會改變技能本身，例如讓某招多一段、讓格擋後多一招，第 28 季的新圖紙就是這種設計。
+- 2023-02 起，暴擊、背擊、爆頭加成套用到技能全額傷害；新增暴擊傷害與暴擊抵抗。
 - **起始武器【待查證】**：Fandom 摘要寫免費起始武器是 Glaive，其他基礎武器在 15 級以後花 5 技能點解鎖；conquerorsbladehub 則寫從 Longsword & Shield 開始。可能是不同版本的差異。
 - 武器之間有明確的強弱關係。攻略站把武器分成強、中、弱三檔（例如長矛和長弓偏弱），CBGG 也有每月更新的武器強度排行，可見平衡一直在變動。
 - **原作沒有「雙手斧」**：任務清單提到的雙手斧，在原作裡最接近的是 Poleaxe（長柄斧）。
@@ -44,7 +74,7 @@
 |---|---|
 | 武器決定玩法：坦克、輔助、刺客、遠程、反騎都有 | 武器的護甲等級決定能穿哪種甲；武器種類決定裝備要做哪一套；有些兵團的加成跟武器類型連動 |
 
-來源：[conquerorsbladehub – Choosing Your Weapon](https://www.conquerorsbladehub.com/guides/choosing_a_weapon.html)、[CBGG 武器強度表](https://cbgg.net/tier-list/heroes/)、[Fandom – Weapons / Armour](https://conquerors-blade.fandom.com/wiki/Weapons)（搜尋摘要）、[Wikipedia](https://en.wikipedia.org/wiki/Conqueror%27s_Blade)
+來源：[conquerorsbladehub – Choosing Your Weapon](https://cbh.gaiscioch.com/guides/getting_started_in_cb/choosing_a_weapon.html)、[CBGG 武器強度表](https://cbgg.net/tier-list/heroes/)、CBGG 各武器頁（[手半劍](https://cbgg.net/heroes/bastard-sword/)、[長柄刀](https://cbgg.net/heroes/glaive/)、[雙刀](https://cbgg.net/heroes/dual-blades/)、[火槍](https://cbgg.net/heroes/musket/)、[長柄斧](https://cbgg.net/heroes/poleaxe/)、[短劍盾](https://cbgg.net/heroes/shortsword/)、[長矛](https://cbgg.net/heroes/spear/)、[野太刀](https://cbgg.net/heroes/nodachi/)、[矛盾](https://cbgg.net/heroes/spear-shield/)、[繩鏢](https://cbgg.net/heroes/chaindart/)、[戰錘](https://cbgg.net/heroes/maul/)、[長劍盾](https://cbgg.net/heroes/longsword/)、[長槍](https://cbgg.net/heroes/pike/)、[長弓](https://cbgg.net/heroes/longbow/)、[短弓](https://cbgg.net/heroes/shortbow/)）、[官方 – 三國新武器](https://www.conquerorsblade.com/en/news/1781/)、[Scorpio 新聞稿](https://conquerors-blade.prezly.com/conquerors-blade-scorpio-launches-november-24)、[官方 – Eternal 更新日誌（2023-02）](https://www.conquerorsblade.com/en/news/877/)、[Fandom – Weapons / Armour](https://conquerors-blade.fandom.com/wiki/Weapons)（搜尋摘要）、[Wikipedia](https://en.wikipedia.org/wiki/Conqueror%27s_Blade)
 
 ### 1.2 武器技能、專精、被動
 
@@ -54,7 +84,8 @@
 | 技能升級 | 戰鬥獲得 **Skill Points（技能點）**，可以投入技能樹強化技能（Maul、Pike 例外）。技能點也能用其他貨幣購買 |
 | 武器被動 | 部分武器自帶不可設定的被動機制，例如 Nodachi 的連殺增益型被動 |
 | 騎乘 | 武將可以騎馬；馬鞍是可以打造的裝備，下馬動作本身也可以是技能（例如下馬時範圍擊倒） |
-| 等級門檻 | 武器技能約 15 級開放，兵團精通約 30 級，武將裝備與屬性約 35 級（Fandom 摘要；新手攻略的等級表略有出入）【待查證】 |
+| 等級門檻 | 武器技能約 15 級開放，兵團精通約 30 級，武將裝備與屬性約 35 級（Fandom 摘要；新手攻略的等級表略有出入）【待查證】。官方 2023-02 公告的「英雄之路」：輔助兵團 25 級、重鑄（Artificer's Forge）50 級 |
+| 基本操作 | Shift 奔跑；左右方向鍵連按兩下＝閃避；右鍵格擋；B 叫馬或下馬；耐力（Stamina）同時限制閃避、格擋與部分技能 |
 
 「天賦」：原作沒有獨立的天賦樹。功能相近的是 **屬性點**（見 1.3）和 **符文（Runes）**。符文是第 7 季〈Wolves of Ragnarok〉加入的系統，替武器與護甲加上被動效果，配合技能流派；依賽季等級解鎖，賽季結束重置，使用後不會消耗，可以隨意切換。符文欄位數與完整清單【未找到】。
 
@@ -96,6 +127,30 @@
 
 來源：[conquerorsbladehub – Reforging & Repairing](https://www.conquerorsbladehub.com/guides/gear_crafting/reforging_and_repairing.html)、[conquerorsbladehub – Currencies & Economics](https://www.conquerorsbladehub.com/guides/economics.html)、[Fandom – Armour / Artificer's Forge](https://conquerors-blade.fandom.com/wiki/Artificer's_Forge)（搜尋摘要）
 
+### 1.5 控制效果與狀態（第二次補充）
+
+原作的戰鬥節奏建立在一套共用的控制效果上，武將技能與兵團技能都用同一套。以下從 CBGG 武器頁與兵團頁整理；各效果的精確持續時間【未找到】。
+
+| 效果（英文） | 表現 | 怎麼解 |
+|---|---|---|
+| 擊退（Knockback） | 被推開一段距離，通常不倒地 | — |
+| 擊倒（Knockdown） | 倒地，起身前不能行動 | 多數武器有 1 個「解除擊倒」技能 |
+| 擊飛（Knockup） | 被打到空中再落地，比擊倒更長 | 同上 |
+| 震盪（Concussed） | 短暫暈眩 | 部分解控技能可以解 |
+| 暈眩（Dazed） | 打斷、短暫不能行動 | 部分解控技能可以解 |
+| 喘息（Winded） | 特殊控制，**不能格擋**，多數免控效果也擋不住 | 幾乎無解 |
+| 下馬（Dismount） | 騎乘中的武將被打下馬 | — |
+| 緩速、流血、中毒、燃燒 | 移速下降或持續扣血 | — |
+| 恐慌（Panic） | **兵團士兵**被燃燒彈、火器嚇到；子彈也會讓馬匹停步或驚慌 | — |
+| 破防（Guard break） | 格擋被打破；2026-01 官方特別改善了「被破防」的角色動作 | — |
+| 霸體／免控（Uninterruptible / CC immunity） | 蓄力、衝鋒或大招期間不會被打斷 | 喘息與鉤拉類可以穿透 |
+| 隱身（Stealth） | 雙刀、繩鏢的煙霧彈 | 被打到或時間到 |
+
+- 其他通用規則：**背後攻擊加傷**、**爆頭**、**高低差**（弓箭從高處射加傷）、**多目標傷害遞減**（多數武器打到第 4 個目標起遞減）、閃避有無敵幀。
+- 兵團攻擊武將有減傷，例如部分遠程兵團對武將的傷害 −25%。
+
+來源：同 1.1 的 CBGG 各武器頁、[ConqHub – 兵團頁](https://www.conqhub.com/units/pavise-crossbowmen)、[CBGG 更新紀錄](https://cbgg.net/wiki/patch-history/)、[conquerorsbladehub – Units](https://cbh.gaiscioch.com/units/)
+
 ---
 
 ## 2. 兵團（Units）
@@ -112,8 +167,30 @@
 | 碎片 | 兵團碎片累積到一定數量，就可以免榮譽解鎖；重複取得的碎片轉成經驗 |
 | 輔助兵團／傭兵 | 每週可以借用高星兵團一週試用。已滿級的兵團可以當作「傭兵」出戰，提供額外的榮譽、銅幣、經驗 |
 | 編成預設 | 可以存 3 組一般戰鬥編成和 3 組大地圖編成，隨時切換 |
+| 總數 | 騰訊 2024 年新聞寫「一百五十餘種兵種」，每季再加 3 支左右 |
+| 兵團屬性欄位 | 星級、等級上限、統率消耗、時代、兵種類型、**人數**（例如 16、22、28 人），還有特性（Traits）與**地形評價** |
 
-來源：[denetax – Complete Unit Guide](https://denetax.fr/en/tutoriel-gestion-unite-conqueror-blade)、[Fandom – Units / Mastery](https://conquerors-blade.fandom.com/wiki/Units)（搜尋摘要）、[官方 – Season 26 更新](https://www.conquerorsblade.com/en/news/1718/)、[官方 – 2026-06 開發路線圖](https://www.conquerorsblade.com/en/news/1792/)
+**兵種分類與代表兵團**（conquerorsbladehub 的分法；兵團名只用來舉例）：
+
+| 大類 | 子類 | 戰場定位 | 例子 |
+|---|---|---|---|
+| 步兵 | 散兵（Skirmishers） | 前線混戰 | 民兵類 |
+| 步兵 | 衝擊兵（Charge／Shock） | 從側翼打進去，長柄、戟、劍、盾都有 | 戟兵、狂戰士類 |
+| 步兵 | 拒馬兵（Brace） | 反騎；要跟盾陣搭配，空曠處怕遠程 | 長槍兵類 |
+| 步兵 | 盾陣兵（Shield Wall） | 列成一線守住位置，但會被技能與其他兵種破解 | 宮廷衛隊類 |
+| 遠程 | 弓箭 | 拋射，可附毒、火、破甲、流血 | 火箭手、長弓手 |
+| 遠程 | 弩 | 可以穿透第二個目標、可以暈眩 | 大盾弩手 |
+| 遠程 | 火器 | 暈眩、**破盾**、嚇馬 | 火繩槍兵 |
+| 騎兵 | 遠程騎兵 | 拉開距離射擊 | 騎射手 |
+| 騎兵 | 近戰騎兵 | 移動中傷害較高，不要讓它停著 | 槍騎兵、重騎兵 |
+| 騎兵 | 混合 | 衝鋒時同時開火，或可切換遠近模式 | 火槍騎兵類 |
+| 特殊 | 器械兵、輔助、醫療 | 操作火砲、治療、解控 | 炮兵班、戰地醫護、解控型輔助兵（第 27 季） |
+
+- **特性（Traits）** 例子：重甲（難以被傷）、鈍擊攻擊者、抗火（不怕火焰類武器）、持盾者（裝填時用盾掩護）、穿透射擊、對武將遠程傷害 −25%。
+- **地形評價**：每支兵團在沙漠、平原、丘陵、草原、城鎮五種地形各有「極佳／良好／普通／差」的評價。例如重騎兵在沙漠極佳、城鎮差；重盾步兵在城鎮極佳、草原差；大盾弩手在丘陵極佳。地形評價對數值的實際影響【未找到】。
+- **兵團間的克制循環**（社群整理）：騎兵怕長槍、長槍怕衝擊步兵、遠程怕盾、盾＋衝擊步兵怕騎兵。
+
+來源：[ConqHub – Fire Lancers](https://www.conqhub.com/units/fire-lancers)、[ConqHub – Palace Guards](https://www.conqhub.com/units/palace-guards)、[ConqHub – Pavise Crossbowmen](https://www.conqhub.com/units/pavise-crossbowmen)、[conquerorsbladehub – Units](https://cbh.gaiscioch.com/units/)、[conquerorsbladehub – Offensive Hero Play](https://www.conquerorsbladehub.com/guides/hero_play/offensive_hero_play.html)、[騰訊新聞 2024-07](https://news.qq.com/rain/a/20240703A03MX800)、[denetax – Complete Unit Guide](https://denetax.fr/en/tutoriel-gestion-unite-conqueror-blade)、[Fandom – Units / Mastery](https://conquerors-blade.fandom.com/wiki/Units)（搜尋摘要）、[官方 – Season 26 更新](https://www.conquerorsblade.com/en/news/1718/)、[官方 – 2026-06 開發路線圖](https://www.conquerorsblade.com/en/news/1792/)
 
 ### 2.2 兵團成長：等級、老兵、戰術書、精通
 
@@ -152,21 +229,58 @@
 
 ### 2.5 兵團指令與陣型
 
+**一次只指揮一支兵團**（官方新手指南）。戰鬥中帶的其他兵團要回補給點換上場。
+
 | 指令（PC 預設鍵） | 效果 |
 |---|---|
 | Follow 跟隨（C） | 兵團跑回武將身邊並跟著走 |
-| Hold 駐守（X） | 兵團在武將前方以目前選的陣型列陣；**連按 X 切換到下一個陣型** |
-| Attack 進攻（V） | 兵團自由攻擊附近敵人 |
-| 陣型（F1～F4） | 各兵團可用的陣型不同；按 F 鍵直接切換 |
-| 兵團專屬指令 | 例如盾兵的 Shield Rush、騎兵的 Charge（沿路造成大量傷害）、長槍兵架槍、弓兵齊射或火箭，大多由老兵樹解鎖或強化 |
-| 陣型例子 | 龜甲盾陣（可以帶陣衝鋒）、橫隊（堵通道，但背後空虛）、圓陣（四面防禦） |
-| 地圖指令 | 可以在地圖或畫面上指定移動點（細節【待查證】） |
+| Hold 駐守（X，單按） | 兵團在武將附近以目前選的陣型列陣 |
+| Hold 駐守（X，按住） | **把兵團派到畫面上任意一點**；按住時用左右鍵調整面向。等於「地面放置＋朝向」指令 |
+| Hold 駐守（X，連按兩下） | 切換到下一個陣型（攻略建議關掉這個預設） |
+| Attack 進攻（V） | 兵團自由攻擊附近敵人；近戰兵團會**脫離陣型**去打 |
+| 撤退（按住 B） | 武將陣亡後按住幾秒讓兵團撤退；復活倒數剩 5 秒時兵團會自動撤退 |
+| 陣型（F1～F4） | 各兵團可用的陣型不同；選好的陣型在下次按 X 時沿用 |
+| 兵團技能（1～4） | 兵團專屬指令，見下表 |
+| 切換武器（5） | 例如弓、弩兵切成近戰，或切換傷害類型 |
+| 互動（按住 Ctrl＋點擊） | 叫兵團去推攻城塔或衝車、爬雲梯、走到補給點 |
+| 地圖標記（地圖上按右鍵） | 標示危險或方向給隊友 |
+
+- 駐守時的細節：**行進中不能攻擊的兵團**在執行駐守移動時不會還手，而是試圖直接穿過敵人（Fandom 摘要）。
+
+**兵團專屬指令的類型**（各兵團 2～4 個，多數由老兵樹解鎖或強化）：
+
+| 類型 | 例子 |
+|---|---|
+| 衝鋒 | 騎兵 Charge：沿指定方向衝鋒，路徑上造成大量傷害；輕騎兵可在衝鋒中多次轉向；部分火器騎兵邊衝邊開火 |
+| 盾衝 | 盾兵 Shield Rush：衝向指定位置，路徑上高傷害，衝鋒中受傷降低 |
+| 防禦姿態 | 舉盾或架盾，減少正面衝鋒傷害並短暫免控；開啟後才能用某些追擊技能 |
+| 指定射擊 | 對指定方向或區域集中射擊（Direct／Focused／Suppressing Fire） |
+| 近距射擊 | 只打最近的敵人，命中率較高 |
+| 輪射 | 排成三列輪流開火 |
+| 開關盾牌 | 持盾的遠程兵切換是否舉盾 |
+| 特殊彈藥 | 火箭、毒箭、破甲箭、震暈彈 |
+| 投擲 | 投矛兵擲矛造成緩速、流血 |
+
+**陣型清單**（各兵團只會其中 2～3 種，有些要從老兵樹解鎖）：
+
+| 陣型 | 用途 |
+|---|---|
+| 疏散（Dispersed） | 散開，降低遠程傷害 |
+| 盾牆（Shield Wall） | 緊密排成一線，守單一方向 |
+| 縱隊（Column） | 窄而長，適合頂著火力衝鋒 |
+| 楔形（Wedge） | 窄陣，衝鋒或突破敵陣 |
+| 鷹翼（Hawk） | 兩翼展開，適合遠程射擊 |
+| 三列（Three Ranks） | 遠程集中火力 |
+| 方陣（Block） | 密集陣，提高防禦 |
+| 龜甲（Tortoise） | 盾＋衝鋒兵團，帶著陣形前進並擋箭 |
+| 橫隊（Line） | 堵住寬通道，但背後空虛 |
+| 圓陣 | 四面防禦 |
 
 | 玩家為什麼在意 | 跟其他系統的關係 |
 |---|---|
 | 武將砍殺之外，勝負關鍵在兵團站位與指令時機 | 老兵樹會解鎖新陣型與指令；地形（狹道、城門）決定哪種陣型有效 |
 
-來源：[denetax – Keybinds & Controls](https://denetax.fr/en/tutoriel-commandes-utiles-conqueror-blade)、[Fandom – Units / Unit Orders](https://conquerors-blade.fandom.com/wiki/Units)（搜尋摘要）、[Steam 社群影片 – Orders and Formations](https://steamcommunity.com/sharedfiles/filedetails/?id=2505900640)
+來源：[denetax – Keybinds & Controls](https://denetax.fr/en/tutoriel-commandes-utiles-conqueror-blade)、[Steam – OFFICIAL Beginner's Guide](https://steamcommunity.com/sharedfiles/filedetails/?id=1807664171)、[ConqHub – Palace Guards](https://www.conqhub.com/units/palace-guards)、[ConqHub – Fire Lancers](https://www.conqhub.com/units/fire-lancers)、Fandom 各兵團頁（Sword Militia、Demesne Arbalists、Javelin Militia、Coutiliers，搜尋摘要）、[Fandom – Units / Unit Orders](https://conquerors-blade.fandom.com/wiki/Units)（搜尋摘要）、[Steam 社群影片 – Orders and Formations](https://steamcommunity.com/sharedfiles/filedetails/?id=2505900640)
 
 ---
 
@@ -176,21 +290,37 @@
 
 | 類別 | 模式 | 運作方式 |
 |---|---|---|
-| 配對 PvP | **攻城戰**（Siege Battle） | 攻方從城外出發，**依序奪取一連串據點**，限時內拿下最後據點就獲勝；守方守住或撐到時間結束就獲勝 |
-| 配對 PvP | **野戰**（Field Battle） | 依地圖分成兩種子模式：搶據點累積分數，或攻佔敵方營地（Conquest） |
-| 配對 PvP | 排位戰（Ranked）、死鬥（Deathmatch）、All or Nothing | 排位有每週結算的段位獎勵 |
-| 活動 PvP | 自由戰（Free Battles） | 不限統率，戰損不消耗補給包 |
-| 配對 PvE | **遠征**（Expeditions） | 多人合作打 AI 關卡（Wikipedia 寫五人） |
+| 配對 PvP | **攻城戰**（Siege Battle，15 對 15） | 攻方從城外出發，**依序奪取一連串據點**，每拿下一個點，最後據點的計時加 3 分鐘；限時內拿下最後據點就獲勝；守方守住或撐到時間結束就獲勝 |
+| 配對 PvP | **野戰**（Field Battle，約 10 對 10；2019 年評測寫 8 對 8） | 3 個據點的佔點模式，雙方分數扣到 0 就輸 |
+| 配對 PvP | 征服（Conquest） | 搶戰略點加擊殺得分 |
+| 配對 PvP | **逐步增兵攻城**（Escalation，2023-02 加入） | 開場只帶 1 支兵團，戰鬥中隨時花統率從所有已解鎖兵團「徵召」；同場已用過的兵團重新上場不再花統率。每天固定時段開放 |
+| 配對 PvP | 排位戰（Ranked） | 依表現加減積分，賽季結束依段位發獎；只在固定時段開放（例如週三、週五晚上與週末）；每週有勝場寶箱與「排位懸賞」貨幣 |
+| 配對 PvP | 死鬥（Deathmatch，10 對 10） | **不帶兵團**，只有武將互打，先拿 30 殺的一方獲勝；每週固定時段 |
+| 配對 PvP | 競技場（Colosseum，2022 年加入） | 6 對 6，最多 3 人組隊，30 級以上；**不能帶騎兵**，可以招募角鬥士兵團；每人 1 門火砲、復活次數有限（約 2 次）；佔區域、扣對方分數 |
+| 配對 PvP | All or Nothing | 名稱見初版，規則【未找到】 |
+| 活動 PvP | 自由戰（Free Battles） | 輪替攻城、征服、野戰；不限統率，不需修理費；每週固定時段 |
+| 開放 PvP | 決鬥 | 跟附近玩家 1 對 1，算每日任務 |
+| 開放 PvP | 野外遭遇戰 | 大地圖上玩家互打，贏家搶走部分戰利品，輸家有 3 分鐘保護 |
+| 配對 PvE | 訓練營（Training Camp） | 野戰地圖對 5 個 AI；陣亡扣 30 分、失去補給點扣 25 分、失去據點扣 50 分，先扣到 0 的一方輸 |
+| 配對 PvE | **遠征**（Expeditions 1～3） | 三種難度，越高 AI 兵團時代越高；有明確目標，例如守堡、救村莊，很多是腳本事件（Wikipedia 寫五人） |
 | 配對 PvE | **山賊突襲**（Bandit Raid） | 比擊殺速度，經驗高；每週有次數限制【待查證】 |
 | 配對 PvE | **佈防守衛**（Deploy & Defend） | 開場先在地圖標記點**擺放兵團**，再分階段抵擋 AI 進攻；每階段可以重擺的次數有限；救下村民會有額外獎勵 |
-| 配對 PvE | 訓練戰 | 跟 AI 打，新手練習用 |
-| 大地圖 | 追擊、山賊營地、叛軍、領地戰 | 見第 4 節 |
-| 特殊地圖 | 長城、Into the Breach、海盜突襲等 | 活動或特殊地圖，主要給銅幣、經驗、榮譽 |
+| 大地圖 PvE | 遊蕩叛軍 → **維和（Peacekeeping）** | 2023-02（第 15 季）取代舊的遊蕩叛軍。戰場有 2 個補給點和一群「頭上有標記」的敵方目標，敵人無限波次進攻；任一補給點被佔就輸，殺光標記目標就贏。可以單人打 |
+| 大地圖 PvE | 叛軍營地（1～3 頂頭盔表示難度） | 攻城型 PvE：3 個補給點、4 個據點，踏進據點會觸發一波進攻 |
+| 活動 PvE | 猛攻（Onslaught） | 單人的類 roguelike 挑戰，2025 年春節活動回歸；詳細規則【未找到】 |
+| 大地圖 PvPvE | **叛軍清剿：贏者全拿**（Rebel Purge: Winner Takes All，2026-07-21） | 兩階段：先清 AI 雜兵並疊增益，再搶 Boss 掉落，還能從擊敗的對手身上奪取裝備；強調團隊與戰術而不是數值 |
+| 三國資料片 | 最後一搏（Last Stand） | 戰敗方有 20% 機率安全帶走臨時背包裡的物品（撤離概念）【待查證，只有搜尋摘要】 |
+| 大地圖 | 追擊、山賊營地、領地戰、首都戰 | 見第 4 節 |
+| 特殊地圖／活動 | 長城、Into the Breach、海盜（Sea Rebels）入侵、萬聖節等 | 輪替活動，每日獎勵有上限，超過後獎勵大減 |
+| 電競 | CBL（Conqueror's Blade League） | 官方路線圖提到，規則【未找到】 |
 
 - 配對攻城戰會**從全電腦對手開始**，再進入人機混合，最後才是全真人，作為新手的過渡（denetax）。
 - 據點規則（以領地戰為例）：每場有 3 個據點，雙方各一個大本營加上一個中央點。中央點要先拿下，才能打最後的據點。據點被佔領後，即使沒人站在上面也會持續替佔領方計分，所以必須去奪回；無人爭奪時佔領約需 1 分鐘。
+- 佔點細節：站進圓圈、圈內沒有敵人才會開始佔。攻城戰每多一名玩家站在點上就佔得越快，單人要整整 1 分鐘；**任何一名敵方武將踏進點內就會中止佔領**。領地戰佔點固定 1 分鐘，不受人數影響。
+- 復活：攻城戰武將復活要 20～60 秒（隨比賽進度變長），復活後還要 30～60 秒才能把兵團帶回前線；**領地戰沒有復活**。
+- 補給點（地圖上的「+」）：找補給點旁的軍需官按 F，可以回復兵團血量與彈藥、治療坐騎、換兵團、換坐騎、換武器、換火砲。補給點可以被敵方佔領切斷，所以「佔對方最靠近重生點的補給點」本身就是戰術。
 
-來源：[Fandom – Field Battle / Siege Battle / Free Battles](https://conquerors-blade.fandom.com/wiki/Siege_Battle)（搜尋摘要）、[conquerorsbladehub – Deploy & Defend](https://www.conquerorsbladehub.com/guides/deploy_and_defend.html)、[conquerorsbladehub – Territory Wars](https://www.conquerorsbladehub.com/guides/territory_wars.html)、[denetax – Beginner Guide 2026](https://denetax.fr/en/commencer-conquerors-blade-2026)
+來源：[Steam – OFFICIAL Beginner's Guide](https://steamcommunity.com/sharedfiles/filedetails/?id=1807664171)、[Gaiscioch Magazine – Game Modes](https://www.gaisciochmagazine.com/articles/conquerors_blade_not_just_a_pvp_siege_simulator.html)、[conquerorsbladehub – Peacekeeping](https://www.conquerorsbladehub.com/guides/gameplay_modes/peacekeeping.html)、[conquerorsbladehub – Death & Sacrifice](https://www.conquerorsbladehub.com/guides/hero_play/death_and_sacrifice.html)、[官方 – Eternal 更新日誌](https://www.conquerorsblade.com/en/news/877/)、[CBGG 更新紀錄（Rebel Purge）](https://cbgg.net/wiki/patch-history/)、[Blue's News – 2026-07 路線圖](https://www.bluesnews.com/s/300697/roadmaps-and-plans)、[MassivelyOP – Colosseum](https://massivelyop.com/?p=403991)、[SteamDB – Ranked Battle 公告](https://steamdb.info/patchnotes/5321401)、[MassivelyOP – 2025 春節活動](https://massivelyop.com/?p=529049)、[Fandom – Field Battle / Siege Battle / Free Battles](https://conquerors-blade.fandom.com/wiki/Siege_Battle)（搜尋摘要）、[conquerorsbladehub – Deploy & Defend](https://www.conquerorsbladehub.com/guides/deploy_and_defend.html)、[conquerorsbladehub – Territory Wars](https://www.conquerorsbladehub.com/guides/territory_wars.html)、[denetax – Beginner Guide 2026](https://denetax.fr/en/commencer-conquerors-blade-2026)
 
 ### 3.2 攻城器械與火砲
 
@@ -203,12 +333,27 @@
 | 攻城器械 | 攻城塔（Siege Tower） | 推到城牆邊開出通道；配對攻城戰中是預設的，被毀後約 10 秒重生 |
 | 攻城器械 | 天橋（Skybridge） | 跨越城牆或壕溝的通道（細節【待查證】） |
 | 攻城器械 | 投石機（Trebuchet） | 攻方每位玩家每場可以呼叫一次投石轟炸，用滑鼠指定落點；領地戰中是要建造的實體，可以被摧毀。守方不能用 |
-| 火砲 | 臼砲／迫擊砲 | 拋射越牆，範圍傷害並擊倒、燃燒 |
-| 火砲 | 長管砲（Culverin） | 直射可以穿透 3～5 人，能打火砲與攻城塔，**不傷友軍** |
-| 火砲 | 一般火砲 | 範圍傷害並擊倒，**會傷友軍** |
-| 火砲 | 床弩（Ballista） | 打武將用，傷害高、目標少，不傷友軍 |
-| 火砲 | 蠍弩、霰彈砲、火箭車（Hwacha）、攻城床弩、投石車、火箭、巨型射石砲、火流星 | 各有射程、架設時間、是否傷友軍等差異。架設時間約 5～25 秒，稀有度影響傷害、血量、彈藥與射程 |
+| 火砲 | 臼砲／迫擊砲 | 拋射越牆，範圍傷害並擊倒、燃燒；**會傷友軍**；架設約 11～15 秒 |
+| 火砲 | 長管砲（Culverin） | 直射可以穿透 3～5 人，能打火砲與攻城塔，**不傷友軍**；架設約 7 秒 |
+| 火砲 | 一般火砲（Cannon） | 直擊擊倒、爆炸範圍內踉蹌，**會傷友軍**；架設約 8～12 秒 |
+| 火砲 | 床弩（Ballista） | 打武將用，傷害高、目標少，不傷友軍；架設約 8～12 秒 |
+| 火砲 | 蠍弩（Scorpion） | 火焰、踉蹌，但多數兵團抗火，傷害偏低；架設約 5～7 秒 |
+| 火砲 | 霰彈砲 | 短距離散彈、極短暈眩；架設約 5～8 秒 |
+| 火砲 | 火箭車（Hwacha） | 多發齊射，稀有度越高越準、穿透越多；架設約 5～8 秒 |
+| 火砲 | 攻城床弩 | 一直線貫穿，路徑上全部打死，佔地大；架設約 12～15 秒 |
+| 火砲 | 投石車（Catapult） | 多發，對建築強、對兵團弱，命中暈眩；架設約 15 秒 |
+| 火砲 | 戰爭火箭（War rocket） | 小弧線大爆炸，**會傷友軍** |
+| 火砲 | 巨型射石砲（Great bombard） | 超大範圍、極高傷害，但瞄準極慢、裝填久、不準；**會傷友軍**；架設 25 秒 |
+| 火砲 | 火流星（Flaming comet） | 多發範圍、擊倒或踉蹌；架設約 5～7 秒 |
+| 火砲 | 神鴉火器（2023 年加入） | 區域燃燒傷害 |
 | 取得 | 打造（在城內的火砲工坊，用精煉零件）、摧毀敵方火砲取得碎片（5 片換一箱）、領地戰參與獎勵 | |
+| 攜帶規則 | 最多帶 3 門火砲上場，但同時只能架 1 門；可以在補給點換。按住 G 選擇並放置；使用城牆上的固定火砲按 F；發射時按 **Z 可以跟著彈丸看** | |
+
+- **投石機轟炸會造成大量友軍傷害**：攻略建議不要丟在自己的推進路線上，而是丟在敵方「武將跑在兵團前面」的增援路線上。
+- **可破壞的城牆**：只有少數攻城地圖（TV Tropes 摘要列出 4 張）有可以炸開的城牆，只能用投石機或小型火砲炸，衝車只能打城門。2023-02 的地圖改版把兩側可破壞城牆加上破壞特效，城門內側的一段牆也改成可以被火砲打掉。
+- **可破壞路障**：城內通道上的路障與障礙物可以被武將與火砲打掉。
+- **雲梯**：由武將架設，武將與士兵都能爬；守方可以把雲梯**踢倒**。攻城塔與衝車只能由士兵推。
+- **守方**：城牆上有路障與固定火砲，可以打掉靠近的攻城塔；城門兩側與門洞有固定武器（殺人孔一類）【待查證】；2018 年預覽提到守方會從牆上丟重物砸攻方。
 
 **守城方**：可以用城牆上的預設火砲、自己帶的火砲，或開城門出擊。領地戰的守方據點由 AI 守軍與玩家一起防守。
 
@@ -216,15 +361,34 @@
 |---|---|
 | 攻城戰的節奏就是「推進器械 → 破門或登城 → 奪點」 | 器械與火砲要打造（城池等級決定能不能做高階器械）、要花家族聲望購買，所以把戰略層的經濟和戰場綁在一起 |
 
-來源：[denetax – Artillery Guide 2026](https://denetax.fr/en/tutoriel-artillerie-conqueror-blade)、[Fandom – Artillery](https://conquerors-blade.fandom.com/wiki/Artillery)（搜尋摘要）、[conquerorsbladehub – Siege Weapons crafting](https://www.conquerorsbladehub.com/crafting/siege_weapons/)
+來源：[denetax – Artillery Guide 2026](https://denetax.fr/en/tutoriel-artillerie-conqueror-blade)、[conquerorsbladehub – Offensive Hero Play](https://www.conquerorsbladehub.com/guides/hero_play/offensive_hero_play.html)、[Steam – OFFICIAL Beginner's Guide](https://steamcommunity.com/sharedfiles/filedetails/?id=1807664171)、[官方 – Eternal 更新日誌](https://www.conquerorsblade.com/en/news/877/)、[conquerorsbladehub – Eternal](https://www.conquerorsbladehub.com/seasons/eternal.html)、[PCGamesN 測試版評測](https://www.pcgamesn.com/conquerors-blade-beta-review)、[Wccftech 預覽](https://wccftech.com/conquerors-blade-gamescom-preview/amp/)、TV Tropes 與 NamuWiki（搜尋摘要）、[Fandom – Artillery](https://conquerors-blade.fandom.com/wiki/Artillery)（搜尋摘要）、[conquerorsbladehub – Siege Weapons crafting](https://www.conquerorsbladehub.com/crafting/siege_weapons/)
 
 ### 3.3 賽季戰役、地圖事件
 
 - **賽季挑戰**（Season Challenges）：每季一條分階段的挑戰線，獎勵是新兵團、坐騎、戰術書。第 26 季降低了挑戰的難度與階段數。
-- **賽季世界主題**：2026 年新增一個「三國」世界主題，跟正式服的賽季分開營運，有自己的時程（官方路線圖）。
+- **賽季世界主題**：2026 年新增一個「三國」世界主題，跟正式服的賽季分開營運，有自己的時程（官方路線圖）。已在 2026-07-24 以資料片形式上市，見 4.4。
 - 地圖事件：大地圖上的叛軍、山賊營地，還有 AI「暴君軍」行軍（見 4.2），可以視為動態事件。
+- **賽季戰役分期**：每季的戰役分 5 個階段，各階段限制能帶的兵團星級（例如第 28 季第 1 階段只能帶 1 支 4 或 5 星兵團），並開放不同的領地戰區域，最後一階段打首都。另有「賽季封印（Seasonal Seals）」限制每階段可用的兵團、套裝效果與打造詞綴（2023 年加入）。
 
-來源：[官方 – 2026-06 開發路線圖](https://www.conquerorsblade.com/en/news/1792/)、[官方 – Season 26 更新](https://www.conquerorsblade.com/en/news/1718/)
+**近年賽季時間線**（季數只列有來源確認的）：
+
+| 時間 | 賽季 | 重點 |
+|---|---|---|
+| 2022-09 | Colosseum | 競技場模式、角鬥士兵團 |
+| 2022-11 | Scorpio | 第 13 種武器 Chain Dart & Scimitar |
+| 2023-02 | 第 15 季 Eternal | Escalation 模式、維和（Peacekeeping）、Artificer's Forge 重鑄、賽季封印、神鴉火器 |
+| 2024-06 | Alexander | 【未找到細節】 |
+| 2024-09～11 | 第 21 季 Lionfire | 新地圖；與 Sabaton 合作，重製攻城地圖並配上管弦樂版主題曲 |
+| 2024-12 | Sparta | 新地圖、新兵團 |
+| 2025-06 | 第 23 季 Terracotta | 3 支秦朝主題兵團（含戰車） |
+| 2025-09 | 第 24 季 Crown and Cross | 神聖羅馬主題；可切換兩種模式的兵團 |
+| 2025-12 | Roses: Ash and Bloom | 【未找到細節】 |
+| 2026-03 | 第 26 季 Echo | 玩家體驗改善：降低挑戰難度、騎士侍從共享編成、背包合併 |
+| 2026-06 | 第 27 季 Chaos: A Realm Divided | 三國主題兵團（含解控輔助兵）、新地圖 |
+| 2026-07 | 《三國》資料片 | 見 4.4 |
+| 2026-09-29 | 第 28 季 Aztec: Eclipse | 3 支阿茲特克兵團（含「友軍陣亡越多傷害越高」的兵團）、水上首都地圖、兵團精通擴充、客戶端瘦身與效能改善 |
+
+來源：[conquerorsbladehub – Aztec: Eclipse](https://www.conquerorsbladehub.com/seasons/aztec_eclipse.html)、[conquerorsbladehub – Seasons](https://www.conquerorsbladehub.com/seasons/)、[mmorpg.com – Season 24](https://www.mmorpg.com/news/conquerors-blade-season-24-brings-us-to-the-holy-roman-empire-on-september-19th-2000136096)、[MMOBomb – Season 23](https://www.mmobomb.com/news/conqueror-blade-season-23-live-now-three-new-units)、[Game Developer – Sabaton 合作](https://www.gamedeveloper.com/press-release/-conqueror-s-blade-and-sabaton-plot-an-epic-event-in-which-warfare-and-power-chords-collide)、[CBGG 更新紀錄](https://cbgg.net/wiki/patch-history/)、[官方 – 2026-06 開發路線圖](https://www.conquerorsblade.com/en/news/1792/)、[官方 – Season 26 更新](https://www.conquerorsblade.com/en/news/1718/)
 
 ---
 
@@ -276,6 +440,27 @@
 
 來源：[conquerorsbladehub – Fief Types](https://www.conquerorsbladehub.com/guides/fief_ownership/types_of_fiefs.html)、[conquerorsbladehub – New Players Guide](https://www.conquerorsbladehub.com/guides/new_players_guide.html)、[denetax – Fief Quests](https://denetax.fr/en/tutoriel-gestion-quete-fief-conqueror-blade)
 
+### 4.4 《三國》資料片（2026-07-24，第二次補充）
+
+官方稱是「史上最大的資料片」，Steam 上是獨立的商店頁（app 4651220），以限時「劇本伺服器」形式營運，所有玩家從同一起跑線開始。
+
+| 系統 | 運作方式 |
+|---|---|
+| 單一世界 | 取消分線，同一伺服器所有玩家在同一個大地圖即時行軍、遭遇、護送、攔截 |
+| 陣營戰 | 加入幾個三國軍閥陣營之一，或自創陣營；陣營關係隨歷史事件改變，盟友可能變敵人 |
+| 補給車隊 | 可以組成慢速、脆弱的運糧車隊把糧食與材料送上前線，需要斥候與護衛，會被攔截；補給線被切斷會讓優勢瞬間崩潰 |
+| 道路與地形 | 走道路比較快、耗糧少，但容易被發現；森林可以隱藏部隊但耗糧多；山地、沼澤減速 |
+| **糧食與士氣** | 行軍會消耗糧食與士氣；糧食耗盡士兵會死亡。士氣在戰鬥中的具體作用【未找到】。denetax 提到原版也有「玩家數不足時士氣下降、歸零自動戰敗」的設計【待查證】 |
+| 可建造的戰場設施 | 玩家可以在領地蓋重生點、箭塔、補給點、火砲、城防工事，**這些東西會實際出現在之後的戰場上** |
+| 軍階與官職 | 依個人表現從小兵升到百夫長、大將軍；佔領城池授予州牧、太守、縣令等官職 |
+| 武魂（Spirit）技能 | 武將可以裝上一個歷史名將的「武魂」，得到綁定特定武器的整組技能與核心機制（例如越打越強、拖刀衝鋒、冰凍控場、追蹤箭），上市時近 20 種 |
+| 終局 | 頂尖陣營匯聚洛陽，近百名玩家爭奪據點與隘口 |
+
+- **評價**：上市 5 天 Steam 評價「壓倒性負評」（1,810 篇中 14% 好評）。主要批評：武器、技能、武將綁在抽卡上；賽季結束武將與兵團進度清空；大型攻城戰只在固定時段開放；從「兵團戰術＋配對 PvP」轉向「開放世界＋武將技能秀」，老玩家流失；臭蟲、延遲、UI 與翻譯品質差。
+- 對本專案的意義：糧道、道路與森林、可建造設施延續到戰場這幾點值得參考；抽卡與賽季清空是負面教材。
+
+來源：[官方 – 三國上市公告](https://www.conquerorsblade.com/en/news/1805/)、[官方 – 三國世界初探](https://www.conquerorsblade.com/en/news/1779/)、[官方 – 武魂技能](https://www.conquerorsblade.com/en/news/1825/)、[Steam – Conqueror's Blade: Three Kingdoms](https://store.steampowered.com/app/4651220/Conquerors_Blade_Three_Kingdoms/)、[denetax – Three Kingdoms](https://denetax.fr/en/three-kingdom-conqueror-blade)、[Inven Global](https://www.invenglobal.com/articles/22713/into-the-turbulent-era-of-the-three-kingdoms-conquerors-blade-unveils-major-expansion-three-kingdoms)、[Gamemeca – 壓倒性負評](https://www.gamemeca.com/en/view.php?gid=1778394)
+
 ---
 
 ## 5. 經濟與成長
@@ -299,7 +484,10 @@
 | 通行證 | 免費線加付費線，獎勵以武將、兵團、坐騎外觀與旗幟為主。第 26 季調低了貴族等級的經驗需求 |
 | 賽季 | 每季約 2～3 個月【待查證】，帶入新主題兵團、地圖、平衡改動；部分系統（符文、賽季貨幣）每季重置 |
 | 成就 | 有成就系統，例如成就可以給背包擴充（官方第 26 季公告），完整清單【未找到】 |
-| 會員 | 付費會員（Premium）提供額外鑰匙、戰術書等 |
+| 會員 | 付費會員（Premium）提供額外鑰匙、戰術書等；第 26 季起會員提供一組適用全兵團的戰術書 |
+| 背包 | 第 26 季起相同物品（綁定與否）可以合併，合併後變綁定；背包擴充靠成就與儲值獎勵 |
+| 賽季商店與挑戰券 | 賽季商店用 Fame 換材料、重鑄石、圖紙、火砲箱；付費賽季任務給「挑戰券」，季末沒用完的轉成銅幣 |
+| 活動 | 推薦好友（邀請雙方都有獎勵）、轉服活動、回歸玩家狀態（大地圖糧耗 −20%、行軍 +20%）、週年活動 |
 
 來源：[conquerorsbladehub – Currencies & Economics](https://www.conquerorsbladehub.com/guides/economics.html)、[Steam – OFFICIAL Consumables & Currencies guide](https://steamcommunity.com/sharedfiles/filedetails/?id=1807773364)（舊資料）、[denetax – Crafting](https://denetax.fr/en/tutoriel-craft-conqueror-blade)、[官方 – Season 26 更新](https://www.conquerorsblade.com/en/news/1718/)
 
@@ -309,15 +497,17 @@
 
 | 系統 | 現況 |
 |---|---|
-| 士氣 | 【未找到】原作沒有可靠資料顯示有「士氣崩潰／潰逃」機制。最接近的是「兵力低於 50% 時減傷減攻、低於 20% 不能上場」和「斷糧懲罰」。**這是 TopPath Blade 可以自己加的差異化點** |
-| 天氣 | NamuWiki（韓文，二手摘要）說所有戰鬥都受天氣影響：晴天沒影響，陰天略降視野與遠程命中，某些兵種在特定天氣下會被削弱甚至完全不能作用。完整規則【待查證】（例如雨天對火器或火攻的影響沒有找到一手來源） |
-| 地形 | 狹道、城門、高地會影響陣型與騎兵效果。CBGG 的兵團頁有「地形評價」相關內容（細節【待查證】） |
-| 友軍傷害 | **只對部分火砲有效**：一般火砲、火箭、巨型射石砲會傷到友軍；長管砲和床弩不會。武將與兵團的近戰是否會傷友軍【未找到】，一般認知是不會 |
+| 士氣 | **修正**：正式服沒有「士氣值」條，但有三種接近潰逃的行為：①**武將陣亡後**，兵團還能接受指令一段時間，之後會自行逃離戰場；逃回去的兵團同場還能再派上場（官方新手指南）。②復活倒數剩 5 秒時兵團自動撤退。③**恐慌（Panic）**狀態：燃燒彈、火器會讓士兵恐慌、讓馬匹停步或驚慌。另外還有「兵力低於 50% 減傷減攻、低於 20% 不能上場」和「斷糧懲罰」。《三國》資料片才正式加入「士氣」數值（見 4.4）。完整的「被側擊 → 士氣下降 → 潰散」機制仍然沒有，**這仍是 TopPath Blade 可以自己做的差異化點** |
+| 天氣 | NamuWiki（韓文，二手摘要）說所有戰鬥都受天氣影響：晴天沒影響，陰天略降視野與遠程命中，某些兵種在特定天氣下會被削弱甚至完全不能作用。**已確認一例**：雨天時火箭手的箭不會點燃目標（denetax 兵團指南），**天氣圖示在畫面右上角**。第 6 季〈Scourge of Winter〉加入動態天氣，戰鬥中可能下雪甚至暴風雪；測試版評測也描述過「入夜＋下雨」的攻城戰。其他天氣的數值【待查證】 |
+| 地形 | 狹道、城門、高地會影響陣型與騎兵效果。**已確認**：每支兵團有沙漠、平原、丘陵、草原、城鎮五種地形評價（見 2.1）；弓箭有高低差加減傷（見 1.5）。地形評價的實際數值【未找到】 |
+| 友軍傷害 | **只對部分火砲與投石機有效**：一般火砲、臼砲、火箭、巨型射石砲、**投石機轟炸**會傷到友軍；長管砲和床弩不會。武將與兵團的近戰是否會傷友軍【未找到】，一般認知是不會 |
 | PvP 配對 | 一般配對（依武將或兵團強度，細節【未找到】）、排位戰（每週段位結算）、攻城戰從全電腦對手逐步過渡到全真人 |
-| 新手引導 | 開場有過場動畫，再加上幾個教學關卡（武將、移動、兵團、火砲）。各系統依武將等級分段開放（家族約 12 級、戰術書約 24 級、輔助兵團約 25 級、鐵匠約 34 級、屬性約 35 級、符文約 50 級、重鑄約 60 級，社群資料【待查證】）。社群普遍評價教學不足 |
-| 社交 | 家族、聯盟、世界聊天（要消耗道具才能發言）、**騎士與侍從**（師徒制：高等玩家帶新人，第 26 季起侍從可以套用騎士的統率與兵團數值打攻城戰）、回歸玩家加成 |
+| 新手引導 | 開場有過場動畫，之後在「傭兵營地」學移動、戰鬥與兵團指揮，營地裡有教學影片；「武術教官」NPC 可以陪練；另有「免費訓練營」。2023-02 改版在教學地圖加入攻城戰兵團操作提示。各系統依武將等級分段開放（家族約 12 級、戰術書約 24 級、輔助兵團 25 級、鐵匠約 34 級、屬性約 35 級、符文約 50 級、重鑄 50 級；其中輔助兵團與重鑄為官方 2023 年資料，其他為社群資料【待查證】）。社群普遍評價教學不足 |
+| 社交 | 家族、聯盟、世界聊天（要消耗道具才能發言）、**騎士與侍從**（師徒制：高等玩家帶新人，第 26 季起侍從可以套用騎士的統率與兵團數值打攻城戰，並有每週組隊任務）、回歸玩家加成、決鬥、地圖標記、聊天裡可以按 Shift＋點擊展示物品 |
+| 坐騎 | 叫馬（B）、騎乘衝撞、馬鎧（Barding）圖紙、坐騎是通行證與挑戰的常見獎勵；坐騎在補給點可以治療與更換。馬種差異與坐騎數值【未找到】 |
+| 圖形選項 | 「隱藏屍體」選項（低、中畫質預設開啟）；有「擊殺播報」清單可以選（推測是可收集的擊殺特效或文字，【待查證，只有搜尋摘要】） |
 
-來源：[NamuWiki – 配對地圖](https://en.namu.wiki/w/%EC%BB%A8%EC%BB%A4%EB%9F%AC%EC%8A%A4%20%EB%B8%94%EB%A0%88%EC%9D%B4%EB%93%9C/%EB%A7%A4%EC%B9%AD%20%EB%A7%B5)（403，以搜尋摘要為準）、[denetax – Artillery Guide 2026](https://denetax.fr/en/tutoriel-artillerie-conqueror-blade)、[denetax – Beginner Guide 2026](https://denetax.fr/en/commencer-conquerors-blade-2026)、[官方 – Season 26 更新](https://www.conquerorsblade.com/en/news/1718/)
+來源：[NamuWiki – 配對地圖](https://en.namu.wiki/w/%EC%BB%A8%EC%BB%A4%EB%9F%AC%EC%8A%A4%20%EB%B8%94%EB%A0%88%EC%9D%B4%EB%93%9C/%EB%A7%A4%EC%B9%AD%20%EB%A7%B5)（403，以搜尋摘要為準）、[denetax – Complete Unit Guide（雨天與火箭）](https://denetax.fr/en/tutoriel-gestion-unite-conqueror-blade)、[mein-mmo – 第 6 季動態天氣](https://mein-mmo.de/en/new-update-in-conquerors-blade-looks-like-a-game-of-thrones-mmo,632377)、[Steam – OFFICIAL Beginner's Guide](https://steamcommunity.com/sharedfiles/filedetails/?id=1807664171)、[conquerorsbladehub – Offensive Hero Play](https://www.conquerorsbladehub.com/guides/hero_play/offensive_hero_play.html)、Steam 官方公告（隱藏屍體、擊殺播報，搜尋摘要）、[denetax – Artillery Guide 2026](https://denetax.fr/en/tutoriel-artillerie-conqueror-blade)、[denetax – Beginner Guide 2026](https://denetax.fr/en/commencer-conquerors-blade-2026)、[官方 – Season 26 更新](https://www.conquerorsblade.com/en/news/1718/)
 
 ---
 
@@ -335,7 +525,7 @@
 | ★2 | **兵團戰損延續與補員** | 2.4 | 高 | 低～中 | 戰後保留剩餘兵力，到城內募兵處花錢補員；兵力過低時有懲罰或不能出戰。這直接把戰鬥和 design.md 第 8 節的資源、募兵串起來 |
 | ★3 | **兵團等級與老兵技能點** | 2.2 Veterancy | 高 | 中 | 兵團打仗升級，每級 1 點，投入簡化的 2 分支線性樹，例如長槍兵的「反騎」和「推進」路線，解鎖現有的兵團技能或強化它們。這是單機遊戲重玩的主要動力 |
 | ★4 | **攻城器械＋多段據點** | 3.1、3.2 | 高 | 中 | 現有攻城戰只有「打城門＋主堡」。可以加上衝車（兵團推動，破門快）、雲梯或攻城塔（另一條入城路線），以及「外城據點 → 內城 → 主堡」的多段推進；佔領後的據點持續計分或解鎖重生點 |
-| ★5 | **PvE 佈防模式** | 3.1 Deploy & Defend | 中高 | 低～中 | 重用守城地圖：開場在標記點擺放兵團，再分波抵擋 AI 進攻。可以直接重用現有的 AI、城牆與兵團系統，很適合當單機的重玩模式或教學關卡 |
+| ★5 | **PvE 佈防模式** | 3.1 Deploy & Defend | 中高 | 低～中 | 重用守城地圖：開場在標記點擺放兵團，再分波抵擋 AI 進攻。可以直接重用現有的 AI、城牆與兵團系統；適合做成戰略層上的守城事件（例如敵方反攻時觸發），而不是獨立關卡 |
 | 6 | 傷害類型與護甲類型 | 1.3 | 中 | 中 | 把「穿刺、劈砍、鈍擊 × 輕、中、重甲」加進現有克制表，讓武器選擇也影響打誰。注意不要讓它跟現有克制表重複計算 |
 | 7 | 可部署火砲（一場一台） | 3.2 | 中 | 中 | 武將背包帶一台床弩或火砲上場，有架設時間；會不會傷友軍可以做成取捨 |
 | 8 | 兵團專屬陣型與指令解鎖 | 2.5 | 中 | 低 | 讓陣型從老兵樹解鎖，而不是一開始全開；指令增加「衝鋒」「射擊目標」 |
@@ -344,9 +534,12 @@
 | 11 | 武將屬性點 | 1.3 | 中 | 低 | 少量屬性（例如力量、敏捷、韌性）提供武將成長 |
 | 12 | 裝備耐久、打造、重鑄 | 1.4 | 中低 | 中 | 適合有經濟循環之後再做；原型只要有掉落與打造就夠了 |
 | 13 | 兵團樹與時代解鎖 | 2.1 | 中低 | 中 | 等兵種超過 4 種再做；可以改成「城池或科技解鎖新兵種」 |
-| 14 | 天氣與地形 | 6 | 中低 | 中 | 雨天讓火箭失效、霧天降低射程，這類效果在 2D 很好表現 |
-| 15 | 士氣與潰逃（原作沒有） | 6 | 中 | 中 | 可以當差異化設計：被側擊或背擊、主將陣亡時士氣下降，士氣歸零的兵團潰逃。要注意別讓單機戰鬥變得太隨機 |
-| 16 | 採集、運輸、貨車 | 4.1 | 低 | 高 | 在單機裡容易變成跑腿工作，建議簡化成「佔領城池給固定收入」 |
+| 14 | 天氣與地形 | 6、2.1 | 中低 | 中 | 原作已確認「雨天火箭不點火」，天氣圖示放右上角；兵團有地形評價。雨天讓火箭失效、霧天降低射程，這類效果在 2D 很好表現 |
+| 15 | 士氣與潰逃（原作只有雛形） | 6 | 中 | 中 | 原作只有「武將陣亡後兵團撐一陣子再逃」和「火器、火焰造成恐慌」。可以當差異化設計：被側擊或背擊、主將陣亡時士氣下降，士氣歸零的兵團潰逃。要注意別讓單機戰鬥變得太隨機 |
+| 16 | 共用控制效果表 | 1.5 | 中高 | 低～中 | 擊退、擊倒、擊飛、暈眩、下馬、恐慌六種就夠用；武將技能與兵團技能共用。這也是戰場表現的骨架（見 7.5） |
+| 17 | 單兵團指揮＋補給點換兵 | 2.5、3.1 | 中 | 低 | 原作一次只指揮一支兵團，其他兵團要回補給點換。TopPath Blade 已有 Tab 切換，可以保留多兵團，但補給點換兵、補彈藥的概念值得借 |
+| 18 | 可破壞路障與城牆段 | 3.2 | 中 | 中 | 原作只有少數地圖的特定牆段可以炸開。2D 上很好做：牆段有血量，打掉後變成新的通道 |
+| 19 | 採集、運輸、貨車 | 4.1 | 低 | 高 | 在單機裡容易變成跑腿工作，建議簡化成「佔領城池給固定收入」 |
 
 ★＝建議優先做的前 5 項。
 
@@ -356,12 +549,174 @@
 |---|---|---|
 | 家族、聯盟、領地戰、宣戰聲望 | 需要大量線上玩家與排程 | 改成 AI 勢力的領土爭奪，也就是 design.md 規劃的「敵方反攻」；可以參考原作的「AI 暴君軍行軍，可以攔截」 |
 | 玩家市場、銀幣經濟、稅率 | 需要玩家之間交易 | 改成固定價格的 NPC 商店 |
-| 賽季、通行證、賽季貨幣重置 | 線上營運與付費設計，對單機只會增加負擔 | 不做，或改成章節或戰役進度 |
+| 賽季、通行證、賽季貨幣重置 | 線上營運與付費設計，對單機只會增加負擔 | 不做 |
 | 排位與配對、騎士與侍從、世界聊天 | 需要線上玩家 | 不做 |
 | 碎片、鑰匙、外觀寶箱、多種代幣 | 主要用來營利與留存，系統很多但玩法價值低 | 原型只保留一種貨幣（金錢），最多再加一種成長貨幣 |
-| 15 種武器、上百支兵團、數百種戰術書 | 內容量是線上遊戲規模 | 以 2～4 武器、4～8 兵種為原型上限 |
+| 15 種以上武器、150 種以上兵團、數百種戰術書 | 內容量是線上遊戲規模 | 以 2～4 武器、4～8 兵種為原型上限 |
+| 抽卡武魂、賽季清空進度（《三國》資料片） | 上市即遭壓倒性負評 | 不做；成長進度應該永久保留 |
 | 原作的名稱、兵團名、技能名、數值、美術 | 版權與原創性 | 只參考系統結構，自訂名稱與數值（design.md 已經是這個方向） |
 
 ### 7.4 建議做法順序（跟 design.md 第 8 節合併）
 
 1. 統率值與編成（★1）→ 2. 戰損延續與補員（★2，跟「城內募兵處」一起做）→ 3. 兵團等級與老兵點（★3）→ 4. 攻城器械與多段據點（★4，強化現有的攻城戰）→ 5. 佈防模式（★5，重用守城地圖）。之後再接 design.md 的戰略地圖、營地與補給、敵方反攻。
+
+戰場表現（7.5）不必排在系統後面：第一組（頓幀、震動、受擊閃白、控制效果動作、地面指示）成本最低，可以跟 ★1 同時做，之後每加一個系統就順手補它的回饋。
+
+### 7.5 戰場表現：可以在 2D Canvas 上低成本做的項目（第二次補充）
+
+依「玩家感受提升 ÷ 實作成本」排序。原作資料見第 8 節；標「原作沒有」的項目是 TopPath Blade 可以超越原作的地方。
+
+| # | 項目 | 原作對應 | Canvas 做法 | 成本 |
+|---|---|---|---|---|
+| 1 | **頓幀（hit stop）** | 原作沒有資料，評測反而批評回饋弱 | 重擊命中時整個模擬暫停 2～5 幀（只停邏輯，不停粒子）；輕擊 0～1 幀，避免拖沓 | 極低 |
+| 2 | **鏡頭震動** | 原作沒有資料 | 依事件強度給位移量與衰減：重擊小震、火砲落地中震、城門破開大震；同時發生只取最大值，避免疊加暈眩 | 極低 |
+| 3 | 受擊閃白與擊退位移 | 受擊動作（8.2） | 命中瞬間 sprite 用 `globalCompositeOperation` 或預先產生的白色剪影閃 1～2 幀，加 4～12 px 擊退 | 極低 |
+| 4 | **控制效果的動作語言** | 1.5 控制效果表 | 擊退＝滑行；擊倒＝ sprite 旋轉 90° 倒地＋起身前不可行動；擊飛＝加一個 z 高度，影子留在地上、角色往上拋再落下；暈眩＝頭上轉圈圖示；恐慌＝頭上「!」並背向敵人跑 | 低 |
+| 5 | **地面指示** | 按住 X 派兵＋調面向（2.5） | 拖曳時畫出半透明的「陣型幽靈」（每名士兵一個點）加一支面向箭頭；放開後點逐漸淡出 | 低 |
+| 6 | 據點圈與佔領進度 | 圓圈佔點、敵人進入就中止（3.1） | 地面畫圓環，用 `arc` 依進度填色；被爭奪時改成閃爍的雙色；頂部 HUD 放同色旗子 | 低 |
+| 7 | **兵團旗幟**（原作沒有） | 原作旗幟只在介面出現（8.8） | 每支兵團中心畫一根旗竿＋三角旗，顏色＝陣營、圖案＝兵種；兵力越少旗越破或越低；潰散時旗倒下。這是 2D 俯視角最需要的辨識工具 | 低 |
+| 8 | 兵團卡片與兵力條 | Tab 總覽、兵團人數（8.10） | 畫面下方每支兵團一張小卡：兵種圖示、剩餘人數條、目前指令與陣型、技能冷卻 | 低 |
+| 9 | 擊殺提示 | 擊殺播報（6、8.10） | 右上角文字串，武將級擊殺加圖示；我方武將陣亡用不同顏色 | 低 |
+| 10 | 屍體與血跡 | 屍體遍地、可隱藏屍體（8.3） | 死亡時把屍體與血跡「烘」進一張離屏地面 canvas，之後不再逐個繪製；設定上限並提供關閉選項，效能幾乎不受影響 | 低 |
+| 11 | **箭雨** | 箭從身邊飛過、盾牆擋箭（8.5） | 每支箭是一條短線段，依拋物線的 z 值縮放並畫影子；齊射時加一點隨機時間差；被盾擋下的箭插在盾上幾秒；落空的插在地上再淡出 | 低～中 |
+| 12 | 火焰與煙塵 | 燃燒、燃燒彈、煙霧彈（8.4） | 物件池粒子：火＝橘黃圓點往上飄、縮小；煙＝灰色大圓、低透明度、慢慢擴散；騎兵衝鋒時馬蹄後方噴土 | 低～中 |
+| 13 | 衝鋒的速度感 | 騎兵衝鋒沿路造成傷害（2.5、8.12） | 衝鋒時拉殘影（前幾幀位置半透明重畫）、塵土、命中的步兵被撞飛（用第 4 項的擊飛）；衝鋒停下時傷害消失 | 低～中 |
+| 14 | 潰散的視覺（原作只有雛形） | 武將陣亡兵團逃跑、恐慌（6、8.12） | 陣型點打散、士兵各自背向敵人跑、旗子倒下、頭上「!」；這比數值更能讓玩家看懂「這支兵團不行了」 | 低～中 |
+| 15 | 投石與火砲落點預警 | 投石機指定落點（3.2） | 落點先畫紅色圓圈並逐漸縮小，落地時塵土＋碎石粒子＋中震；給玩家閃避的時間 | 低 |
+| 16 | **城門與城牆破壞階段** | 衝車破門、可破壞牆段、碎石四濺（8.6） | 城門 3～4 張破損階段圖（或用線條畫裂痕），每受一次衝撞掉木屑；破門瞬間大震＋慢動作＋煙塵；牆段打穿後留下瓦礫並變成可通行 | 中 |
+| 17 | **短暫慢動作**（原作沒有） | 原作沒有處決鏡頭 | 只在少數高價值時刻：敵方武將被擊殺、城門破開、最後據點翻轉；時間倍率 0.3、持續 0.3～0.5 秒，搭配頓幀 | 低 |
+| 18 | 鏡頭拉近／拉遠 | 原作有「全域視角」按鍵（8.7） | 2D 用 `ctx.scale`：平常近距離看打擊，按住一個鍵拉遠看全戰場與兵團位置，放開彈回 | 低 |
+| 19 | 小地圖 | 右下可縮放小地圖（8.10） | 另一個小 canvas，每支兵團畫一個彩色點或旗子、據點畫圓、敵方可見範圍外的敵軍不畫 | 低 |
+| 20 | 音效回饋 | 金屬撞擊、陣亡呻吟、「遵命」語音（8.11） | 命中音效隨機變調 ±10% 避免重複；同類音效短時間內限制數量；指令確認語音加冷卻，**原作「遵命」一場聽 20 次被評測嫌煩** | 低 |
+| 21 | 音樂隨戰況變化 | 原作地圖有專屬配樂 | 兩層音軌：平常鼓點、交戰或據點被攻時疊上主旋律；用 Web Audio 的增益節點淡入淡出 | 低～中 |
+| 22 | 天氣疊層 | 雨天火箭不點火、雪、夜戰（6） | 全畫面雨絲或雪花粒子＋整體色調（夜晚藍暗、雨天降飽和）；雨天實際關閉火箭點火，讓天氣有玩法意義 | 低～中 |
+
+**建議的最小組合**：1～6 先做（全部是極低或低成本，打擊感與指揮清楚度提升最大），接著 7、10、11、14（兵團辨識與「大軍感」），攻城相關的 15、16、17 跟 ★4 攻城器械一起做。
+
+---
+
+## 8. 戰場表現與回饋（第二次補充）
+
+> 可信度說明：原作沒有公開的美術或技術文件，這一節主要來自評測、官方新手指南、更新日誌、社群攻略。凡是只在單一來源看到的都標了【待查證】；完全查不到的標【未找到】。特別是**頓幀、慢動作、處決鏡頭、指令輪盤**，搜尋多次都沒有任何資料，可以合理推測原作沒有這些設計。
+
+### 8.1 規模與整體氛圍
+
+| 項目 | 原作表現 |
+|---|---|
+| 同屏規模 | 15 對 15 攻城戰，「數千人同屏」是官方主打；預覽稱「上千名單位同時在場」 |
+| 氛圍 | 評測一致稱讚大戰場的氛圍：攻城戰像《權力遊戲》黑水河之戰；入夜下雨的攻城戰，濕透的刀劍與盔甲反光，像《魔戒》聖盔谷 |
+| 屍體 | 「屍體遍地」；屍體會留在場上，圖形選項有「隱藏屍體」（低、中畫質預設開啟） |
+| 戰鬥分期 | 攻城戰前期是城上城下的火砲對轟，中期在城牆與通道口近身肉搏；據點易手後戰場出現階段性變化 |
+| 弱點 | 評測認為攻城戰之外像「沒有前因後果的亂鬥」，攻城戰也缺少更多史詩時刻 |
+
+### 8.2 打擊感與受擊反應
+
+| 項目 | 原作表現 |
+|---|---|
+| 判定 | 預覽稱讚「近乎完美的判定框」、動作與移動流暢、反應靈敏 |
+| 負評 | 知乎早期評測批評技能回饋弱：「準備過程、出手動作、彈道軌跡、打擊效果都幾乎感覺不到」，單挑要打幾十秒；2019 年評測說多人戰鬥「頂多算凌亂」。這兩篇都是舊資料 |
+| 受擊動作 | 回饋主要靠控制效果的動作：擊退、擊倒、擊飛、震盪、下馬（見 1.5）。2026-01 官方特別改善「被破防」的角色動作；2026-04 調整雙刀的動作銜接與判定以「改善手感」 |
+| 霸體 | 蓄力、衝鋒、大招期間可以免控；格擋會被特定技能打破 |
+| 傷害數字 | 【未找到】可靠資料 |
+| 頓幀、慢動作 | 【未找到】，推測沒有 |
+
+### 8.3 擊飛、倒地、拋擲、屍體
+
+- **人體當投射物**：矛盾的大招把敵人踢飛，飛出去的人會撞傷並擊飛路徑上的其他人；戰錘可以抓起敵人丟出去，砸傷落點周圍。
+- **鉤拉**：長柄斧鉤腿把人拉過來並緩速；繩鏢鉤住目標把自己拉過去。
+- **騎兵撞擊**：騎兵衝鋒沿路造成大量傷害，步兵被撞開；有些武將技能專門把人打下馬。
+- 倒地後是否有布娃娃物理【未找到】；預覽只提到「致命一擊後倒下」。
+
+### 8.4 血液、火焰、煙塵與粒子
+
+| 類型 | 原作表現 |
+|---|---|
+| 血液 | Steam 內容描述標示「傷害與死亡的寫實描繪」，有血；血量設定或血液選項【未找到】 |
+| 火焰 | 燃燒是持續傷害；火箭手的箭、燃燒彈、蠍弩、神鴉火器都會點火；雨天火箭不點火；部分兵團「抗火」 |
+| 煙霧 | 雙刀、繩鏢的煙霧彈＝隱身或後跳，有實際玩法功能 |
+| 地面區域 | 鐵蒺藜（緩速、流血）、毒區（死後留下毒區的符文） |
+| 冰霜 | 《三國》武魂的冰凍、緩速控場 |
+| 石屑 | 預覽描述石塊砸中城牆時碎石四濺 |
+| 增益光效 | 武器層數用發光表示（例如矛盾的狂怒層數會發光）；高階外觀時裝自帶特效 |
+| 城破火焰 | 2023-02 改版讓投石機的火焰覆蓋城門內側與第一個據點 |
+
+### 8.5 箭雨與遠程表現
+
+- 預覽描述「箭從身邊呼嘯而過」，**盾牆可以擋箭**。
+- 持盾的弩手在裝填時用盾掩護；三列陣輪流射擊；弩可以穿透第二個目標；火器可以破盾、嚇馬。
+- 武將弓：蓄力越久彈道越直；高處射低處加傷；對武將有輔助瞄準，對兵團沒有。火槍瞄準時鏡頭視野會變（2026-07 調整過地面與騎乘的視野）。
+- 箭矢插在盾或地上的殘留表現【未找到】。
+
+### 8.6 攻城破門與城牆
+
+| 項目 | 原作表現 |
+|---|---|
+| 衝車 | 由士兵推動撞城門，連打開的城門也能撞壞；推車的兵團有部分遮蔽 |
+| 雲梯 | 武將架設；**守方可以把雲梯踢倒**，爬到一半的兵團很脆弱 |
+| 攻城塔 | 推到城牆邊開出通道；守方用城牆火砲打掉；被毀約 10 秒後重生 |
+| 城牆 | 只有少數地圖的特定牆段可以被投石機或火砲炸開，2023 年加上了破壞特效；城門內側一段牆也可被火砲打穿，打穿後雙方視線互通 |
+| 路障 | 城內路障可以被武將與火砲打掉 |
+| 守方 | 牆上有路障與固定火砲；預覽描述守方往下丟重物；門洞的固定武器【待查證】 |
+| 破門瞬間的特殊演出 | 【未找到】，沒有資料提到鏡頭或慢動作 |
+
+### 8.7 鏡頭
+
+| 項目 | 原作表現 |
+|---|---|
+| 視角 | 第三人稱越肩視角（預覽稱「第一人稱的中世紀近戰」，指的是親自操作的動作戰鬥） |
+| 全域視角 | W 鍵切到「全域視角」以看清地形（denetax；細節【待查證】） |
+| 彈丸鏡頭 | 操作火砲時按 Z 跟著砲彈飛 |
+| 火槍瞄準 | 瞄準時視野改變 |
+| 震動、拉近、慢動作、處決 | 【未找到】 |
+
+### 8.8 兵團旗幟與標記
+
+- **原作的兵團旗幟只出現在介面**：Fandom 摘要明確說兵團可以裝旗幟，但只顯示在戰團介面和戰後的兵團統計頁，**戰場上看不到**。旗幟是通行證與活動的外觀獎勵。
+- 場上標記：維和模式的目標「頭上有標記」；更新日誌提到武將、NPC、物品的頭頂資訊顯示。
+- 兵團的頭頂圖示與血條細節【未找到】。
+
+### 8.9 指令 UI
+
+- **快捷鍵制，沒有指令輪盤**：C 跟隨、X 駐守、V 進攻、F1～F4 陣型、1～4 兵團技能、5 切換武器（見 2.5）。
+- **地面指示**：按住 X 可以把兵團派到畫面上任何一點並用左右鍵調面向，代表有地面預覽；預覽的外觀【未找到】。
+- 互動：按住 Ctrl 點攻城塔、衝車、雲梯、補給點，兵團會去操作。
+- 兵團技能圖示有冷卻顯示（更新日誌修過「衝刺圖示冷卻結束後仍亮著」）。
+- 地圖上右鍵標記危險或方向。
+- 評測提到玩家常在聊天框裡喊指令，但大多被忽略。
+
+### 8.10 小地圖與戰場 HUD
+
+| 元件 | 原作表現 |
+|---|---|
+| 小地圖 | 右下角，可以用按鍵放大縮小；補給點用「+」表示 |
+| Tab 總覽 | 顯示敵我位置、交戰中的兵團、存活武將、陣亡數、剩餘與可用兵團數；**可以看到敵方的兵團總數與組成**，用來判斷優劣與反制 |
+| 據點 | 我方藍、敵方紅；最後據點用**藍旗圖示**標在小地圖與介面上 |
+| 狀態列 | 武將狀態列顯示增益圖示與剩餘時間（例如野太刀的狂暴狀態用武器圖示上的圓形進度條表示）；兵團技能的增益也會顯示在武將狀態列 |
+| 天氣 | 天氣圖示在右上角 |
+| 復活畫面 | 有獨立的復活介面，倒數 20～60 秒 |
+| 擊殺播報 | 有「擊殺播報」清單可以選擇【待查證】 |
+| 戰後 | 勝利畫面、兵團統計頁（兵團旗幟會顯示在這裡）；是否有 MVP 或評分【未找到】 |
+| 兵團血量 | 兵團屬性有「每名士兵的血量」，戰鬥中的兵團血量顯示方式【未找到】 |
+
+### 8.11 音效與音樂
+
+- 預覽稱讚金屬交擊與士兵陣亡呻吟讓戰鬥有臨場感。
+- **指令確認語音太重複**：測試版評測說「Yes my Lord!」一場聽到 20 次。
+- 配樂：第 7 季請北歐民謠樂團 Heilung 提供 2 首歌，還把樂團名字放進地圖地名；2024 年與 Sabaton 合作，重製的攻城地圖配上管弦樂版主題曲；2023 年改版也改善了地圖背景音樂。原作作曲者【未找到】。
+- 戰況變化時的音樂切換【未找到】。
+
+### 8.12 兵團 AI 的視覺行為
+
+| 行為 | 原作表現 |
+|---|---|
+| 陣型移動 | 駐守時依陣型列陣並朝指定方向；行進中不能攻擊的兵團會試圖直接穿過敵人 |
+| 進攻 | 近戰兵團脫離陣型去打附近的敵人 |
+| 衝鋒 | 沿直線衝鋒，路徑上高傷害；輕騎兵可以在衝鋒中多次轉向；騎兵停下來就弱 |
+| 邊衝邊射 | 部分火器騎兵衝鋒時同時開火 |
+| 護盾與輪射 | 弩手裝填時舉盾；三列輪射 |
+| 恐慌 | 燃燒彈、火器讓士兵恐慌；子彈讓馬匹停步或驚慌 |
+| 潰逃 | 武將陣亡後兵團撐一段時間再逃離；復活倒數 5 秒時自動撤退 |
+| 越戰越勇 | 第 28 季有兵團會隨友軍陣亡而增傷 |
+| 數量感 | 評測：AI 小兵單獨不可怕，數量多時才有威脅；守方面對「一波接一波」的攻勢 |
+
+來源：[Wccftech 預覽](https://wccftech.com/conquerors-blade-gamescom-preview/amp/)、[PCGamesN 測試版評測](https://www.pcgamesn.com/conquerors-blade-beta-review)、[TheSixthAxis 評測](https://www.thesixthaxis.com/2019/11/26/conquerors-blade-review-steam-dynasty-warriors-sequel)、[游民星空測評](https://ol.gamersky.com/news/201709/960917.shtml?tag=wap)、[知乎 – 《戰意》簡評](https://zhuanlan.zhihu.com/p/29380933)（403，以搜尋摘要為準）、[Steam – OFFICIAL Beginner's Guide](https://steamcommunity.com/sharedfiles/filedetails/?id=1807664171)、[denetax – Keybinds & Controls](https://denetax.fr/en/tutoriel-commandes-utiles-conqueror-blade)、[denetax – Complete Unit Guide](https://denetax.fr/en/tutoriel-gestion-unite-conqueror-blade)、[官方 – Eternal 更新日誌](https://www.conquerorsblade.com/en/news/877/)、[CBGG 更新紀錄](https://cbgg.net/wiki/patch-history/)、[conquerorsbladehub – Offensive Hero Play](https://www.conquerorsbladehub.com/guides/hero_play/offensive_hero_play.html)、[conquerorsbladehub – Hero Play](https://www.conquerorsbladehub.com/guides/hero_play.html)、[Blabbermouth – Sabaton 合作](https://blabbermouth.net/news/sabaton-teams-with-conquerors-blade-video-game-in-exciting-collaboration)、[Mythologica – Heilung 合作](https://mythologica.com.br/en/news/heilung-collaboration-conquerors-blade/)、Fandom – Units / Nodachi（搜尋摘要）、[Steam 商店頁](https://store.steampowered.com/app/835570/)
