@@ -67,8 +67,6 @@ G.Menu = (() => {
   /** 開場畫面：按任意鍵或點一下進選單 */
   function showTitle() {
     const t = $('title'); t.style.display = 'flex'; t.classList.remove('leaving'); $('menu').style.display = 'none';
-    document.body.classList.add('shake');
-    setTimeout(() => document.body.classList.remove('shake'), 1600);
     startEmbers();
     let leaving = false;
     const go = e => {

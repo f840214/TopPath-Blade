@@ -5,7 +5,7 @@
 G.FX = (() => {
   let parts = [], arcs = [], rings = [], texts = [], cutin = null;
   let shake = 0, hitStop = 0;
-  const S = { shake: true };   // 設定：畫面震動開關
+  const S = { shake: false };   // 設定：畫面震動開關（預設關，V 鍵可開）
 
   function reset() { parts = []; arcs = []; rings = []; texts = []; cutin = null; shake = 0; hitStop = 0; }
 
