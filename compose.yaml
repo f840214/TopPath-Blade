@@ -1,0 +1,8 @@
+services:
+  toppath-blade:
+    build: .
+    image: toppath-blade
+    container_name: toppath-blade
+    ports:
+      - "8899:80"
+    restart: unless-stopped

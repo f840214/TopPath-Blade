@@ -8,6 +8,15 @@
 雙擊 `serve.cmd`（需要 Node.js），會開本機伺服器並打開 http://localhost:8765/。
 WebGL 不能讀 `file://` 的圖片，所以不能直接雙擊 `index.html`。
 
+## 架設（Docker）
+
+```
+docker compose up -d --build
+```
+
+用 nginx 提供靜態檔案，開 http://<主機>:8899/ 就能玩。改版後在主機上 `git pull` 再執行同一行重新建置即可。
+只會複製 `index.html`、`css/`、`js/`、`lib/`、`assets/` 進映像（見 `Dockerfile`）。
+
 ## 操作（純鍵盤）
 
 | 按鍵 | 功能 |
