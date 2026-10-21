@@ -65,6 +65,7 @@ js/game.js            場景、主迴圈、每幀繪製流程
 tools/                PixelLab 素材匯入工具
 assets/               精靈圖、地磚、立繪
 docs/design.md        兵種、克制、陣型、技能、武將、裝備、戰場與戰略層的設計說明
+docs/roadmap.md       待做清單（依順序）
 ```
 
 ## 調整平衡
