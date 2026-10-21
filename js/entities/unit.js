@@ -11,6 +11,9 @@ G.Squad = class {
     this.buff = { atkMul: 1, speedMul: 1, until: 0 };
     this.bonus = o.bonus || { atk: 0, speed: 0, armor: 0 };   // 披風等裝備給的固定加成（%）
     this.label = o.label || this.def.name;
+    this.level = o.level || 1;
+    this.levelMul = 1 + G.ARMY.squadLevelBonus * (this.level - 1);   // 兵團等級：生命與攻擊加成
+    this.kills = 0;
     this.waypoint = null;
     this.units = [];
     const n = o.count || this.def.count;
@@ -31,7 +34,7 @@ G.Squad = class {
     return { x: cx + s.x * c - s.y * sn, y: cy + s.x * sn + s.y * c };
   }
   get fm() { return G.FORMATIONS[this.formation]; }
-  atkMul(now) { return (1 + this.bonus.atk / 100) * (now < this.buff.until ? this.buff.atkMul : 1); }
+  atkMul(now) { return (1 + this.bonus.atk / 100) * this.levelMul * (now < this.buff.until ? this.buff.atkMul : 1); }
   speedMul(now) {
     let m = (1 + this.bonus.speed / 100) * (this.fm.speedMul || 1) * (now < this.buff.until ? this.buff.speedMul : 1);
     if (this.fx.charge > 0) m *= G.UNIT_SKILLS.charge.speedMul;
@@ -49,7 +52,7 @@ G.Unit = class {
     this.squad = squad; this.team = squad.team; this.def = squad.def; this.slot = slot;
     this.x = x; this.y = y; this.z = 0; this.vz = 0;
     this.vx = 0; this.vy = 0; this.kx = 0; this.ky = 0;   // 擊退速度
-    this.hp = this.def.hp; this.maxHp = this.def.hp;
+    this.hp = this.maxHp = this.def.hp * squad.levelMul;
     this.face = squad.face; this.cd = Math.random() * this.def.atkCd;
     this.anim = 'Idle'; this.animT = Math.random(); this.moving = false;
     this.target = null; this.seekT = Math.random() * 0.2; this.stun = 0; this.flash = 0; this.dead = 0;

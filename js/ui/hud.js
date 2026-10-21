@@ -46,10 +46,14 @@ G.HUD = (() => {
     $('perf').textContent = s.perf ? `FPS ${s.perf.fps.toFixed(0)}・${s.perf.frameMs.toFixed(2)} ms・單位 ${s.perf.units}・縮放 ${s.zoom}` : '';
   }
 
-  function result(win, msg, stats) {
+  /** rep：G.Army.settle 的結算報告（大軍測試沒有） */
+  function result(win, msg, stats, rep) {
     const r = $('result');
     r.querySelector('h2').textContent = win ? '勝利' : '戰敗';
     r.querySelector('p').textContent = `${msg}　擊破 ${stats.kills[0]}`;
+    r.querySelector('.report').innerHTML = rep ? `
+      <div>金幣 +${rep.gold}・武將經驗 +${rep.heroXp}${rep.heroUp ? `・<b>武將升到 Lv${rep.heroLevel}，統率上限 ${G.Army.cap()}</b>` : ''}</div>
+      ${rep.squads.map(s => `<div>${s.name}：${s.before} → ${s.after} 人${s.before > s.after ? `（陣亡 ${s.before - s.after}）` : ''}・擊殺 ${s.kills}${s.up ? `・<b>升到 Lv${s.level}</b>` : ''}</div>`).join('')}` : '';
     r.className = win ? 'win' : 'lose';
     r.style.display = 'flex';
   }

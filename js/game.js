@@ -1,7 +1,7 @@
 /* ============ game.js — 戰場：場景、主迴圈、武將操作、物理、繪製 ============ */
 G.Game = (() => {
   const W = () => G.CONFIG.world;
-  let ctx, state = 'menu', loadout = null;
+  let ctx, state = 'menu';
   let heroes = [], squads = [], timers = [];
   let player = null, select = 'all', cam = { x: 0, y: 0 }, zoom = 1;
   let thinkT = 0, result = null, scenario = null, showPerf = false, fps = 0, frameMs = 0;
@@ -45,7 +45,7 @@ G.Game = (() => {
       timeLimit: 0,
     },
     stress: {
-      name: '大軍測試', desc: '效能測試：雙方合計約 2000 人自動交戰，按 F3 看 fps。', seed: 31,
+      name: '大軍測試', desc: '效能測試：雙方合計約 2000 人自動交戰，按 F3 看 fps。不計入名冊。', seed: 31, test: true,
       player: { x: 560, y: 800, face: 0 },
       enemyHero: { weapon: 'glaive', x: 1950, y: 800 },
       enemies: [],
@@ -55,7 +55,7 @@ G.Game = (() => {
   };
 
   function start(lo, isDemo = false) {
-    demo = isDemo; if (!demo) loadout = lo; scenario = SCENARIOS[lo.scenario];
+    demo = isDemo; scenario = SCENARIOS[lo.scenario];
     heroes = []; squads = []; timers = []; unitCache = null; result = null; api.time = 0; thinkT = 0; select = 'all';
     G.FX.reset(); G.Combat.reset();
     G.Map.setupCastle(scenario.castle || null);
@@ -65,15 +65,17 @@ G.Game = (() => {
     G.Map.buildGround(scenario.seed + (demo ? Math.floor(Math.random() * 1000) : 0), dirt, avoid);
 
     const p = scenario.player;
-    player = new G.Hero(0, lo.weapon, lo.equip, p.x, p.y); player.face = p.face;
+    player = new G.Hero(0, lo.weapon, lo.equip, p.x, p.y, lo.heroLevel || 1); player.face = p.face;
     heroes.push(player);
     const bonus = { atk: player.stats.squadAtk, speed: player.stats.squadSpeed, armor: player.stats.squadArmor };
-    lo.squads.forEach((type, i) => {
+    // lo.squads：名冊給的 { id, type, men, level }；開場對戰只給兵種字串
+    lo.squads.map(s => typeof s === 'string' ? { type: s } : s).forEach((s, i) => {
       const side = i % 2 === 0 ? -1 : 1, back = 60 + Math.floor(i / 2) * 110;   // 兩隊一排，多的往後排
       const sx = p.x - Math.cos(p.face) * back + Math.cos(p.face + Math.PI / 2) * 50 * side;
       const sy = p.y - Math.sin(p.face) * back + Math.sin(p.face + Math.PI / 2) * 50 * side;
-      const sq = new G.Squad(0, type, sx, sy, p.face, { cmd: 'follow', bonus, label: `第${i + 1}隊・${G.UNITS[type].name}` });
-      sq.followSide = 46 * side; sq.followOffset = 20;
+      const lv = s.level || 1;
+      const sq = new G.Squad(0, s.type, sx, sy, p.face, { cmd: 'follow', bonus, count: s.men, level: lv, label: `第${i + 1}隊・${G.UNITS[s.type].name}${lv > 1 ? ` Lv${lv}` : ''}` });
+      sq.followSide = 46 * side; sq.followOffset = 20 + Math.floor(i / 2) * 70; sq.rosterId = s.id;
       squads.push(sq);
     });
     const eh = scenario.enemyHero;
@@ -171,8 +173,9 @@ G.Game = (() => {
   /* ---------- 輸入 ---------- */
   function handleInput() {
     const I = G.Input;
-    if (I.pressed('Tab')) select = select === 'all' ? 0 : select === 0 ? 1 : 'all';
-    const mine = playerSquads(), sel = select === 'all' ? mine : [mine[select]].filter(Boolean);
+    const mine = playerSquads();
+    if (I.pressed('Tab')) select = select === 'all' ? 0 : select + 1 < mine.length ? select + 1 : 'all';   // 全軍 → 第 1 隊 → … → 全軍
+    const sel = select === 'all' ? mine : [mine[select]].filter(Boolean);
     const cmd = I.pressed('Digit1') ? 'follow' : I.pressed('Digit2') ? 'hold' : I.pressed('Digit3') ? 'attack' : null;
     if (cmd) for (const sq of sel) {
       sq.cmd = cmd; sq.waypoint = null;
@@ -302,7 +305,12 @@ G.Game = (() => {
   function end(win, msg) {
     result = { win, msg };
     if (demo) setTimeout(() => { if (state === 'demo') startDemo(); }, 2500);   // 開場對戰打完就換一場
-    else G.HUD.result(win, msg, G.Combat.stats);
+    else G.HUD.result(win, msg, G.Combat.stats, settle(win));
+  }
+  /** 把傷亡、經驗、金幣寫回軍團名冊；大軍測試不結算。回傳結算報告（不結算時是 null） */
+  function settle(win) {
+    if (demo || scenario.test) return null;
+    return G.Army.settle(win, playerSquads().filter(s => s.rosterId), player.kills || 0);
   }
   /** 開場畫面背景用的自動對戰 */
   function startDemo() {
@@ -381,8 +389,12 @@ G.Game = (() => {
     if (state === 'battle' || state === 'demo') {
       const t0 = performance.now();
       if (!result) update(dt); else G.FX.update(dt);
-      if (!demo && result && G.Input.pressed('KeyR')) start(loadout);
-      if (!demo && G.Input.pressed('Escape')) { G.HUD.show(false); startDemo(); G.Menu.open(); }
+      if (!demo && result && G.Input.pressed('KeyR')) G.Menu.deploy();   // 用結算後的名冊再打一次
+      if (!demo && G.Input.pressed('Escape')) {
+        const rep = !result && settle(false);   // 中途撤退也要計入傷亡
+        G.HUD.show(false); startDemo();
+        G.Menu.open(rep ? `撤退：傷亡已計入名冊（${rep.squads.map(s => `${s.name} ${s.before}→${s.after}`).join('、')}），金幣 +${rep.gold}` : '');
+      }
       draw();
       frameMs = frameMs * 0.9 + (performance.now() - t0) * 0.1;
       frames++; acc += dt; if (acc >= 0.5) { fps = frames / acc; frames = 0; acc = 0; }

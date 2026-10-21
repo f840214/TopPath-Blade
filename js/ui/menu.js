@@ -1,9 +1,15 @@
-/* ============ menu.js — 出戰準備：場景、武器、裝備、兵團，以及兵種圖鑑 ============ */
+/* ============ menu.js — 出戰準備：場景、武器、裝備、武將、軍團名冊，以及兵種圖鑑 ============
+ * 兵團來自軍團名冊（G.Army）；這裡只記場景、武器、裝備的選擇（tpb-loadout）。
+ */
 G.Menu = (() => {
   const $ = id => document.getElementById(id);
   const KEY = 'tpb-loadout';
-  let lo = { scenario: 'field', weapon: 'sword', equip: { helm: 'helm_iron', armor: 'armor_mail', gloves: 'gloves_leather', cape: 'cape_wool' }, squads: ['pikeman', 'archer'] };
+  let lo = { scenario: 'field', weapon: 'sword', equip: { helm: 'helm_iron', armor: 'armor_mail', gloves: 'gloves_leather', cape: 'cape_wool' } };
   try { Object.assign(lo, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {}
+  delete lo.squads;   // 舊版存的兵種選擇，現在改由名冊決定
+  let confirmDismiss = null;   // 解散要按兩次：第一次記下 id
+
+  function msg(text) { $('menuMsg').textContent = text || ''; }
 
   const statText = st => Object.entries(st).map(([k, v]) => ({
     hp: `生命 +${v}`, armor: `護甲 +${v}`, atk: `攻擊 +${v}%`, cdr: `冷卻 -${v}%`,
@@ -18,9 +24,34 @@ G.Menu = (() => {
        <small class="sk">${['Q', 'E', 'R'].map(s => `${s} ${G.HERO_SKILLS[w.skills[s]].name}`).join('　')}</small></button>`).join('');
     $('equip').innerHTML = G.EQUIP_SLOTS.map(s => `<label>${s.name}<select data-eq="${s.key}">${G.EQUIPMENT[s.key].map(i =>
       `<option value="${i.id}" ${lo.equip[s.key] === i.id ? 'selected' : ''} style="color:${G.RARITY[i.rarity].color}">${i.name}（${G.RARITY[i.rarity].name}）— ${statText(i.stats)}</option>`).join('')}</select></label>`).join('');
-    $('squadPick').innerHTML = [0, 1].map(i => `<label>第${i + 1}隊<select data-sq="${i}">${Object.entries(G.UNITS).map(([k, u]) =>
-      `<option value="${k}" ${lo.squads[i] === k ? 'selected' : ''}>${u.name}（${u.count} 人）</option>`).join('')}</select></label>`).join('');
+    renderArmy();
     renderCodex();
+  }
+
+  /** 武將等級、統率、金幣，以及軍團名冊與招募 */
+  function renderArmy() {
+    const A = G.Army, P = A.profile(), h = P.hero, cap = A.cap(), used = A.used();
+    $('heroInfo').innerHTML = `
+      <div class="stat"><span>等級</span><b>Lv${h.level}</b></div>
+      <div class="xp"><i style="width:${h.level >= G.ARMY.heroMaxLevel ? 100 : h.xp / G.ARMY.heroXpToNext(h.level) * 100}%"></i><small>經驗 ${h.xp} / ${G.ARMY.heroXpToNext(h.level)}</small></div>
+      <div class="stat"><span>統率</span><b class="${used > cap ? 'bad' : ''}">${used} / ${cap}</b></div>
+      <div class="stat"><span>金幣</span><b>${P.gold}</b></div>
+      <small class="hint">武將升級提高統率上限與生命。打仗獲得金幣與經驗。</small>`;
+    $('roster').innerHTML = P.roster.length ? `<table class="roster">
+      <tr><th>出戰</th><th>兵團</th><th>人數</th><th>經驗</th><th>統率</th><th></th></tr>
+      ${P.roster.map(s => {
+        const u = G.UNITS[s.type], full = s.men >= u.count, rc = A.refillCost(s), lvMax = s.level >= G.ARMY.squadMaxLevel;
+        return `<tr class="${s.deployed ? 'on' : ''} ${s.men ? '' : 'wiped'}">
+          <td><button class="chk" data-dep="${s.id}">${s.deployed ? '■' : '□'}</button></td>
+          <td>${u.name} <b>Lv${s.level}</b></td>
+          <td class="${full ? '' : 'bad'}">${s.men} / ${u.count}</td>
+          <td><div class="xp"><i style="width:${lvMax ? 100 : s.xp / G.ARMY.squadXpToNext(s.level) * 100}%"></i></div></td>
+          <td>${A.costOf(s)}</td>
+          <td>${full ? '' : `<button class="mini" data-refill="${s.id}">補員 ${rc} 金</button>`}
+              <button class="mini warn" data-dismiss="${s.id}">${confirmDismiss === s.id ? '確定解散？' : '解散'}</button></td></tr>`;
+      }).join('')}</table>` : '<p class="note">名冊是空的，先招募兵團。</p>';
+    $('recruit').innerHTML = Object.entries(G.UNITS).map(([k, u]) =>
+      `<button class="mini" data-recruit="${k}">招募${u.name}（${u.count} 人・${A.recruitCost(k)} 金・統率 ${G.ARMY.leadership[k]}）</button>`).join('');
   }
 
   /** 兵種圖鑑：直接從 js/data 產生，數值改了這裡就跟著變 */
@@ -44,25 +75,37 @@ G.Menu = (() => {
   function bind() {
     $('menu').addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;
-      if (b.dataset.sc) lo.scenario = b.dataset.sc;
-      if (b.dataset.wp) lo.weapon = b.dataset.wp;
       if (b.id === 'startBtn') return go();
+      const d = b.dataset, A = G.Army;
+      let err;
+      if (d.sc) lo.scenario = d.sc;
+      if (d.wp) lo.weapon = d.wp;
+      if (d.dep) err = A.toggleDeploy(+d.dep);
+      if (d.refill) err = A.refill(+d.refill);
+      if (d.recruit) err = A.recruit(d.recruit);
+      if (d.dismiss) {
+        if (confirmDismiss === +d.dismiss) { A.dismiss(+d.dismiss); confirmDismiss = null; }
+        else confirmDismiss = +d.dismiss;
+      } else confirmDismiss = null;
+      msg(err);
       render();
     });
     $('menu').addEventListener('change', e => {
       const s = e.target;
       if (s.dataset.eq) lo.equip[s.dataset.eq] = s.value;
-      if (s.dataset.sq) lo.squads[+s.dataset.sq] = s.value;
     });
     addEventListener('keydown', e => { if (e.code === 'Enter' && $('menu').style.display !== 'none') go(); });
   }
 
+  /** 用目前選單設定＋名冊出戰；結算畫面按 R 也走這裡（名冊已經更新） */
   function go() {
     try { localStorage.setItem(KEY, JSON.stringify(lo)); } catch (e) {}
+    const squads = G.Army.loadout();
+    if (!squads.length && !G.Game.SCENARIOS[lo.scenario].test) { open(); msg('至少勾選一支有兵的兵團出戰'); return; }
     $('menu').style.display = 'none';
-    G.Game.start(JSON.parse(JSON.stringify(lo)));
+    G.Game.start({ ...JSON.parse(JSON.stringify(lo)), squads, heroLevel: G.Army.heroLevel() });
   }
-  function open() { $('title').style.display = 'none'; $('menu').style.display = 'block'; render(); }
+  function open(text) { $('title').style.display = 'none'; $('menu').style.display = 'block'; render(); msg(text); }
 
   /** 開場畫面：按任意鍵或點一下進選單 */
   function showTitle() {
@@ -112,5 +155,5 @@ G.Menu = (() => {
   }
   function stopEmbers() { cancelAnimationFrame(emberRaf); }
 
-  return { init() { bind(); showTitle(); }, open };
+  return { init() { bind(); showTitle(); }, open, deploy: go };
 })();

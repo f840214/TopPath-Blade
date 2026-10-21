@@ -2,7 +2,7 @@
  * 數值 = 基礎（G.HERO_BASE）+ 武器 + 裝備。技能效果在 js/systems/skills.js。
  */
 G.Hero = class {
-  constructor(team, weaponKey, equip, x, y) {
+  constructor(team, weaponKey, equip, x, y, level = 1) {
     this.team = team; this.isHero = true;
     this.weaponKey = weaponKey; this.weapon = G.WEAPONS[weaponKey];
     const st = { hp: 0, armor: 0, atk: 0, cdr: 0, squadAtk: 0, squadSpeed: 0, squadArmor: 0 };
@@ -11,7 +11,8 @@ G.Hero = class {
       if (item) for (const [k, v] of Object.entries(item.stats)) st[k] += v;
     }
     this.stats = st;
-    this.maxHp = G.HERO_BASE.hp + st.hp; this.hp = this.maxHp;
+    this.level = level;
+    this.maxHp = G.HERO_BASE.hp + st.hp + G.ARMY.heroHpPerLevel * (level - 1); this.hp = this.maxHp;
     this.armor = G.HERO_BASE.armor + st.armor;
     this.atk = this.weapon.atk * (1 + st.atk / 100);
     this.cdr = Math.min(40, st.cdr) / 100;

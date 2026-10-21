@@ -24,7 +24,7 @@
   <div id="toast"></div>
 </div>
 
-<div id="result"><div class="plate"><h2></h2><p></p></div><small>R 再打一次・Esc 回選單</small></div>
+<div id="result"><div class="plate"><h2></h2><p></p></div><div class="report"></div><small>R 再打一次・Esc 回選單</small></div>
 
 <div id="title">
   <canvas id="embers"></canvas>
@@ -45,8 +45,10 @@
     <section><h3 class="ribbon">武將武器（決定技能）</h3><div id="weapons" class="row"></div></section>
     <section class="two">
       <div><h3 class="ribbon">裝備</h3><div id="equip"></div></div>
-      <div><h3 class="ribbon">帶兵（兩個兵團）</h3><div id="squadPick"></div></div>
+      <div><h3 class="ribbon">武將</h3><div id="heroInfo"></div></div>
     </section>
+    <section><h3 class="ribbon">軍團名冊（勾選出戰，總統率不能超過上限）</h3><div id="roster"></div><div id="recruit" class="row"></div></section>
+    <div id="menuMsg"></div>
     <button id="startBtn">開戰（Enter）</button>
     <section><h3 class="ribbon">兵種圖鑑・克制表</h3><div id="codex"></div></section>
   </div>
@@ -63,6 +65,7 @@
 <script src="js/data/formations.js?v=0.3"></script>
 <script src="js/data/skills.js?v=0.3"></script>
 <script src="js/data/heroes.js?v=0.3"></script>
+<script src="js/data/army.js?v=0.4"></script>
 <script src="js/core/render.js?v=0.4"></script>
 <script src="js/core/sprites.js?v=0.3"></script>
 <script src="js/entities/fx.js?v=0.3"></script>
@@ -72,6 +75,7 @@
 <script src="js/systems/combat.js?v=0.3"></script>
 <script src="js/systems/skills.js?v=0.3"></script>
 <script src="js/systems/ai.js?v=0.3"></script>
+<script src="js/systems/army.js?v=0.4"></script>
 <script src="js/ui/hud.js?v=0.3"></script>
 <script src="js/ui/menu.js?v=0.3"></script>
 <script src="js/game.js?v=0.3"></script>

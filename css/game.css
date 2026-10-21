@@ -103,6 +103,28 @@ button, select { font-family: var(--px); }
 @media (max-width: 720px) { .two { grid-template-columns: 1fr; } }
 #menu label { display: block; margin: 8px 0; font-size: 14px; color: var(--muted); }
 #menu select { display: block; width: 100%; margin-top: 4px; background: var(--ink); color: var(--text); border: 2px solid #5a4029; padding: 6px; font-size: 13px; }
+/* 武將資訊與軍團名冊 */
+#heroInfo .stat { display: flex; justify-content: space-between; margin: 6px 0; font-size: 14px; color: var(--muted); }
+#heroInfo .stat b { color: var(--gold); font-weight: normal; }
+#heroInfo .hint { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.xp { position: relative; height: 8px; background: #1a120d; border: 1px solid #5a4030; min-width: 70px; }
+.xp i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(#9fd06a, #5a9a32); }
+#heroInfo .xp { height: 14px; margin: 4px 0 10px; }
+#heroInfo .xp small { position: absolute; inset: 0; text-align: center; font-size: 11px; line-height: 14px; color: var(--text); text-shadow: 0 1px 0 #000; }
+table.roster { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 8px; }
+table.roster th { color: var(--muted); font-weight: normal; text-align: left; padding: 4px 6px; border-bottom: 1px solid #5a4030; }
+table.roster td { padding: 5px 6px; border-bottom: 1px solid #3a2b22; }
+table.roster tr.on td { background: rgba(240,195,90,.08); }
+table.roster tr.wiped td { opacity: .6; }
+table.roster td b { color: var(--gold); font-weight: normal; }
+.bad { color: #e5574a !important; }
+button.chk { background: none; border: 0; color: var(--gold); font-size: 18px; cursor: pointer; padding: 0 4px; }
+button.mini { background: #3a2b22; color: var(--text); border: 1px solid var(--bronze); padding: 3px 8px; font-size: 13px; cursor: pointer; }
+button.mini:hover { filter: brightness(1.2); }
+button.mini.warn { border-color: #7d1f1a; color: #e5a49c; }
+#recruit { margin-top: 6px; }
+#menuMsg { min-height: 20px; margin: 10px 0 0; text-align: center; color: #ffb3a8; font-size: 14px; }
+
 #startBtn {
   display: block; margin: 24px auto 4px; padding: 12px 56px; font-size: 20px; letter-spacing: 6px; color: #fff3dc; cursor: pointer;
   background: linear-gradient(#c8463b, #8a231c); border: 2px solid var(--gold); box-shadow: inset 0 2px 0 #e86a5c, inset 0 -3px 0 #5a120e, 0 3px 0 #000;
@@ -160,6 +182,8 @@ button, select { font-family: var(--px); }
 #result.lose h2 { background: linear-gradient(#ffb0a4, #e5574a 50%, #8a231c); -webkit-background-clip: text; background-clip: text; }
 #result p { margin: 8px 0 0; color: var(--text); }
 #result small { color: var(--muted); margin-top: 12px; text-shadow: 0 1px 0 #000; }
+#result .report { margin-top: 10px; font-size: 14px; line-height: 1.8; text-align: center; color: var(--text); text-shadow: 0 1px 0 #000; }
+#result .report b { color: var(--gold); font-weight: normal; }
 
 @media (max-width: 1000px) {
   #objective { top: auto; bottom: 92px; left: 8px; transform: none; min-width: 200px; }

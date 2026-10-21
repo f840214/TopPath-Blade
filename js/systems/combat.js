@@ -56,7 +56,11 @@ G.Combat = (() => {
 
   function kill(u, by) {
     u.hp = 0; u.dead = 0.001;
-    if (by) stats.kills[by.team]++;
+    if (by) {
+      stats.kills[by.team]++;
+      if (by.squad) by.squad.kills = (by.squad.kills || 0) + 1;   // 兵團經驗（G.Army.settle）
+      else if (by.isHero) by.kills = (by.kills || 0) + 1;
+    }
     // 被打死時往後彈飛一點
     if (by && !u.isHero) { knock(u, by.x, by.y, 10); u.vz = Math.max(u.vz, 60); }
     G.FX.dust(u.x, u.y, 4);
