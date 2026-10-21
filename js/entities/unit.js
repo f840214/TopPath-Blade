@@ -52,7 +52,7 @@ G.Unit = class {
     this.hp = this.def.hp; this.maxHp = this.def.hp;
     this.face = squad.face; this.cd = Math.random() * this.def.atkCd;
     this.anim = 'Idle'; this.animT = Math.random(); this.moving = false;
-    this.target = null; this.stun = 0; this.flash = 0; this.dead = 0;
+    this.target = null; this.seekT = Math.random() * 0.2; this.stun = 0; this.flash = 0; this.dead = 0;
     this.radius = this.def.radius;
   }
   get type() { return this.def.type; }
@@ -63,9 +63,7 @@ G.Unit = class {
   draw(ctx) {
     const red = this.team === 1, alpha = this.dead ? Math.max(0, 1 - this.dead / 1.2) : 1;
     const y = this.y - this.z;
-    // 影子
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
-    ctx.beginPath(); ctx.ellipse(this.x, this.y, this.radius + 1, 3, 0, 0, Math.PI * 2); ctx.fill();
+    // 影子在 game.js 的 drawShadows 一次畫完
     const anim = this.moving ? 'Walk' : (this.anim === 'Attack' ? 'Attack' : 'Idle');
     const t = anim === 'Idle' ? 0 : this.animT;
     // 騎兵沒有攻擊動畫，衝鋒時用奔跑代替

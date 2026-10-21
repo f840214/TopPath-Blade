@@ -2,7 +2,7 @@
 G.Game = (() => {
   const W = () => G.CONFIG.world;
   let cv, ctx, state = 'menu', loadout = null;
-  let heroes = [], squads = [], timers = [], grid = new Map();
+  let heroes = [], squads = [], timers = [];
   let player = null, select = 'all', cam = { x: 0, y: 0 }, zoom = 1;
   let thinkT = 0, result = null, scenario = null, showPerf = false, fps = 0, frameMs = 0;
   let demo = false;   // 開場畫面背景：兩軍自動交戰，沒有玩家操作
@@ -48,7 +48,7 @@ G.Game = (() => {
 
   function start(lo, isDemo = false) {
     demo = isDemo; if (!demo) loadout = lo; scenario = SCENARIOS[lo.scenario];
-    heroes = []; squads = []; timers = []; result = null; api.time = 0; thinkT = 0; select = 'all';
+    heroes = []; squads = []; timers = []; unitCache = null; result = null; api.time = 0; thinkT = 0; select = 'all';
     G.FX.reset(); G.Combat.reset();
     G.Map.setupCastle(scenario.castle || null);
     const dirt = scenario.castle ? [{ x: 0, y: 0, w: W().w, h: scenario.castle.wallY }, { x: scenario.castle.gateX - 60, y: scenario.castle.wallY, w: 120, h: W().h }] : [];
@@ -80,24 +80,45 @@ G.Game = (() => {
     if (demo) for (const s of squads) s.cmd = 'attack';
   }
 
-  /* ---------- 查詢工具（給 AI、技能用） ---------- */
-  function allUnits() { const a = []; for (const s of squads) for (const u of s.units) a.push(u); for (const h of heroes) a.push(h); return a; }
+  /* ---------- 查詢工具（給 AI、技能用） ----------
+   * 單位清單每幀只組一次（unitCache）；空間網格 64px 一格、依陣營分開，找敵人時只掃對方的格子。
+   */
+  const CELL = 6, GW = () => (W().w >> CELL) + 1, GH = () => (W().h >> CELL) + 1;
+  let unitCache = null, grids = [[], []];
+  function allUnits() {
+    if (unitCache) return unitCache;
+    const a = []; for (const s of squads) for (const u of s.units) a.push(u); for (const h of heroes) a.push(h);
+    return unitCache = a;
+  }
   function rebuildGrid() {
-    grid = new Map();
-    for (const u of allUnits()) if (!u.dead) { const k = (u.x >> 6) + ',' + (u.y >> 6); (grid.get(k) || grid.set(k, []).get(k)).push(u); }
+    const n = GW() * GH();
+    for (const g of grids) { if (g.length !== n) { g.length = 0; for (let i = 0; i < n; i++) g.push([]); } else for (const c of g) c.length = 0; }
+    for (const u of allUnits()) if (!u.dead) grids[u.team][(u.y >> CELL) * GW() + (u.x >> CELL)].push(u);
   }
-  function forNear(x, y, r, fn) {
-    for (let gx = (x - r) >> 6; gx <= (x + r) >> 6; gx++) for (let gy = (y - r) >> 6; gy <= (y + r) >> 6; gy++) {
-      const a = grid.get(gx + ',' + gy); if (a) for (const u of a) fn(u);
-    }
+  function forCells(g, x, y, r, fn) {
+    const w = GW(), x0 = Math.max(0, (x - r) >> CELL), x1 = Math.min(w - 1, (x + r) >> CELL), y0 = Math.max(0, (y - r) >> CELL), y1 = Math.min(GH() - 1, (y + r) >> CELL);
+    for (let gy = y0; gy <= y1; gy++) for (let gx = x0; gx <= x1; gx++) for (const u of g[gy * w + gx]) fn(u);
   }
+  function forNear(x, y, r, fn) { for (const g of grids) forCells(g, x, y, r, fn); }
   function forEachFoe(team, x, y, r, fn) {
-    forNear(x, y, r, u => { if (u.team !== team && !u.dead && Math.hypot(u.x - x, u.y - y) <= r + (u.radius || 6)) fn(u); });
+    forCells(grids[1 - team], x, y, r, u => { if (!u.dead && Math.hypot(u.x - x, u.y - y) <= r + (u.radius || 6)) fn(u); });
   }
+  /** 由近到遠一圈一圈掃對方的格子；下一圈不可能比目前找到的更近就停 */
   function nearestFoe(team, x, y, r) {
+    const g = grids[1 - team], w = GW(), h = GH(), cx = x >> CELL, cy = y >> CELL;
+    const rings = Math.min(Math.ceil(r / 64) + 1, Math.max(w, h));
     let best = null, bd = r * r;
-    if (r > 600) { for (const u of allUnits()) if (u.team !== team && !u.dead) { const d = (u.x - x) ** 2 + (u.y - y) ** 2; if (d < bd) { bd = d; best = u; } } return best; }
-    forNear(x, y, r, u => { if (u.team !== team && !u.dead) { const d = (u.x - x) ** 2 + (u.y - y) ** 2; if (d < bd) { bd = d; best = u; } } });
+    for (let k = 0; k <= rings; k++) {
+      if (best && ((k - 1) * 64) ** 2 > bd) break;
+      for (let gy = cy - k; gy <= cy + k; gy++) {
+        if (gy < 0 || gy >= h) continue;
+        const step = gy === cy - k || gy === cy + k ? 1 : 2 * k;   // 上下兩列整排掃，中間只掃左右兩格
+        for (let gx = cx - k; gx <= cx + k; gx += step) {
+          if (gx < 0 || gx >= w) continue;
+          for (const u of g[gy * w + gx]) if (!u.dead) { const d = (u.x - x) ** 2 + (u.y - y) ** 2; if (d < bd) { bd = d; best = u; } }
+        }
+      }
+    }
     return best;
   }
   function nearestFoeSquad(sq) {
@@ -235,6 +256,7 @@ G.Game = (() => {
       if (!u.dead) G.Map.resolve(u);
     }
     for (const s of squads) s.units = s.units.filter(u => !u.dead || u.dead < 1.2);
+    unitCache = null;
   }
 
   /* ---------- 勝負 ---------- */
@@ -270,7 +292,7 @@ G.Game = (() => {
     api.time += dt;
     for (const t of timers) if (api.time >= t.t) { t.fn(); t.done = true; }
     timers = timers.filter(t => !t.done);
-    rebuildGrid();
+    unitCache = null; rebuildGrid();
     if (!result && !demo) handleInput();
     for (const h of heroes) updateHero(h, dt);
     if ((thinkT -= dt) <= 0) { thinkT = 0.5; for (const s of squads) if (s.team === 1 || demo) G.AI.think(s); }
@@ -298,8 +320,12 @@ G.Game = (() => {
     G.Combat.drawGround(ctx);
     G.Map.drawCapture(ctx, api.time);
     // 依 y 排序繪製
-    const list = [];
-    for (const u of allUnits()) if (u.x > cam.x - 60 && u.x < cam.x + vw + 60 && u.y > cam.y - 60 && u.y < cam.y + vh + 80) list.push({ y: u.y, draw: c => u.draw(c) });
+    const list = [], shadows = [];
+    for (const u of allUnits()) if (u.x > cam.x - 60 && u.x < cam.x + vw + 60 && u.y > cam.y - 60 && u.y < cam.y + vh + 80) {
+      list.push({ y: u.y, draw: c => u.draw(c) });
+      if (!u.isHero) shadows.push(u);
+    }
+    drawShadows(shadows);
     list.push(...G.Map.wallDrawables({ x: cam.x, y: cam.y, w: vw, h: vh }));
     list.sort((a, b) => a.y - b.y);
     for (const d of list) d.draw(ctx);
@@ -309,6 +335,13 @@ G.Game = (() => {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     G.FX.drawScreen(ctx, cv.width, cv.height);
     if (!demo) G.HUD.update({ player, squads: squadsOf(0), select, time: api.time, scenario, castle: G.Map.castle, stats: G.Combat.stats, foes: allUnits().filter(u => u.team === 1 && !u.dead).length, perf: showPerf && { fps, frameMs, units: allUnits().length }, zoom });
+  }
+
+  /** 士兵影子：全部併成一條路徑一次填色（一個一個 fill 在上千人時很慢） */
+  function drawShadows(units) {
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath();
+    for (const u of units) { const rx = u.radius + 1; ctx.moveTo(u.x + rx, u.y); ctx.ellipse(u.x, u.y, rx, 3, 0, 0, Math.PI * 2); }
+    ctx.fill();
   }
 
   /** 兵團旗標：藍色我方、紅色敵方，顯示人數；選中的兵團有金框 */

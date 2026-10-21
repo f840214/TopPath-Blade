@@ -54,7 +54,8 @@ G.AI = (() => {
 
       // 找目標：離自己近、而且沒跑離陣地太遠的敵人
       let t = u.target && !u.target.dead && !u.target.gate ? u.target : null;
-      if (!t && engage) t = G.Game.nearestFoe(u.team, u.x, u.y, engage + (u.def.ranged ? u.def.range * 0.5 : 0));
+      // 沒有目標時每 0.2～0.35 秒才重找一次（人多時找目標是最花時間的地方）
+      if (!t && engage && (u.seekT -= dt) <= 0) { u.seekT = G.U.rand(0.2, 0.35); t = G.Game.nearestFoe(u.team, u.x, u.y, engage + (u.def.ranged ? u.def.range * 0.5 : 0)); }
       if (t && Math.hypot(t.x - anchor.x, t.y - anchor.y) > engage + C().squadLeash) t = null;
       // 攻城：目標在牆的另一邊、城門還沒破 → 打城門
       const castle = G.Map.castle;
