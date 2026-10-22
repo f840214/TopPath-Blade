@@ -34,9 +34,9 @@ G.HERO_SKILLS = {
   pikesweep:{ name: '掃槍',     cd: 9,  radius: 62, dmgMul: 1.2, knock: 26, anim: 'Spin',   desc: '長槍掃一圈，把周圍的人推開。' },
   lancecharge: { name: '破陣衝鋒', cd: 22, dist: 220, width: 24, dmgMul: 2.0, stun: 1.2, anim: 'Attack', desc: '長距離衝鋒，撞到的人擊飛暈眩。' },
   // 火槍
-  buckshot: { name: '散彈',     cd: 6,  range: 150, arc: 1.0, pellets: 6, dmgMul: 0.7, anim: 'Attack', desc: '前方扇形散彈，近距離威力大。' },
-  roll:     { name: '翻滾',     cd: 8,  dist: 100, anim: 'Walk', desc: '往前翻滾拉開距離。' },
-  snipe:    { name: '狙擊',     cd: 24, range: 520, aim: 0.9, dmgMul: 5, anim: 'Attack', desc: '瞄準 0.9 秒後，對最遠 520 內的敵將（沒有就打最近的敵人）開一槍重擊。' },
+  buckshot: { name: '散彈',     cd: 5,  range: 150, arc: 1.0, pellets: 8, dmgMul: 0.85, knock: 20, stun: 0.5, close: 70, anim: 'Attack', desc: '前方扇形散彈，近距離威力大；貼身的敵人被轟退、暈眩 0.5 秒。' },
+  roll:     { name: '後撤裝填', cd: 8,  dist: 110, loaded: 2, loadMul: 1.7, anim: 'Walk', desc: '往後翻滾拉開距離，接下來兩發普攻立刻開火、傷害 +70%。' },
+  snipe:    { name: '穿甲彈',   cd: 16, range: 560, aim: 0.6, width: 16, dmgMul: 4, heroMul: 1.5, stun: 0.8, knock: 30, anim: 'Attack', desc: '瞄準 0.6 秒後朝最近的敵將（沒有就最近的敵人）開槍，子彈貫穿整條直線，打中的都暈眩擊退；打武將傷害再 ×1.5。' },
   // 戰錘
   quake:    { name: '震地',     cd: 9,  radius: 72, dmgMul: 1.5, stun: 1.2, anim: 'Smash', desc: '砸地震暈周圍的人。' },
   ram:      { name: '衝撞',     cd: 8,  dist: 90, width: 26, dmgMul: 1.4, anim: 'Attack', desc: '向前衝撞，撞飛路徑上的人。' },

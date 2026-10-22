@@ -4,7 +4,11 @@ G.HUD = (() => {
   const CMD = { follow: '跟隨', hold: '駐守', attack: '進攻' };
   let toastT = null;
 
-  function show(on) { $('hud').style.display = on ? 'block' : 'none'; $('result').style.display = 'none'; if (!on) $('hurt').style.opacity = 0; }
+  function show(on) {
+    $('hud').style.display = on ? 'block' : 'none'; $('result').style.display = 'none'; if (!on) $('hurt').style.opacity = 0;
+    // 左上角的武將牌：自己的名字和頭像（以前 index.html 寫死「主帥」和預設頭像，每場戰鬥都一樣）
+    if (on) { $('heroPanel').querySelector('b').textContent = G.Menu.loadout().name || '主帥'; $('heroFace').src = G.Menu.portrait(); }
+  }
 
   function toast(msg) {
     const t = $('toast'); t.textContent = msg; t.style.opacity = 1;
@@ -24,6 +28,8 @@ G.HUD = (() => {
     // 血少時畫面四周泛紅（30% 以下越來越紅）
     $('hurt').style.opacity = p.dead ? 0 : Math.max(0, Math.min(1, (0.3 - p.hp / p.maxHp) / 0.3));
     $('hpFill').style.width = (Math.max(0, p.hp) / p.maxHp * 100) + '%';
+    $('staFill').style.width = ((p.stamina ?? 100) / (p.staminaMax || 100) * 100) + '%';
+    $('staBar').classList.toggle('tired', (p.stamina ?? 100) < G.SPRINT.resume && !p.running);
     $('hpText').textContent = `${Math.ceil(Math.max(0, p.hp))} / ${p.maxHp}`;
     // 技能列
     $('skills').innerHTML = ['Q', 'E', 'R'].map(k => {
@@ -44,11 +50,11 @@ G.HUD = (() => {
         <div class="sqSk">${sk}</div></div>`;
     }).join('') + `<div class="selHint">${s.squads.length ? '' : '隨身兵團全滅，到補給點（T）換下一支・'}後備 ${s.reserve.filter(r => r.men > 0).length} 支</div>`
       + (s.field.length ? `<div class="selHint">配置兵團 ${s.field.filter(f => f.alive.length).length} 支：<b>${s.field[0].order === 'attack' ? '進攻' : '防守'}</b></div>` : '');
-    // 指揮列：選指揮隨身或配置兵團；按鈕下命令；在地面上左鍵移動、右鍵進攻
+    // 指揮列：選指揮隨身或配置兵團；按鈕下命令；在地面上左鍵＝走到那裡進攻
     const fieldN = s.field.filter(f => f.alive.length).length, escN = s.squads.filter(q => q.alive.length).length, grp = s.group;
     const cb = $('cmdBar'), html = `<div class="cbTabs"><button data-o="group" data-g="escort" class="${grp === 'escort' ? 'on' : ''}">隨身 <small>${escN}</small></button><button data-o="group" data-g="field" class="${grp === 'field' ? 'on' : ''}" ${fieldN ? '' : 'disabled'}>配置 <small>${fieldN}</small></button></div>`
       + `<div class="cbBtns">${grp === 'escort' ? '<button data-o="follow">跟隨</button>' : ''}<button data-o="attack">進攻</button><button data-o="hold">駐守</button></div>`
-      + `<small class="cbHint">左鍵點地面：移動到那裡　右鍵：往那裡進攻</small>`;
+      + `<small class="cbHint">左鍵點地面：走到那裡進攻</small>`;
     if (cb.dataset.h !== html) { cb.innerHTML = html; cb.dataset.h = html; }
     if (!cb.dataset.bound) { cb.dataset.bound = 1; cb.addEventListener('mousedown', e => { const b = e.target.closest('button'); if (!b || b.disabled) return; e.preventDefault(); G.Input.order(b.dataset.o === 'group' ? { a: 'group', g: b.dataset.g } : { a: b.dataset.o }); }); }
     // 補給點換兵選單
@@ -66,7 +72,11 @@ G.HUD = (() => {
       obj += `<div class="stages">${s.castle.points.map(p => `<span class="${p.taken ? 'done' : p === cp ? 'act' : ''}">${p.taken ? '✔' : ''}${p.name}</span>`).join('<i>→</i>')}</div>`;
       if (cp) obj += `<div class="bar cap ${mine ? 'ours' : ''}"><span>${cp.name}${mine ? '奪取' : '失守'} ${Math.floor(cp.progress * 100)}%</span><i style="width:${cp.progress * 100}%"></i></div>`;
     }
-    if (p.dead && p.respawnT !== undefined) obj += `<div class="respawn">${Math.ceil(p.respawnT)} 秒後重生</div>`;
+    if (p.dead && p.respawnT !== undefined) {
+      const here = p.respawnAt === 'here';
+      obj += `<div class="respawn">${Math.ceil(p.respawnT)} 秒後${here ? '原地' : '在後方'}重生</div>`
+        + `<div class="respawnPick"><span class="${here ? '' : 'on'}"><kbd>Q</kbd> 後方</span><span class="${here ? 'on' : ''}"><kbd>E</kbd> 原地（+${G.SIEGE.respawnHereExtra} 秒）</span></div>`;
+    }
     if (s.scenario.timeLimit) { const left = Math.max(0, s.scenario.timeLimit - s.time); obj += `<div>剩餘 ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}</div>`; }
     obj += `<div>敵軍剩餘 ${s.foes}</div>`;
     $('objective').innerHTML = obj;
@@ -83,10 +93,12 @@ G.HUD = (() => {
     Promise.resolve(rep).then(rep => {
       if (!rep) { box.innerHTML = ''; return; }
       if (rep.drill) { box.innerHTML = '<div>演習：不計傷亡、不給獎勵</div>'; return; }
+      // 一塊有底的面板：上面一排獎勵標籤，下面每支兵團一列（人數、陣亡、擊殺、升級）
       box.innerHTML = `
         ${rep.tooFast ? '<div class="bad">戰鬥時間太短，伺服器不認這場勝利</div>' : ''}
-        <div>金幣 +${rep.gold}・武將經驗 +${rep.heroXp}${rep.heroUp ? `・<b>武將升到 Lv${rep.heroLevel}，統率上限 ${G.Army.cap()}</b>` : ''}</div>
-        ${rep.squads.map(s => `<div>${s.name}：${s.before} → ${s.after} 人${s.before > s.after ? `（陣亡 ${s.before - s.after}）` : ''}・擊殺 ${s.kills}${s.up ? `・<b>升到 Lv${s.level}</b>` : ''}</div>`).join('')}`;
+        <div class="rewards"><span>金幣 <b>+${rep.gold}</b></span><span>武將經驗 <b>+${rep.heroXp}</b></span>${rep.heroUp ? `<span class="up">武將升到 Lv${rep.heroLevel}・統率 ${G.Army.cap()}</span>` : ''}</div>
+        ${rep.squads.length ? `<table class="sqTable"><tr><th>兵團</th><th>人數</th><th>陣亡</th><th>擊殺</th></tr>
+          ${rep.squads.map(s => `<tr><td>${G.U.esc(s.name)}${s.up ? ` <em>升 Lv${s.level}</em>` : ''}</td><td>${s.before} → ${s.after}</td><td class="${s.before > s.after ? 'loss' : ''}">${s.before > s.after ? s.before - s.after : '-'}</td><td>${s.kills}</td></tr>`).join('')}</table>` : ''}`;
     });
     r.className = win ? 'win' : 'lose';
     r.style.display = 'flex';

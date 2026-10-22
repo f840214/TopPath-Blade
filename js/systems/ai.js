@@ -47,7 +47,9 @@ G.AI = (() => {
       if (Math.hypot(c.x - sq.waypoint.x, c.y - sq.waypoint.y) < 30) sq.waypoint = null;
     }
     // 進攻中：目標附近沒敵人了就換下一群
-    if (sq.cmd === 'attack' && !sq.waypoint) {
+    // 滑鼠點地面進攻（sq.goTo）：先走到點的地方（路上照樣打附近的敵人），到了才換下一群
+    if (sq.goTo && (sq.cmd !== 'attack' || Math.hypot(sq.center.x - sq.cmdPoint.x, sq.center.y - sq.cmdPoint.y) < 40)) sq.goTo = false;
+    if (sq.cmd === 'attack' && !sq.waypoint && !sq.goTo) {
       const tgt = G.Battle.nearestFoe(sq.team, sq.cmdPoint.x, sq.cmdPoint.y, C().squadAggro.attack);
       if (!tgt) {
         const next = G.Battle.nearestFoe(sq.team, sq.center.x, sq.center.y, 99999);
@@ -210,7 +212,8 @@ G.AI = (() => {
       // 配置兵團防守：只打配置點附近的敵人，沒有就回去站好
       const near = G.Battle.nearestFoe(sq.team, sq.home.x, sq.home.y, C().enemyAggro);
       if (near) { sq.cmd = 'attack'; sq.cmdPoint = { x: near.x, y: near.y }; } else { sq.cmd = 'hold'; sq.cmdPoint = sq.home; }
-    } else if (foe) { sq.cmd = 'attack'; if (!sq.waypoint) sq.cmdPoint = { x: foe.x, y: foe.y }; }
+    } else if (sq.goTo) sq.cmd = 'attack';   // 玩家點了地面：照玩家的點走
+    else if (foe) { sq.cmd = 'attack'; if (!sq.waypoint) sq.cmdPoint = { x: foe.x, y: foe.y }; }
     else if (castle && !defending && castle.capture) {
       // 攻城方：沒遇到敵人就往目前要搶的據點推進（沒有入口時會先去打城門）
       sq.cmd = 'attack'; sq.cmdPoint = { x: castle.capture.x, y: castle.capture.y };

@@ -65,6 +65,8 @@ G.Siege = (() => {
       if (e.flash > 0) e.flash -= dt;
       if (e.swing > 0) e.swing -= dt;
       if (e.state === 'up') continue;   // 搭好的雲梯固定在牆上
+      // 撞開之後自己往後退，把缺口讓出來（以前停在城門口擋住進城的路）
+      if (e.state === 'back') { if (moveTo(e, e.tx, e.backY, S().ram.speed, dt)) e.state = 'idle'; continue; }
       const sq = e.crew;
       if (sq && !sq.alive.length) release(e);
       if (!e.crew) { e.crewNear = 0; continue; }
@@ -74,7 +76,13 @@ G.Siege = (() => {
       const k = Math.min(1, n / d.crewFull);
       if (e.kind === 'ram') {
         // 目標打穿了：操作的兵團放手，從缺口衝進去（要撞別的地方就再按 B）
-        if (!e.target || G.Map.passable(e.target)) { const o = e.target || e; e.target = null; release(e, { x: o.x, y: c.wallY - 90 }); continue; }
+        if (!e.target || G.Map.passable(e.target)) {
+          const o = e.target || e; e.target = null; release(e, { x: o.x, y: c.wallY - 90 });
+          // 往後退到缺口外面、偏到旁邊（缺口寬度一半再多一點），進城的路讓開
+          const side = e.x <= o.x ? -1 : 1;
+          e.state = 'back'; e.tx = o.x + side * ((o.w || 60) / 2 + e.radius + 10); e.backY = c.wallY + c.thick / 2 + e.radius + 70;
+          continue;
+        }
         if (moveTo(e, e.target.x, c.wallY + c.thick / 2 + e.radius + 4, d.speed * k, dt)) {
           e.state = 'work';
           if ((e.hitT -= dt) <= 0 && n) { e.hitT = d.hitCd; e.swing = 0.25; G.Battle.hitOpening(e, e.target, d.hitDmg * k); }

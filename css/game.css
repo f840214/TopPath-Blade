@@ -173,6 +173,10 @@ button.node.next { cursor: pointer; border-color: #b9a56f; } button.node.next:ho
 #heroPanel b { color: var(--gold); font-weight: normal; font-size: 15px; }
 .hp { width: 170px; height: 8px; border: 1px solid #000; outline: 1px solid var(--line); margin: 5px 0 3px; background: #24100d; }
 .hp i { display: block; height: 100%; background: linear-gradient(#b3443a, #7a2620); box-shadow: inset 0 1px 0 rgba(255,170,150,.35); }
+/* 耐力條（Shift 跑步）：血條下面一條細的，耗光時變暗紅 */
+.sta { width: 170px; height: 4px; border: 1px solid #000; outline: 1px solid var(--line); margin: 0 0 3px; background: #1a1c12; }
+.sta i { display: block; height: 100%; background: linear-gradient(#d8c46a, #9a8636); transition: width .1s; }
+.sta.tired i { background: #7a4a2a; }
 #heroPanel small { color: var(--muted); }
 #objective { left: 50%; top: 8px; transform: translateX(-50%); padding: 2px 12px; text-align: center; min-width: 240px; color: var(--gold); font-size: 15px; }
 #objective div { color: var(--text); font-size: 12px; }
@@ -184,6 +188,9 @@ button.node.next { cursor: pointer; border-color: #b9a56f; } button.node.next:ho
 .stages span.done { color: #a9bcd8; } .stages span.act { color: var(--gold); font-weight: bold; }
 .stages i { font-style: normal; margin: 0 4px; color: #4a4740; }
 #objective .respawn { color: #d9a39a; font-weight: bold; }
+#objective .respawnPick { margin-top: 3px; font-size: 12px; color: #7d786c; }
+.respawnPick span { margin-right: 10px; } .respawnPick span.on { color: var(--gold); }
+.respawnPick kbd { display: inline-block; min-width: 14px; text-align: center; border: 1px solid currentColor; margin-right: 3px; }
 #supply { display: none; position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); padding: 10px 18px; min-width: 220px; color: var(--text); font-size: 14px; }
 #supply b { display: block; color: var(--gold); margin-bottom: 6px; font-weight: normal; }
 #supply div { margin: 3px 0; } #supply small { display: block; color: #7d786c; margin-top: 6px; }
@@ -198,14 +205,14 @@ button.node.next { cursor: pointer; border-color: #b9a56f; } button.node.next:ho
 .sqMid { font-size: 12px; color: var(--muted); }
 .usk { display: inline-block; font-size: 11px; margin: 3px 4px 0 0; padding: 1px 5px; background: var(--ink); border: 2px solid #34322c; }
 .usk.cd { opacity: .5; } .usk.on { border-color: var(--gold); color: var(--gold); }
-.selHint { font-size: 12px; color: var(--gold); text-align: right; text-shadow: 0 1px 0 #000; }
+.selHint { font-size: 15px; color: var(--gold); text-align: right; text-shadow: 0 1px 0 #000; }
 #skills { left: 50%; bottom: 30px; transform: translateX(-50%); display: flex; gap: 6px; padding: 6px; background: rgba(14,15,17,.88); border: 1px solid var(--line); box-shadow: 0 6px 18px rgba(0,0,0,.5); }
 .skill { position: relative; width: 70px; height: 48px; background: var(--ink); border: 2px solid #3d3a32; box-shadow: inset 0 0 0 2px #0a0a0b; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .skill b { color: var(--gold); font-size: 13px; font-weight: normal; } .skill span { font-size: 12px; }
 .skill.cd { opacity: .6; } .skill.basic { width: 54px; opacity: .85; }
 .skill i { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: 22px; background: rgba(0,0,0,.55); color: #fff; }
-#kills { right: 14px; bottom: 36px; text-align: right; font-size: 15px; text-shadow: 0 2px 0 #000; }
-#kills b { font-size: 24px; color: var(--gold); font-weight: normal; }
+#kills { right: 14px; bottom: 36px; text-align: right; font-size: 19px; text-shadow: 0 2px 0 #000; }
+#kills b { font-size: 34px; color: var(--gold); font-weight: normal; }
 .combo { font-size: 44px; font-style: italic; color: #fff; text-shadow: 3px 3px 0 #3a1a0c; } .combo small { font-size: 15px; }
 #perf { left: 10px; bottom: 30px; font-size: 11px; color: #9f9; text-shadow: 0 1px 1px #000; }
 #toast { left: 50%; top: 100px; transform: translateX(-50%); font-size: 22px; letter-spacing: 3px; color: var(--gold); text-shadow: 0 2px 0 #000, 0 0 12px rgba(0,0,0,.8); opacity: 0; transition: opacity .3s; }
@@ -225,7 +232,7 @@ button.node.next { cursor: pointer; border-color: #b9a56f; } button.node.next:ho
 #result h2 { position: relative; z-index: 2; font-size: 52px; letter-spacing: 14px; margin: 0 0 0 14px; line-height: 1; }
 #result.lose h2 { background: linear-gradient(#ffffff 0%, #d6dae2 45%, #8d94a3 100%); -webkit-background-clip: text; background-clip: text; }
 @keyframes bannerIn { from { transform: translateY(-40px) scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
-#result p { margin: 14px 0 0; color: var(--text); text-shadow: 0 1px 0 #000; }
+#result p { margin: 14px 0 0; padding: 5px 22px; font-size: 16px; letter-spacing: 1px; color: var(--text); text-shadow: 0 1px 0 #000; background: linear-gradient(90deg, rgba(0,0,0,0), rgba(0,0,0,.6) 20%, rgba(0,0,0,.6) 80%, rgba(0,0,0,0)); }
 /* 結算畫面的按鈕：深底淡金框，左邊一個按鍵小方塊 */
 #result .resBtns { display: flex; gap: 12px; margin-top: 18px; }
 .resBtn { display: flex; align-items: center; gap: 10px; padding: 9px 26px 9px 12px; cursor: pointer; font-family: var(--px); font-size: 16px; letter-spacing: 4px;
@@ -233,8 +240,22 @@ button.node.next { cursor: pointer; border-color: #b9a56f; } button.node.next:ho
 .resBtn kbd { font-family: var(--px); font-size: 12px; letter-spacing: 0; color: var(--gold); min-width: 30px; padding: 2px 6px; text-align: center;
   border: 1px solid var(--gold2); background: rgba(0,0,0,.4); box-shadow: inset 0 -2px 0 rgba(0,0,0,.6); }
 .resBtn:hover { border-color: var(--gold); color: var(--gold); }
-#result .report { margin-top: 10px; font-size: 14px; line-height: 1.8; text-align: center; color: var(--text); text-shadow: 0 1px 0 #000; }
+/* 結算：一塊深色面板（淡金細框），上面獎勵標籤、下面兵團表；沒內容時不顯示 */
+#result .report { margin-top: 14px; min-width: 360px; max-width: min(560px, calc(100vw - 32px)); box-sizing: border-box; padding: 14px 18px; font-size: 14px; line-height: 1.6; color: var(--text);
+  background: linear-gradient(rgba(29,30,33,.95), rgba(12,13,15,.95)); border: 1px solid var(--gold2); box-shadow: 0 0 0 1px rgba(0,0,0,.8), 0 10px 26px rgba(0,0,0,.55); }
+#result .report:empty { display: none; }
 #result .report b { color: var(--gold); font-weight: normal; }
+#result .report .bad { color: #e0a090; margin-bottom: 8px; text-align: center; }
+#result .rewards { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+#result .rewards span { padding: 3px 12px; background: rgba(0,0,0,.35); border: 1px solid var(--line); }
+#result .rewards span.up { color: var(--gold); border-color: var(--gold); }
+#result .sqTable { width: 100%; margin-top: 12px; border-collapse: collapse; font-size: 13px; }
+#result .sqTable th { color: var(--muted); font-weight: normal; text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+#result .sqTable td { padding: 5px 6px; border-bottom: 1px dashed rgba(201,176,120,.14); }
+#result .sqTable tr:last-child td { border-bottom: 0; }
+#result .sqTable td:nth-child(n+2), #result .sqTable th:nth-child(n+2) { text-align: right; white-space: nowrap; }
+#result .sqTable td.loss { color: #e0a090; }
+#result .sqTable em { font-style: normal; color: var(--gold); font-size: 12px; margin-left: 4px; }
 
 @media (max-width: 1000px) {
   #objective { min-width: 0; font-size: 13px; padding: 2px 8px; }   /* 窄的時候留在上方中間、變小，不搬到左下（左下是指揮列） */
@@ -326,14 +347,19 @@ button.node.next { cursor: pointer; border-color: #b9a56f; } button.node.next:ho
   color: var(--text); background: linear-gradient(rgba(31,32,35,.94), rgba(12,13,15,.94)); border: 1px solid var(--gold2); box-shadow: 0 6px 16px rgba(0,0,0,.5); }
 #thMenuBtn small { margin-left: 8px; font-size: 11px; letter-spacing: 0; color: var(--muted); }
 #thMenuBtn:hover, #townHud.open #thMenuBtn { color: var(--gold); border-color: var(--gold); }
-#thDrawer { display: none; left: 18px; top: 160px; width: 250px; max-height: calc(100vh - 170px); overflow: auto; flex-direction: column; gap: 10px; padding: 6px 8px; box-sizing: border-box; pointer-events: auto; }
+/*   寬一點、只有直向捲動（以前 250px 太擠，還多一條橫向捲軸） */
+#thDrawer { display: none; left: 8px; top: 150px; width: 330px; max-width: calc(100vw - 16px); max-height: calc(100vh - 160px); overflow-x: hidden; overflow-y: auto;
+  flex-direction: column; gap: 12px; padding: 14px 16px; box-sizing: border-box; pointer-events: auto; }
 #townHud.open #thDrawer { display: flex; }
-#thRes { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; color: var(--muted); font-size: 12px; }
-#thRes span { white-space: nowrap; }
-#thSquads { display: flex; flex-direction: column; gap: 4px; }
-#thSquads .tsq { min-width: 0; }
-#thBar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; border-top: 1px solid #34322c; padding-top: 8px; }
-#thBar button { border: 1px solid #34322c !important; padding: 6px 0 !important; font-size: 13px !important; letter-spacing: 1px !important; }
+#thDrawer > * { min-width: 0; }
+#thDrawer::before, #thDrawer::after { inset: 0; }   /* 外框裝飾線畫在框裡面：畫在外面會讓捲動區多出 8px，一直出現捲軸 */
+#thRes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; color: var(--muted); font-size: 13px; padding-bottom: 10px; border-bottom: 1px solid #34322c; }
+#thRes span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#thSquads { display: flex; flex-direction: column; gap: 6px; }
+#thSquads .tsq { min-width: 0; padding: 6px 10px; }
+#thSquads .tsq b { font-size: 14px; }
+#thBar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; border-top: 1px solid #34322c; padding-top: 12px; }
+#thBar button { border: 1px solid #34322c !important; padding: 9px 0 !important; font-size: 14px !important; letter-spacing: 2px !important; }
 #thBar button:hover { border-color: var(--gold2) !important; }
 /* 右上角：城名、本地時間；大地圖時下面接小地圖 */
 #thMini { display: none; margin-top: 8px; width: 100%; height: auto; border: 1px solid var(--gold2); image-rendering: pixelated; }
@@ -355,8 +381,17 @@ button.node.next { cursor: pointer; border-color: #b9a56f; } button.node.next:ho
 #chatStatus { color: var(--muted); font-size: 11px; white-space: nowrap; text-shadow: 0 1px 0 #000; }
 
 /* 系統面板裡的遊戲說明 */
-.help { font-size: 14px; line-height: 1.8; color: var(--text); }
-.help div { margin: 4px 0; } .help b { display: inline-block; min-width: 64px; color: var(--gold); font-weight: 600; }
+/*   每個場景一張卡片，一行一個動作：左邊按鍵、右邊說明 */
+.help { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; font-size: 13px; color: var(--text); }
+.help .hcard { background: var(--panel2); border: 1px solid var(--line); padding: 10px 14px 8px; }
+.help .hcard.wide { grid-row: span 2; }
+.help h4 { margin: 0 0 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); color: var(--gold); font-size: 15px; font-weight: 600; letter-spacing: 2px; }
+.help p { display: flex; align-items: flex-start; margin: 0; padding: 4px 0; line-height: 1.5; border-bottom: 1px dashed rgba(201,176,120,.12); }
+.help p:last-child { border-bottom: 0; }
+.help .keys { flex: none; width: 128px; display: flex; flex-wrap: wrap; gap: 3px; font-style: normal; }   /* 按鍵一欄固定寬，說明文字才對齊 */
+.help p span { flex: 1; padding-left: 8px; color: var(--text); }
+.help kbd { flex: none; min-width: 20px; padding: 0 5px; text-align: center; font-family: var(--px); font-size: 12px; line-height: 20px; color: var(--gold);
+  background: var(--ink); border: 1px solid var(--bronze); border-bottom-width: 2px; border-radius: 3px; }
 #thBar button[data-tb="logout"] { color: #d39a90; }
 
 /* 兵團卡片的士氣條：潰散中變橘色 */
@@ -388,6 +423,9 @@ button.node.next { cursor: pointer; border-color: #b9a56f; } button.node.next:ho
 /* 右上角：目前所在的領地 */
 #thCity .region { font-size: 12px; color: var(--muted); margin: 2px 0; }
 #thCity .region.mine { color: #a9c8ff; } #thCity .region.other { color: #d9a39a; }
+#thCity .party { margin-top: 6px; font-size: 12px; color: #9fe6a0; }
+#thCity .party b { display: inline; font-size: 12px; letter-spacing: 0; color: var(--gold); font-weight: normal; margin-right: 6px; }
+#thCity .party span { margin-right: 6px; } #thCity .party small { display: block; color: var(--muted); font-size: 11px; }
 
 #create .crFoot #crCancel { margin-left: auto; margin-right: 12px; }
 

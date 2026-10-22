@@ -1,7 +1,7 @@
 # re-reads tools/pixellab.json and sets ONLY look_* keys (ids + anims). run right before import.
-import json
-P='/Users/benji/Desktop/TopPath-Blade/tools/pixellab.json'
-d=json.load(open(P))
+import json,os
+P=os.path.join(os.path.dirname(os.path.abspath(__file__)),'..','pixellab.json')
+d=json.load(open(P,encoding='utf-8'))
 W=lambda: {"source":"Walk","fps":10,"loop":True}
 def A(h): return {"source":"Attack","fps":14,"loop":False,"hit":h}
 upd={
@@ -22,5 +22,5 @@ add={
 }
 for k,v in upd.items(): d[k]=v
 for k,v in add.items(): d[k]['anims'].update(v)
-open(P,'w').write(json.dumps(d,ensure_ascii=False,indent=2)+'\n')
+open(P,'w',encoding='utf-8',newline='\n').write(json.dumps(d,ensure_ascii=False,indent=2)+'\n')
 print('ok')

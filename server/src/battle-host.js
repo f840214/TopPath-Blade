@@ -53,28 +53,63 @@ export async function createBattles({ root, game, live, db }) {
     if (conn.room) return send(conn, { t: 'b.err', text: '你已經在戰鬥中' });
     const { G: GD } = game, c = GD.WORLD.cities.find(c => c.id === cityId);
     if (!c || c.capital) return send(conn, { t: 'b.err', text: '這座城不能攻打' });
+    // 這座城已經在打：直接加入（城主加入守方，其他人加入攻方）
+    const busy = [...rooms.values()].find(r => r.city === cityId && !r.done);
+    if (busy) return join(conn, busy.id, busy.ownerId === conn.uid ? 1 : 0);
     const { rows: [own] } = await db.query('SELECT owner_id, city_name FROM world_cities WHERE city_id = $1', [cityId]);
     if (own && own.owner_id === conn.uid) return send(conn, { t: 'b.err', text: '這是你自己的城' });
-    if ([...rooms.values()].some(r => r.city === cityId && !r.done)) return send(conn, { t: 'b.err', text: '這座城正在打仗，可以按 J 加入' });
     const spec = await commanderSpec(conn, 0);
     if (spec.error) return send(conn, { t: 'b.err', text: spec.error });
-    const { G, fx } = sandbox();
-    const room = { id: nextRoom++, city: cityId, cityName: own ? own.city_name : '空城', ownerId: own ? own.owner_id : null, creator: conn.uid,
-      G, fx, players: new Map(), done: false, startedAt: Date.now(), msgs: [] };
-    room.scenario = G.Battle.cityScenario(cityId, room.cityName);
-    G.Battle.onNotify = (c, text) => { for (const p of room.players.values()) if (!c || p.cmdr === c) p.msgs.push(text); };
-    G.Battle.onEnd = r => finish(room, r);
-    G.Battle.setup({ scenario: room.scenario, commanders: [] });
-    rooms.set(room.id, room);
+    const cityName = own ? own.city_name : c.name;   // 沒人佔的城用原本的城名（大地圖名牌寫「空城」，但戰鬥標題、邀請要看得出是哪一座）
+    const room = makeRoom({ city: cityId, cityName, ownerId: own ? own.owner_id : null, creator: conn.uid }, G => G.Battle.cityScenario(cityId, cityName));
     addPlayer(room, conn, spec);
-    room.timer = setInterval(() => step(room), TICK * 1000);
-    // 邀請：大地圖上在附近的玩家可以一起攻；城主（在線上）可以回防
+    announce();
+    // 邀請：隊友（不管在哪）和大地圖上在附近的玩家可以一起攻；城主（在線上）可以回防
     const gate = { x: c.x, y: c.y + 30 };
     for (const o of live.connections()) {
       if (o === conn || o.room) continue;
       if (room.ownerId && o.uid === room.ownerId) send(o, { t: 'b.invite', room: room.id, side: 1, text: `你的城「${room.cityName}」被 ${conn.name} 攻打！按 J 回防` });
+      else if (conn.party && o.party === conn.party) send(o, { t: 'b.invite', room: room.id, side: 0, text: `隊友 ${conn.name} 正在攻打「${room.cityName}」，按 J 加入` });
       else if (o.scene === 'world' && Math.hypot(o.x - gate.x, o.y - gate.y) < 600) send(o, { t: 'b.invite', room: room.id, side: 0, text: `${conn.name} 正在攻打「${room.cityName}」，按 J 加入` });
     }
+  }
+  /** 開一個房間（攻城或對決）：獨立的模擬環境，每 50ms 跑一步 */
+  function makeRoom(meta, scenarioOf) {
+    const { G, fx } = sandbox();
+    const room = { id: nextRoom++, city: null, cityName: '', ownerId: null, ...meta, G, fx, players: new Map(), done: false, startedAt: Date.now(), msgs: [] };
+    room.scenario = scenarioOf(G);
+    G.Battle.onNotify = (c, text) => { for (const p of room.players.values()) if (!c || p.cmdr === c) p.msgs.push(text); };
+    G.Battle.onEnd = r => finish(room, r);
+    G.Battle.setup({ scenario: room.scenario, commanders: [] });
+    rooms.set(room.id, room);
+    room.timer = setInterval(() => step(room), TICK * 1000);
+    return room;
+  }
+
+  /* ---------- 對決：大地圖上兩個玩家打一場野戰（不搶城、照一般戰鬥結算傷亡與經驗） ---------- */
+  const DUEL_RANGE = 150;
+  function duel(conn, toId) {
+    const o = live.connections().find(o => o.id === toId);
+    if (!o || o === conn) return;
+    if (conn.room || o.room) return send(conn, { t: 'b.err', text: '對方正在戰鬥中' });
+    if (conn.scene !== 'world' || o.scene !== 'world' || Math.hypot(o.x - conn.x, o.y - conn.y) > DUEL_RANGE) return send(conn, { t: 'b.err', text: '要在大地圖上靠近對方才能發起對決' });
+    if (conn.party && conn.party === o.party) return send(conn, { t: 'b.err', text: '不能跟隊友對決' });
+    o.duelReq = { from: conn, until: Date.now() + 20000 };
+    send(o, { t: 'b.duelReq', from: conn.id, name: conn.name });
+    send(conn, { t: 'b.msg', text: `已向 ${o.name} 發起對決，等待回應` });
+  }
+  async function duelAnswer(conn, ok) {
+    const req = conn.duelReq; conn.duelReq = null;
+    if (!req || Date.now() > req.until || !live.connections().includes(req.from)) return send(conn, { t: 'b.err', text: '對決邀請已經過期' });
+    const from = req.from;
+    if (!ok) return send(from, { t: 'b.duelNo', text: `${conn.name} 拒絕了對決` });
+    if (conn.room || from.room) return send(conn, { t: 'b.err', text: '對方正在戰鬥中' });
+    const [a, b] = await Promise.all([commanderSpec(from, 0), commanderSpec(conn, 1)]);
+    if (a.error) { send(from, { t: 'b.duelNo', text: a.error }); return send(conn, { t: 'b.err', text: `${from.name} 不能出戰` }); }
+    if (b.error) { send(from, { t: 'b.duelNo', text: `${conn.name} 不能出戰` }); return send(conn, { t: 'b.err', text: b.error }); }
+    const room = makeRoom({ duel: true, creator: from.uid }, G => G.Battle.duelScenario(from.name, conn.name));
+    addPlayer(room, from, a);
+    addPlayer(room, conn, b);
   }
   async function join(conn, roomId, side) {
     const room = rooms.get(roomId);
@@ -88,7 +123,11 @@ export async function createBattles({ root, game, live, db }) {
     if (spec.error) return send(conn, { t: 'b.err', text: spec.error });
     addPlayer(room, conn, spec);
     room.G.Battle.notify(null, `${conn.name} 加入${team === 1 ? '守方' : '攻方'}`);
+    announce();
   }
+  /** 正在打的戰鬥（大地圖上標「交戰中」，走到城門口按 Enter 加入） */
+  const fights = () => [...rooms.values()].filter(r => !r.done && r.city).map(r => ({ room: r.id, city: r.city, owner: r.ownerId, n: r.players.size }));
+  const announce = () => live.broadcast({ t: 'b.rooms', list: fights() });
   /** 從伺服器上的存檔組出指揮官（兵團、等級、武器都以伺服器為準） */
   async function commanderSpec(conn, team) {
     const { rows: [p] } = await db.query('SELECT data FROM profiles WHERE user_id = $1', [conn.uid]);
@@ -161,7 +200,8 @@ export async function createBattles({ root, game, live, db }) {
     for (const h of B.heroes) {
       const anim = h.whirl > 0 ? 'Whirl' : h.action ? h.action.anim : h.moving ? 'Walk' : 'Idle';
       H.push([h.nid, h.team, r1(h.x), r1(h.y), r1(h.z), r2(h.face), anim, Math.round(h.hp), h.maxHp, h.dead ? r2(h.dead) : 0, h.respawnT !== undefined ? r1(h.respawnT) : -1,
-        h.cmdr ? h.cmdr.id : 0, h.weaponKey, h.look || '', h.name || '', h.flash > 0 ? 1 : 0]);
+        h.cmdr ? h.cmdr.id : 0, h.weaponKey, h.look || '', h.name || '', h.flash > 0 ? 1 : 0, h.respawnAt === 'here' ? 1 : 0,
+        Math.round(h.stamina), h.buff && h.buff.until > B.time ? 1 : 0]);
     }
     const P = G.Combat.projectiles.map(p => [r1(p.sx), r1(p.sy), r1(p.tx), r1(p.ty), r2(p.t), r2(p.dur), r1(p.arc), p.kind, p.fire ? 1 : 0]);
     const Z = G.Combat.zones.map(z => [r1(z.x), r1(z.y), z.r, r2(z.t), z.dur]);
@@ -183,18 +223,23 @@ export async function createBattles({ root, game, live, db }) {
     if (room.done) return;
     room.done = true;
     const B = room.G.Battle;
+    // 攻方贏了，城池歸誰：佔下主堡的人有隊伍就歸隊長，沒有就歸他自己（找不到人就歸開戰的人）
+    if (room.city && r.winTeam === 0) {
+      const cap = [...room.players.values()].find(p => p.cmdr === B.capturedBy);
+      const leader = cap && cap.conn.party ? cap.conn.party.leader : cap && cap.conn;
+      room.winner = leader ? leader.uid : room.creator;
+    }
     for (const p of room.players.values()) {
       const win = p.team === r.winTeam, rep = B.report(p.cmdr);
       const report = await settle(p, win, rep, room);
       send(p.conn, { t: 'b.end', win, msg: win ? r.msg : r.loseMsg, report });
       p.conn.room = null;
     }
-    // 攻方贏了：城池歸開戰的人
-    if (r.winTeam === 0) {
+    if (room.winner) {
       const c = game.G.WORLD.cities.find(c => c.id === room.city);
       await db.query(`INSERT INTO world_cities (city_id, owner_id, city_name, art) VALUES ($1, $2, $3, $4)
         ON CONFLICT (city_id) DO UPDATE SET owner_id = EXCLUDED.owner_id, city_name = EXCLUDED.city_name, art = EXCLUDED.art, updated_at = now(), collected_at = now()`,
-        [c.id, room.creator, c.name, c.art]);
+        [c.id, room.winner, c.name, c.art]);
       await live.broadcastCities();
     }
     close(room);
@@ -204,7 +249,7 @@ export async function createBattles({ root, game, live, db }) {
     const { rows: [row] } = await db.query('SELECT data FROM profiles WHERE user_id = $1', [p.conn.uid]);
     const r = game.withProfile(row.data, G => {
       const out = G.Army.settle(win, rep.squads.map(s => ({ rosterId: s.rosterId, alive: { length: s.alive }, kills: s.kills })), rep.heroKills);
-      if (win && p.team === 0 && p.conn.uid === room.creator) {
+      if (win && p.team === 0 && room.winner && p.conn.uid === room.winner) {
         const c = G.WORLD.cities.find(c => c.id === room.city);
         G.Army.profile().gold += c.gold; out.gold += c.gold; out.captured = c.id;
       }
@@ -217,6 +262,7 @@ export async function createBattles({ root, game, live, db }) {
     room.done = true; clearInterval(room.timer);
     for (const p of room.players.values()) if (p.conn.room === room) p.conn.room = null;
     setTimeout(() => rooms.delete(room.id), 5000);
+    announce();
   }
 
   const send = (c, msg) => { if (c.ws.readyState === 1) c.ws.send(typeof msg === 'string' ? msg : JSON.stringify(msg)); };
@@ -225,8 +271,10 @@ export async function createBattles({ root, game, live, db }) {
   function onMessage(conn, m) {
     if (m.t === 'b.attack' && typeof m.city === 'string') attack(conn, m.city).catch(e => { console.error(e); send(conn, { t: 'b.err', text: '開戰失敗' }); });
     else if (m.t === 'b.join' && Number.isInteger(m.room)) join(conn, m.room, m.side).catch(e => { console.error(e); send(conn, { t: 'b.err', text: '加入失敗' }); });
+    else if (m.t === 'b.duel' && Number.isInteger(m.to)) duel(conn, m.to);
+    else if (m.t === 'b.duelAnswer') duelAnswer(conn, !!m.ok).catch(e => { console.error(e); send(conn, { t: 'b.err', text: '對決開始失敗' }); });
     else if (m.t === 'b.in') input(conn, m);
     else if (m.t === 'b.leave') leave(conn).catch(e => console.error(e));
   }
-  return { onMessage, leave, sandbox, get count() { return rooms.size; } };
+  return { onMessage, leave, sandbox, fights, get count() { return rooms.size; } };
 }

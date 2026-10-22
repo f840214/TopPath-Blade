@@ -171,7 +171,9 @@ G.Skills = (() => {
       case 'kishin':
         h.doAction(S.anim, 0.6);
         h.buff = { atkMul: S.atkMul, speedMul: S.speedMul, until: G.Battle.time + S.dur };
-        G.FX.ring(h.x, h.y, 50, 'rgba(255,80,60,0.9)', 0.6); G.FX.embers(h.x, h.y - 10, 30, 14);
+        G.FX.ring(h.x, h.y, 50, 'rgba(255,80,60,0.9)', 0.6); G.FX.ring(h.x, h.y, 80, 'rgba(255,60,40,0.7)', 0.8); G.FX.embers(h.x, h.y - 10, 40, 18); G.FX.addShake(3);
+        // 自身強化看得出來：提示一行字，強化期間腳下一圈紅色氣焰（hero.js 的 draw）
+        if (h.cmdr) G.Battle.notify(h.cmdr, `${S.name}：${S.dur} 秒內攻擊 +${Math.round((S.atkMul - 1) * 100)}%、移速 +${Math.round((S.speedMul - 1) * 100)}%`);
         break;
       /* ---------- 長槍 ---------- */
       case 'pierce': case 'pierceshot':
@@ -189,15 +191,22 @@ G.Skills = (() => {
       /* ---------- 火槍 ---------- */
       case 'buckshot':
         h.doAction(S.anim);
-        forCone(h, S.range, S.arc, o => { const k = 1.3 - Math.hypot(o.x - h.x, o.y - h.y) / S.range; Dmg(h, o, base * Math.max(0.4, k) * S.pellets / 3, { ranged: true, knock: 10 }); });
+        forCone(h, S.range, S.arc, o => {
+          const d = Math.hypot(o.x - h.x, o.y - h.y), k = 1.3 - d / S.range;
+          Dmg(h, o, base * Math.max(0.4, k) * S.pellets / 3, { ranged: true, knock: d < S.close ? S.knock : 10, stun: d < S.close ? S.stun : 0 });
+        });
         for (let k = 0; k < S.pellets; k++) { const a = f + (k / (S.pellets - 1) - 0.5) * S.arc; G.Combat.arrow(h, null, { area: { x: h.x + Math.cos(a) * S.range, y: h.y + Math.sin(a) * S.range }, ranged: { speed: 900, flat: true }, base: 0 }); }
         G.FX.hit(h.x + Math.cos(f) * 14, h.y - 14 + Math.sin(f) * 14, '#ffd27a', 8); G.FX.addShake(2);
         break;
-      case 'roll':
+      case 'roll': {
+        // 往後（背對面向）翻滾，裝好下兩發：普攻立刻能開火、傷害提高（sim.js heroAttack 用 h.loaded）
+        const b = f + Math.PI;
         h.doAction(S.anim, 0.25);
-        h.dash = { vx: Math.cos(f) * S.dist / 0.22, vy: Math.sin(f) * S.dist / 0.22, t: 0.22, hit: new Set(), S, base: 0, noHit: true };
-        G.FX.dust(h.x, h.y, 4);
+        h.dash = { vx: Math.cos(b) * S.dist / 0.22, vy: Math.sin(b) * S.dist / 0.22, t: 0.22, hit: new Set(), S, base: 0, noHit: true };
+        h.loaded = S.loaded; h.cd = 0;
+        G.FX.dust(h.x, h.y, 4); G.FX.ring(h.x, h.y, 18, 'rgba(255,210,120,0.9)', 0.3);
         break;
+      }
       case 'snipe':
         h.doAction(S.anim, S.aim);
         G.FX.ring(h.x, h.y, 24, 'rgba(255,230,160,0.9)', S.aim);
@@ -206,8 +215,11 @@ G.Skills = (() => {
           const heroes = G.Battle.heroes.filter(o => o.team !== h.team && !o.dead && Math.hypot(o.x - h.x, o.y - h.y) < S.range);
           const t = heroes.sort((a, b) => Math.hypot(a.x - h.x, a.y - h.y) - Math.hypot(b.x - h.x, b.y - h.y))[0] || G.Battle.nearestFoe(h.team, h.x, h.y, S.range);
           if (!t) return;
+          // 子彈貫穿整條直線：路上的敵人都打到、暈眩擊退，武將再加傷
           h.face = Math.atan2(t.y - h.y, t.x - h.x);
-          G.Combat.arrow(h, t, { ranged: { speed: 1400, flat: true }, base });
+          forLine(h, S.range, S.width, o => Dmg(h, o, base * (o.isHero ? S.heroMul : 1), { ranged: true, knock: S.knock, stun: S.stun, big: true, color: '#fff2c0' }));
+          G.Combat.arrow(h, null, { area: { x: h.x + Math.cos(h.face) * S.range, y: h.y + Math.sin(h.face) * S.range }, ranged: { speed: 1400, flat: true }, base: 0 });
+          for (let d = 20; d <= S.range; d += 40) G.FX.dust(h.x + Math.cos(h.face) * d, h.y + Math.sin(h.face) * d, 1);
           G.FX.hit(h.x + Math.cos(h.face) * 14, h.y - 14 + Math.sin(h.face) * 14, '#fff2c0', 10); G.FX.addShake(4);
         });
         break;

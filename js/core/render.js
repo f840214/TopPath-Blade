@@ -106,8 +106,11 @@ G.Render = (() => {
   function ground(canvas, version, scale = 1) {
     if (!canvas) return;
     if (canvas !== groundSrc) {
-      if (groundSprite) groundSprite.destroy({ texture: true, textureSource: true });
-      groundSprite = new PIXI.Sprite(PIXI.Texture.from(canvas)); groundSprite.scale.set(G.CONFIG.artScale / scale); layers.ground.addChild(groundSprite);
+      // keep：會重複用的地面（大地圖）貼圖留著不銷毀，下次切回來不用重新上傳到顯示卡
+      if (groundSprite) { const keep = groundSrc && groundSrc.keep; groundSprite.destroy({ texture: !keep, textureSource: !keep }); }
+      const tex = canvas.keep ? (canvas.tex || (canvas.tex = PIXI.Texture.from(canvas))) : PIXI.Texture.from(canvas);
+      groundSprite = new PIXI.Sprite(tex); groundSprite.scale.set(G.CONFIG.artScale / scale); layers.ground.addChild(groundSprite);
+      if (canvas.keep && canvas.texVer !== version) { tex.source.update(); canvas.texVer = version; }
       groundSrc = canvas; groundVer = version;
     } else if (version !== groundVer) { groundSprite.texture.source.update(); groundVer = version; }
   }
@@ -115,7 +118,7 @@ G.Render = (() => {
   /** 腳底的橢圓影子 */
   function shadow(x, y, rx, ry, alpha) {
     const s = take(pools.shadows);
-    s.texture = shadowTex; s.x = x - rx; s.y = y - ry; s.width = rx * 2; s.height = ry * 2; s.alpha = alpha;
+    s.texture = shadowTex; s.tint = 0x0a0c08; s.x = x - rx; s.y = y - ry; s.width = rx * 2; s.height = ry * 2; s.alpha = alpha;   // 白色貼圖要染成黑色（以前沒設，影子是淡灰色的一塊）
   }
 
   /** 地上的發光橢圓（火焰區），color 是 0xRRGGBB */

@@ -17,6 +17,7 @@ G.Hero = class {
     this.atk = this.weapon.atk * (1 + st.atk / 100);
     this.cdr = Math.min(40, st.cdr) / 100;
     this.speed = G.HERO_BASE.speed; this.radius = G.HERO_BASE.radius;
+    this.stamina = G.SPRINT.stamina; this.staminaMax = G.SPRINT.stamina; this.restT = 0; this.tired = false; this.running = false;   // 跑步的耐力（battle/sim.js updateHero）
     this.x = x; this.y = y; this.z = 0; this.vz = 0; this.vx = 0; this.vy = 0; this.kx = 0; this.ky = 0;
     this.face = -Math.PI / 2; this.moving = false;
     this.anim = 'Idle'; this.animT = 0; this.action = null;   // action：正在播的一次性動作 { anim, until }
@@ -34,11 +35,26 @@ G.Hero = class {
     this.action = { anim, until: d }; this.animT = 0;
   }
 
+  /** 騎馬（大地圖）的影子：跟馬一樣長，橫著走時拉長；中心在馬蹄連線往上一點（四隻腳之間），不然看起來像浮在半空 */
+  static horseShadow(x, y, face) {
+    const c = Math.abs(Math.cos(face)), s = Math.abs(Math.sin(face));
+    G.Render.shadow(x, y - G.Hero.HORSE_DY, 12 + 12 * c, 5 + 2 * s, 0.5);
+    return 12 + 12 * c;
+  }
+
   draw(ctx) {
-    const alpha = this.dead ? 0.5 : 1, y = this.y - this.z;
-    G.Render.shadow(this.x, this.y, 9, 3.5, 0.3);
-    // 腳下的主將光圈
-    G.Render.under.ellipse(this.x, this.y, 12, 4.5).stroke({ width: 1, color: this.team === (G.viewTeam || 0) ? 0xffd25a : 0xe65046, alpha: 0.8 });
+    // 倒下：跟小兵一樣 1.2 秒淡出，之後不畫（以前半透明的人一直站在原地）
+    const alpha = this.dead ? Math.max(0, 1 - this.dead / 1.2) : 1, y = this.y - this.z;
+    if (alpha <= 0) return;
+    const rx = this.mounted ? G.Hero.horseShadow(this.x, this.y, this.face) + 2 : (G.Render.shadow(this.x, this.y, 9, 3.5, 0.3), 12);
+    // 腳下的主將光圈（騎馬時跟影子同一個中心）
+    G.Render.under.ellipse(this.x, this.y - (this.mounted ? G.Hero.HORSE_DY : 0), rx, rx * 0.375).stroke({ width: 1, color: this.team === (G.viewTeam || 0) ? 0xffd25a : 0xe65046, alpha: 0.8 * alpha });
+    // 自身強化中（鬼神等）：腳下一圈閃動的紅色氣焰。同場戰鬥沒有 buff 物件，用伺服器送來的 buffOn
+    if (!this.dead && (this.buffOn || (this.buff && G.Battle && this.buff.until > G.Battle.time))) {
+      const p = 0.55 + Math.sin(performance.now() / 120) * 0.25;
+      G.Render.under.ellipse(this.x, this.y, rx + 6, (rx + 6) * 0.4).stroke({ width: 3, color: 0xff4a30, alpha: Math.min(1, p + 0.2) * alpha });
+      G.Render.zone(this.x, this.y, rx + 14, (rx + 14) * 0.45, 0xff3a20, (0.3 + p * 0.2) * alpha);
+    }
     let anim = 'Idle', t = 0;
     if (this.whirl > 0) { anim = 'Whirl'; t = this.animT; }
     else if (this.action) { anim = this.action.anim; t = this.animT; }
@@ -53,3 +69,4 @@ G.Hero = class {
     }
   }
 };
+G.Hero.HORSE_DY = 5;   // 騎馬的影子、光圈中心比馬蹄的錨點高幾 px（四隻腳之間）

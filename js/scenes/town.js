@@ -18,7 +18,9 @@ G.Town = (() => {
     const lo = G.Menu.loadout(), w = town.wall;
     G.FX.reset(); G.Combat.reset(); G.Siege.reset([]);
     G.Map.setupCastle({ wallY: w.wallY, gateX: w.gateX, gateHp: 1, towers: w.towers, walls: [], points: [], town: o.key || 'main', defender: 0 });
-    G.Map.buildGround(3, [{ x: 0, y: 0, w: G.CONFIG.world.w, h: w.wallY }, { x: w.gateX - 60, y: w.wallY, w: 120, h: G.CONFIG.world.h }], [], town.roads);
+    G.Map.buildGround(3, [{ x: 0, y: 0, w: G.CONFIG.world.w, h: w.wallY }, { x: w.gateX - 60, y: w.wallY, w: 120, h: G.CONFIG.world.h }], [], town.roads, { cacheKey: `town:${town.key}` });   // 每座城的地面固定，畫一次就留著
+    // 閒下來時先把大地圖的地面畫好，第一次出城才不會卡
+    (window.requestIdleCallback || (f => setTimeout(f, 1200)))(() => G.World.prebuild(), { timeout: 4000 });
     hero = new G.Hero(0, lo.weapon, lo.equip, town.spawn.x, town.spawn.y, G.Army.heroLevel());
     hero.look = G.SPRITE_META[lo.look] ? lo.look : null;
     hero.name = lo.name || '主帥'; hero.face = -Math.PI / 2;

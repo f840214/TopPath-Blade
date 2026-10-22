@@ -394,7 +394,7 @@
     }
   },
   "look_samurai": {
-    "id": "64584ab8-90b7-4538-82b7-d9cdd8d2eb1f",
+    "id": "2cdea3b7-c6f2-4f3a-bdbe-20ea0e8054e9",
     "anims": {
       "Walk": {
         "source": "Walk",
@@ -404,6 +404,18 @@
       "Attack": {
         "source": "Attack",
         "fps": 14,
+        "loop": false,
+        "hit": 4
+      },
+      "Spin": {
+        "source": "Spin",
+        "fps": 16,
+        "loop": false,
+        "hit": 4
+      },
+      "Shout": {
+        "source": "Shout",
+        "fps": 8,
         "loop": false,
         "hit": 3
       }
@@ -422,6 +434,12 @@
         "fps": 14,
         "loop": false,
         "hit": 3
+      },
+      "Spin": {
+        "source": "Spin",
+        "fps": 16,
+        "loop": false,
+        "hit": 4
       }
     }
   },
@@ -436,6 +454,12 @@
       "Attack": {
         "source": "Attack",
         "fps": 14,
+        "loop": false,
+        "hit": 3
+      },
+      "Shout": {
+        "source": "Shout",
+        "fps": 8,
         "loop": false,
         "hit": 3
       }
@@ -454,6 +478,18 @@
         "fps": 14,
         "loop": false,
         "hit": 3
+      },
+      "Spin": {
+        "source": "Spin",
+        "fps": 16,
+        "loop": false,
+        "hit": 4
+      },
+      "Shout": {
+        "source": "Shout",
+        "fps": 8,
+        "loop": false,
+        "hit": 3
       }
     }
   },
@@ -468,6 +504,18 @@
       "Attack": {
         "source": "Attack",
         "fps": 14,
+        "loop": false,
+        "hit": 3
+      },
+      "Spin": {
+        "source": "Spin",
+        "fps": 16,
+        "loop": false,
+        "hit": 4
+      },
+      "Shout": {
+        "source": "Shout",
+        "fps": 8,
         "loop": false,
         "hit": 3
       }
@@ -486,11 +534,16 @@
         "fps": 14,
         "loop": false,
         "hit": 3
+      },
+      "Whirl": {
+        "source": "Whirl",
+        "fps": 16,
+        "loop": true
       }
     }
   },
   "look_ming_officer": {
-    "id": "5afb0b9f-f07c-4510-8517-d2062ad6814a",
+    "id": "f1e35739-c903-46fb-a68c-7a5f9d4468b4",
     "anims": {
       "Walk": {
         "source": "Walk",
@@ -518,11 +571,17 @@
         "fps": 14,
         "loop": false,
         "hit": 3
+      },
+      "Shout": {
+        "source": "Shout",
+        "fps": 8,
+        "loop": false,
+        "hit": 3
       }
     }
   },
   "look_jarl": {
-    "id": "7d10c8f0-d95b-436e-a309-a0817fa5cd91",
+    "id": "a5757b55-0a9e-4e80-9936-3c61d6f9ebeb",
     "anims": {
       "Walk": {
         "source": "Walk",
@@ -534,11 +593,22 @@
         "fps": 14,
         "loop": false,
         "hit": 3
+      },
+      "Whirl": {
+        "source": "Whirl",
+        "fps": 16,
+        "loop": true
+      },
+      "Smash": {
+        "source": "Smash",
+        "fps": 14,
+        "loop": false,
+        "hit": 4
       }
     }
   },
   "look_mongol": {
-    "id": "b74d87d9-bff1-4cf6-bad4-17481d56725c",
+    "id": "69d08ed4-8b84-4dde-a6bf-8bb5b333e67b",
     "anims": {
       "Walk": {
         "source": "Walk",
@@ -554,7 +624,7 @@
     }
   },
   "mount_samurai": {
-    "id": "adb7e21c-fcfb-4561-979f-16c2bb5871a5",
+    "id": "3cbbbecd-87d6-43a7-8284-fe8e16281efa",
     "anims": {
       "Walk": {
         "source": "Walk",
@@ -614,7 +684,7 @@
     }
   },
   "mount_ming_officer": {
-    "id": "28bc90a3-b1e8-4e69-b7cf-8708a511a494",
+    "id": "8d6bdaf6-82c5-4cb8-a434-c61728a3974c",
     "anims": {
       "Walk": {
         "source": "Walk",
@@ -634,7 +704,7 @@
     }
   },
   "mount_jarl": {
-    "id": "7439f01a-d7a5-4b2f-b6dd-555d83119e32",
+    "id": "a507a603-42d6-41e7-9d0f-eb9a832c37fc",
     "anims": {
       "Walk": {
         "source": "Walk",
@@ -644,7 +714,7 @@
     }
   },
   "mount_mongol": {
-    "id": "a3ca9240-de10-4eac-be78-c5167a9e224c",
+    "id": "907482fd-262e-4df7-b2ef-25cb91549fa2",
     "anims": {
       "Walk": {
         "source": "Walk",

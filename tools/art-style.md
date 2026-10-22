@@ -118,3 +118,22 @@
 - 擲彈兵：`throwing a bomb` 會畫成手裡爆炸，改寫 `swings his arm far back, then swings it forward and up releasing the ball so it flies away, his hand ends empty, the ball does not explode, no sparks`。
 - 弓兵：`archer shooting: raises the bow up in front with the left arm extended, pulls the bowstring back to his cheek...` 比 `drawing an arrow ...` 清楚很多。
 - 同時跑的 job：多個 agent 共用 10 個名額，一個 agent ≤4。下載 zip 時角色只要還有 job 在跑就會 423，驗收要等該角色全部跑完。
+
+## 7. 武將技能動畫（Spin / Shout / Whirl / Smash，2026-10）
+
+- 都只做 south 一個方向（meta 的 `dirs: 1`），v3、`frame_count 8`（Shout 6）、`keep_first_frame false`。
+- 轉圈類（Spin、Whirl）只寫「spin / whirlwind」時，v3 幾乎都只會原地揮武器、身體不轉，還常加藍色光圈。要**逐格寫出朝向**才轉得起來：
+  `turning around in place like a spinning top ...: frame 1 facing the camera, frame 3 turned to his left showing his side profile, frame 5 back to the camera showing the <披風>, frame 7 turned to his right side profile, then facing the camera again, ..., no visual effects, no rings, no glow, no trails`
+  （jarl 的 Whirl 試到第 3 次才成功；做出來大多是轉半圈，可以接受）
+- Smash：`crouches, swings the <武器> high up over his head with both hands, ... slams ... straight down into the ground in front of him, holds the impact pose, then rises back up, ..., no dust, no cracks`。hit 設在落地那一格。
+- 攻擊的 SW 方向最常生錯（人轉回正面、武器往右）：`hero-anims/mkzip.py` 的第 4 個參數 `{"Attack":{"south-west":"south-east"}}` 會用 SE 每一格左右鏡射取代 SW。ming、jarl 都這樣處理。
+- 有黑框的白色碎屑（塵土）fxclean 刪不掉，量少就保留。
+- Windows 上跑這些腳本：用 python.org 的 Python 3.12＋Pillow（`winget install Python.Python.3.12`），讀寫檔案一律指定 `encoding='utf-8'`（Windows 預設 cp950 會壞）。
+
+## 8. 大地圖物件（村落、田、蘆葦…，2026-10）
+
+- 工具：`create_object_pro_flash`，`n_directions: 1`，`view: high top-down`，`style_image` 用 `assets/world/bandit_camp.png`（87×57，base64）。畫布要比風格圖大，最小 96×64，不然會報「Style image must fit the native canvas」。
+- Prompt 一定要寫 `standing directly on the ground, NO grass platform, NO base tile, transparent background`（不然又是菱形草地台）。田、水田這種平貼在地上的寫 `flat on the ground, irregular outer edge`。
+- 下載後：飽和度 ×0.85、裁掉透明邊（錨點是底部中央），存成 `assets/world/prop_<名字>.png`。
+- 放置在 `js/data/world.js`：每個物件給 `h`（圖的中心比腳底高多少），`clear()` 用圖的中心算距離，樹冠、山頭才不會蓋到田上。田、水田加 `flat: true`（永遠畫在最底下、不擋路）。
+- 王都：`create_image_pro` 480×416（最大 512×512，不用手動接圖），reference 用舊的 city_capital、style 用 castle_white（用 `get_upload_url` 上傳，不要貼 base64）。存成 `capital_grand.png`；`city_capital.png` 還是玩家佔城可以選的樣子，不要蓋掉。

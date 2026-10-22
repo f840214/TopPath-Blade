@@ -1,7 +1,7 @@
-# 武將外觀動畫進度（暫停時的狀態）
+# 武將外觀動畫進度（2026-10-22 已全部匯入）
 
-使用者要求暫停。**全部都還沒匯入**：`tools/pixellab.json`、`js/data/sprites-meta.js`、`assets/units/look_*/` 都沒動過，遊戲裡現在還是舊圖。
-新的動畫都放在 PixelLab 伺服器上（下面的 character id / group id），可以隨時下載。
+**已匯入**（2026-10-22，Windows 電腦）：`tools/pixellab.json`、`js/data/sprites-meta.js`、`assets/units/look_*/` 都更新了，sprites-meta 只有 look_* 改變。
+清理過的 zip 在 `tools/cache/look_*.zip`（這台電腦）；要重匯時不要加 `--refresh`。
 
 ## 接著做的方法
 
@@ -27,8 +27,8 @@
 |---|---|---|---|
 | look_samurai | 野太刀 | **新** `2cdea3b7-c6f2-4f3a-bdbe-20ea0e8054e9` | 新造型完成。Walk 8/8（group `32d6ec92-0cdb-4a17-b4e2-657c0d4da78f`，S 39 / N 21）。Attack 8/8（`a97858db-40f4-4680-b964-433d0dc1185c`，W 的刀身畫成白色彎鉤，已重試 2 次）。Spin（`11136ef9-071d-4a1b-b139-00853e29f7cf`）完成。Shout（`a362cc6d-2de5-4870-afde-275011f7d73c`）完成 |
 | look_mongol | 長弓 | **新** `69d08ed4-8b84-4dde-a6bf-8bb5b333e67b` | 全部完成。Walk 8/8（`2bf75890-3f8c-4a73-8c91-74a42c6a6fc4`）、Attack 8/8（`9058f711-e2d8-48ec-8b57-ae520659fd6f`，NW 動作偏小）|
-| look_ming_officer | 火槍 | **新** `f1e35739-c903-46fb-a68c-7a5f9d4468b4` | Walk 8/8（`721d3de0-2a52-4fbe-8c9a-1092444704e9`，NE 17 偏弱）。Attack（`efcd2909-7c01-41e4-8d79-971b4b53d418`）：S、SE、E、NE、N 完成；NW、W 生成中；**SW 還沒做** |
-| look_jarl | 戰錘 | **新** `a5757b55-0a9e-4e80-9936-3c61d6f9ebeb` | Walk 8/8（`d111e3a0-9c84-4b2a-941c-e7cfabbce826`）。Attack（`40e12b89-4aaa-46fd-911d-4580b5fa56ea`）：S、SE、E、NE、N、NW、W 完成，**SW 還沒做**，每個方向都要清理特效。Whirl（`50e1f226-2cce-43bc-9afd-6d52f3b4a97f`）**不合格**（沒有轉圈），要刪掉重生。**Smash 還沒做** |
+| look_ming_officer | 火槍 | **新** `f1e35739-c903-46fb-a68c-7a5f9d4468b4` | Walk 8/8（`721d3de0-2a52-4fbe-8c9a-1092444704e9`，NE 17 偏弱）。Attack（`efcd2909-7c01-41e4-8d79-971b4b53d418`）：S、SE、E、NE、N 完成；NW、W 驗收通過（NW 第 3 格槍口火光，保留）。SW 生了但人朝南、槍往右射 → **匯入時用 SE 左右鏡射當 SW** |
+| look_jarl | 戰錘 | **新** `a5757b55-0a9e-4e80-9936-3c61d6f9ebeb` | Walk 8/8（`d111e3a0-9c84-4b2a-941c-e7cfabbce826`）。Attack（`40e12b89-4aaa-46fd-911d-4580b5fa56ea`）：S、SE、E、NE、N、NW、W 完成，每個方向都要清理特效；SW 生了但朝向不對 → **匯入時用 SE 左右鏡射當 SW**。Whirl（`d92d5449-1a8d-4c66-9d34-baa685eddc90`，第 3 次）完成：正面→側面→背面→側面→正面，無特效。Smash（`bd2980de-fab9-4950-964d-e2dbbb33a955`，8 格）完成，第 5 格（index 4）落地，第 6 格有少量白色塵土要清 |
 | look_knight | 劍盾 | `454e7905-6cb3-4570-892a-296202362417` | Walk 重做 S、N、NE、NW、W、SW（group `a57c2cac-537b-4394-96f3-55ad40554d7c`，S 17→28、N 18→22）完成。Shout（`24b51a27-803f-4ca0-b4d3-144f6c93b9e2`）完成 |
 | look_templar | 長劍 | `14f503e1-cfc1-4d40-a1bb-9ace4cdd8dc2` | Walk（source `WalkV3`，`868238bd-4cd4-4320-a667-d5259eb998cd`）重做 S（14→38）、SW（7→37）完成。Spin（`aff1bb6e-6160-4c80-9dae-1d9ffd69850a`）、Shout（`1a6eff6f-7cd1-423a-8fa0-deb2be71fe8b`）完成 |
 | look_landsknecht | 長劍（保留雙手劍）| `64c68f0b-6430-4cc2-a400-1dc10ec54c50` | Walk（`d128aa61-6414-402b-89c0-1e3cc19eface`）重做 S（10→33）、N（15→15，看圖腳有交替，已重試 2 次）完成。Spin（`41045602-0a51-4407-bb6f-2575318aa14e`）、Shout（`b965404a-ce5e-4924-b5d4-ec1a8f7070cb`）完成 |
@@ -38,16 +38,23 @@
 
 注意：舊外觀 Walk 裡重做的方向，PixelLab 上的舊版已經刪掉了。舊版留在 `tools/cache/look_*.zip` 和 `tools/hero-anims/oldzips/`，`assets/units/look_*/Walk.png` 也還是舊版。
 
-## 還沒做的 job
+## 結果
 
-- look_ming_officer Attack SW（NW、W 已送出，等它跑完）
-- look_jarl Attack SW
-- look_jarl Whirl：刪掉 `50e1f226…` 重生
-- look_jarl Smash（單方向，8 格，hit = 落地那一格）
-- 匯入之後：拼一張所有新動畫的對照圖，逐格檢查，再在 `tools/art-style.md` 補上筆記
+- 全部 job 完成並匯入；對照圖逐格看過。ming、jarl 的 Attack SW 用 SE 鏡射。
+- 小瑕疵：jarl Attack S 第 5 格、Smash 最後兩格有少量白色塵土（有黑框，fxclean 不會刪）。
+- 筆記補在 `tools/art-style.md` 第 7 節。
 
 ## 其他
 
 - `js/data/looks.js` 的 weapon 欄位由 coordinator 改好了，沒有動。
 - 頭像都沒有畫到武器，全部保留原圖。
 - PixelLab 上已刪除的廢稿：landsknecht 長槍版 `f13e670b`、ming v1 `cd5d2069`、jarl v1 `7f30fa44`。
+
+## 騎馬版重生（2026-10-22 進行中）
+
+換了新造型的 4 位武將，騎馬圖要照新造型重生（create_character_pro_flash，horse，72，style_image = 新 look 的 south 旋轉圖）：
+- mount_samurai → `3cbbbecd-87d6-43a7-8284-fe8e16281efa`（舊 `adb7e21c…`）
+- mount_mongol → `907482fd-262e-4df7-b2ef-25cb91549fa2`（舊 `a3ca9240…`）
+- mount_ming_officer → `8d6bdaf6-82c5-4cb8-a434-c61728a3974c`（舊 `28bc90a3…`）
+- mount_jarl → `a507a603-42d6-41e7-9d0f-eb9a832c37fc`（舊 `7439f01a…`）
+接著：8 方向 Walk（v3，6 格），驗收後改 pixellab.json 的 id，匯入時加 `--refresh`（mount_* 沒有手工修正）。

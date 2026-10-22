@@ -4,7 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TopPath Blade</title>
-<link rel="stylesheet" href="css/game.css?v=0.8">
+<link rel="icon" href="assets/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="theme-color" content="#0b0c0e">
+<link rel="stylesheet" href="css/game.css?v=1.3">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -17,7 +22,7 @@
 <div id="hud">
   <div id="heroPanel" class="pframe">
     <img id="heroFace" src="assets/portraits/hero.png" alt="" onerror="this.style.visibility='hidden'">
-    <div><b>主帥</b><div class="hp"><i id="hpFill"></i></div><small id="hpText"></small></div>
+    <div><b>主帥</b><div class="hp"><i id="hpFill"></i></div><div class="sta" id="staBar" title="耐力：按住 Shift 跑步"><i id="staFill"></i></div><small id="hpText"></small></div>
   </div>
   <div id="objective" class="pframe"></div>
   <div id="squads"></div>
@@ -25,7 +30,7 @@
   <div id="kills"></div>
   <div id="perf"></div>
   <div id="supply" class="pframe"></div>
-  <div id="cmdBar" class="pframe" title="左鍵點地面：移動到那裡　右鍵：往那裡進攻"></div>
+  <div id="cmdBar" class="pframe" title="左鍵點地面：走到那裡進攻"></div>
 </div>
 <div id="toast"></div>
 
@@ -130,11 +135,43 @@
     </section>
     <section data-p="help"><h3 class="ribbon">操作</h3>
       <div class="help">
-        <div><b>城內</b>WASD 走動；走到有名牌的建築門口按 Enter 進去（募兵處、鐵匠鋪、主堡、旅店、兵營、城門）；Esc 離開面板；-／= 縮放</div>
-        <div><b>大地圖</b>WASD 騎馬行軍；M 收起／展開小地圖；城門口按 Enter 進城或攻城；自己的城門口按 R 改城名、城堡樣子、旗幟；碰到強盜會打野戰</div>
-        <div><b>選單</b>Tab 或左上角「選單」展開資源、兵團和功能按鈕</div>
-        <div><b>聊天</b>按 / 開始打字，Enter 送出，Esc 取消</div>
-        <div><b>戰鬥</b>WASD 移動，靠近敵人自動普攻；Q／E／R 武將技能；指揮兵團用滑鼠：左下角選「隨身」或「配置」，左鍵點地面移動到那裡、右鍵往那裡進攻，按鈕可以下跟隨／進攻／駐守（也可以用 1 跟隨、2 駐守、3 進攻）；Tab 切換指揮哪一支隨身兵團；F 陣型；Z／X 兵團技能；T 在補給點換兵；B 指派攻城器械；G 開關城門（守城）；V 震動開關；Esc 撤退</div>
+        <div class="hcard"><h4>城內</h4>
+          <p><i class="keys"><kbd>WASD</kbd></i><span>走動</span></p>
+          <p><i class="keys"><kbd>Enter</kbd></i><span>在建築門口進去（募兵處、鐵匠鋪、主堡、旅店、兵營、城門）</span></p>
+          <p><i class="keys"><kbd>Esc</kbd></i><span>離開面板</span></p>
+          <p><i class="keys"><kbd>-</kbd><kbd>=</kbd></i><span>縮放</span></p>
+        </div>
+        <div class="hcard"><h4>大地圖</h4>
+          <p><i class="keys"><kbd>WASD</kbd></i><span>騎馬行軍；碰到強盜會打野戰</span></p>
+          <p><i class="keys"><kbd>Enter</kbd></i><span>城門口：進城、攻城；城上標「交戰中」時加入攻城（自己的城是回防）</span></p>
+          <p><i class="keys"><kbd>R</kbd></i><span>自己的城門口：改城名、城堡樣子、旗幟</span></p>
+          <p><i class="keys"><kbd>F</kbd></i><span>靠近其他玩家：發起對決</span></p>
+          <p><i class="keys"><kbd>G</kbd></i><span>靠近其他玩家：邀請組隊（組隊攻下的城歸隊長）</span></p>
+          <p><i class="keys"><kbd>Y</kbd><kbd>N</kbd></i><span>接受／拒絕對決、組隊邀請</span></p>
+          <p><i class="keys"><kbd>J</kbd></i><span>加入邀請你的戰鬥</span></p>
+          <p><i class="keys"><kbd>L</kbd></i><span>離開隊伍</span></p>
+          <p><i class="keys"><kbd>M</kbd></i><span>收起／展開小地圖</span></p>
+        </div>
+        <div class="hcard wide"><h4>戰鬥</h4>
+          <p><i class="keys"><kbd>WASD</kbd></i><span>移動，靠近敵人自動普攻</span></p>
+          <p><i class="keys"><kbd>Shift</kbd></i><span>按住跑步（耗耐力，血條下面那條）</span></p>
+          <p><i class="keys"><kbd>Q</kbd><kbd>E</kbd><kbd>R</kbd></i><span>武將技能</span></p>
+          <p><i class="keys"><kbd>左鍵</kbd></i><span>點地面：兵團走到那裡進攻（左下角先選「隨身」或「配置」）</span></p>
+          <p><i class="keys"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></i><span>跟隨／駐守／進攻</span></p>
+          <p><i class="keys"><kbd>Tab</kbd></i><span>切換指揮哪一支隨身兵團</span></p>
+          <p><i class="keys"><kbd>F</kbd></i><span>陣型</span></p>
+          <p><i class="keys"><kbd>Z</kbd><kbd>X</kbd></i><span>兵團技能</span></p>
+          <p><i class="keys"><kbd>T</kbd></i><span>在補給點換兵</span></p>
+          <p><i class="keys"><kbd>B</kbd></i><span>指派攻城器械（衝車撞城門、城牆）</span></p>
+          <p><i class="keys"><kbd>G</kbd></i><span>開關城門（守城）</span></p>
+          <p><i class="keys"><kbd>Q</kbd><kbd>E</kbd></i><span>武將倒下時：回後方重生／原地重生（多等 10 秒）</span></p>
+          <p><i class="keys"><kbd>V</kbd></i><span>畫面震動開關</span></p>
+          <p><i class="keys"><kbd>Esc</kbd></i><span>撤退</span></p>
+        </div>
+        <div class="hcard"><h4>其他</h4>
+          <p><i class="keys"><kbd>Tab</kbd></i><span>展開選單（資源、兵團、功能）</span></p>
+          <p><i class="keys"><kbd>/</kbd></i><span>聊天，Enter 送出、Esc 取消</span></p>
+        </div>
       </div>
     </section>
     <div id="menuMsg"></div>
@@ -148,47 +185,47 @@
 <script src="js/core/util.js?v=0.3"></script>
 <script src="js/core/assets.js?v=0.8"></script>
 <script src="js/core/api.js?v=0.4"></script>
-<script src="js/core/input.js?v=0.3"></script>
-<script src="js/data/sprites-meta.js?v=0.3"></script>
+<script src="js/core/input.js?v=1.0"></script>
+<script src="js/data/sprites-meta.js?v=1.0"></script>
 <script src="js/data/tiles.js?v=0.8"></script>
 <script src="js/data/road-tiles.js?v=0.8"></script>
 <script src="js/data/units.js?v=0.8"></script>
 <script src="js/data/counters.js?v=0.8"></script>
 <script src="js/data/formations.js?v=0.3"></script>
-<script src="js/data/skills.js?v=0.8"></script>
-<script src="js/data/heroes.js?v=0.3"></script>
+<script src="js/data/skills.js?v=1.0"></script>
+<script src="js/data/heroes.js?v=1.1"></script>
 <script src="js/data/army.js?v=0.8"></script>
 <script src="js/data/veteran.js?v=0.8"></script>
-<script src="js/data/siege.js?v=0.8"></script>
+<script src="js/data/siege.js?v=1.0"></script>
 <script src="js/data/town.js?v=0.8"></script>
 <script src="js/data/town-main.js?v=0.9"></script>
 <script src="js/data/town-small.js?v=0.9"></script>
-<script src="js/data/world.js?v=0.8"></script>
-<script src="js/core/render.js?v=0.8"></script>
+<script src="js/data/world.js?v=1.3"></script>
+<script src="js/core/render.js?v=1.2"></script>
 <script src="js/core/sprites.js?v=0.8"></script>
-<script src="js/entities/fx.js?v=0.8"></script>
+<script src="js/entities/fx.js?v=1.2"></script>
 <script src="js/entities/unit.js?v=0.8"></script>
-<script src="js/entities/hero.js?v=0.8"></script>
-<script src="js/world/nav.js?v=0.8"></script>
-<script src="js/world/world-ground.js?v=0.8"></script>
-<script src="js/world/map.js?v=0.8"></script>
+<script src="js/entities/hero.js?v=1.1"></script>
+<script src="js/world/nav.js?v=1.2"></script>
+<script src="js/world/world-ground.js?v=1.2"></script>
+<script src="js/world/map.js?v=1.2"></script>
 <script src="js/systems/combat.js?v=0.8"></script>
-<script src="js/systems/skills.js?v=0.8"></script>
-<script src="js/systems/ai.js?v=0.8"></script>
+<script src="js/systems/skills.js?v=1.1"></script>
+<script src="js/systems/ai.js?v=1.0"></script>
 <script src="js/systems/army.js?v=0.8"></script>
-<script src="js/systems/siege.js?v=0.8"></script>
-<script src="js/battle/sim.js?v=0.8"></script>
-<script src="js/ui/hud.js?v=0.8"></script>
+<script src="js/systems/siege.js?v=1.0"></script>
+<script src="js/battle/sim.js?v=1.1"></script>
+<script src="js/ui/hud.js?v=1.3"></script>
 <script src="js/data/looks.js?v=0.8"></script>
 <script src="js/ui/menu.js?v=0.8"></script>
 <script src="js/ui/create.js?v=0.8"></script>
 <script src="js/ui/heraldry.js?v=0.8"></script>
 <script src="js/ui/daylight.js?v=0.8"></script>
-<script src="js/net/net.js?v=0.8"></script>
-<script src="js/net/remote.js?v=0.8"></script>
-<script src="js/scenes/town.js?v=0.8"></script>
-<script src="js/scenes/world.js?v=0.8"></script>
-<script src="js/game.js?v=0.8"></script>
+<script src="js/net/net.js?v=1.0"></script>
+<script src="js/net/remote.js?v=1.1"></script>
+<script src="js/scenes/town.js?v=1.2"></script>
+<script src="js/scenes/world.js?v=1.2"></script>
+<script src="js/game.js?v=1.0"></script>
 <script src="js/main.js?v=0.3"></script>
 </body>
 </html>

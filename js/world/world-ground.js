@@ -7,7 +7,7 @@ G.WorldGround = (() => {
 
   /** 這裡能不能放樹石草叢：不在湖裡、不在路上 */
   function ok(x, y) { const S = W().size; if (x < 90 || y < 200 || x > S.w - 90 || y > S.h - 70) return false;   // 外圍高崖上不放草叢
-    if (W().inSnow(x, y) || W().inLake(x, y, 30) || W().nearRoad(x, y, 34) || W().nearRiver(x, y, 44)) return false;
+    if (W().inSnow(x, y) || W().inLake(x, y, 30) || W().nearRoad(x, y, 34) || W().nearRiver(x, y, 44) || W().inYard(x, y, 20)) return false;
     // 不跟其他東西重疊：台地邊緣到崖腳、斜坡口、樹林、山、城、營地
     for (const h of W().highlands || []) { const v = Math.hypot((x - h.x) / h.rx, (y - h.y - W().CLIFF * 0.5) / h.ry); if (Math.abs(v - 1) * Math.min(h.rx, h.ry) < 70) return false; }
     return !G.TOWNS.world.buildings.some(b => b.fw && Math.abs(x - b.x) < b.fw / 2 + 40 && y > b.y - b.fh - 70 && y < b.y + 40); }
@@ -54,7 +54,7 @@ G.WorldGround = (() => {
     // 2b. 高地（台地）：頂面是偏乾黃的草地，南半圈是一道有高度的岩壁（從邊緣往下 CLIFF px），岩壁上有直紋和碎石
     const CLIFF = W().CLIFF;
     (W().highlands || []).forEach((h, i) => {
-      const pt = t => W().highlandPt(h, i, t);
+      const pt = t => W().highlandEdge(h, i, t);
       const edge = () => { g.beginPath(); for (let a = 0; a <= 96; a++) { const [x, y] = pt(a / 96 * Math.PI * 2); a ? g.lineTo(x, y) : g.moveTo(x, y); } g.closePath(); };
       // 岩壁：南半圈（t 從 0 到 π）的邊緣和往下平移 CLIFF 的邊緣之間
       const N = 60, top = [], bot = [];
@@ -81,11 +81,29 @@ G.WorldGround = (() => {
       const width = pts.map(([x, y], i) => { if (i) d += Math.hypot(x - pts[i - 1][0], y - pts[i - 1][1]); return 20 + Math.sin(d / 70 + ri) * 4 + Math.sin(d / 23 + ri * 2) * 2; });
       const layer = (fill, extra, jitter) => { g.fillStyle = fill; pts.forEach(([x, y], i) => { g.beginPath(); g.arc(x, y, Math.max(2, width[i] + extra + (jitter ? (rnd() - 0.5) * jitter : 0)), 0, Math.PI * 2); g.fill(); }); };
       riverDraw.push({ pts, width });
-      layer(dirt, 11, 6); layer('rgba(90,84,60,0.35)', 9, 4); layer('#35505a', 3, 2); layer('#29424c', 0, 0); layer('rgba(70,108,118,0.35)', -10, 0);
-      g.strokeStyle = 'rgba(190,210,205,0.18)'; g.lineWidth = 2;
-      for (let i = 6; i < pts.length - 6; i += 11) {   // 水流的反光：順著河的方向的短線
-        const [x, y] = pts[i], [bx, by] = pts[i + 3], o = (rnd() - 0.5) * width[i];
-        g.beginPath(); g.moveTo(x + o * 0.3, y + o); g.lineTo(bx + o * 0.3, by + o); g.stroke();
+      // 由外往內：泥岸 → 濕沙 → 淺水（偏青、亮一點）→ 深水 → 河心最深
+      layer(dirt, 12, 6); layer('rgba(90,84,60,0.35)', 10, 4); layer('rgba(70,74,58,0.55)', 6, 2);
+      layer('#46666b', 3, 2); layer('#33505a', 0, 0); layer('#294450', -6, 0); layer('#203844', -12, 0);
+      // 河岸：小石子、偶爾一叢草（草朝外，跟路邊同一組圖）
+      g.fillStyle = 'rgba(150,146,130,0.8)';
+      for (let i = 2; i < pts.length - 2; i += 2) for (const side of [-1, 1]) {
+        if (rnd() < 0.5) continue;
+        const [x, y] = pts[i], [bx, by] = pts[i + 1], l = Math.hypot(bx - x, by - y) || 1, nx = -(by - y) / l * side, ny = (bx - x) / l * side, d = width[i] + 6 + rnd() * 6;
+        g.fillRect(Math.round(x + nx * d), Math.round(y + ny * d), 2, 2);
+      }
+      const edgeArt = [1, 2, 3, 4, 5, 6, 7, 8].map(k => { const im = G.Assets.img(`assets/world/road_edge${k}.png`); return im.complete && im.naturalWidth ? im : null; }).filter(Boolean);
+      if (edgeArt.length) for (let i = 3; i < pts.length - 3; i += 2) for (const side of [-1, 1]) {
+        if (rnd() < 0.6 || W().nearRoad(pts[i][0], pts[i][1], 50) || W().inLake(pts[i][0], pts[i][1], 20)) continue;
+        const [x, y] = pts[i], [bx, by] = pts[i + 1], l = Math.hypot(bx - x, by - y) || 1, ox = -(by - y) / l * side, oy = (bx - x) / l * side, d = width[i] + 12;
+        const e = edgeArt[Math.floor(rnd() * edgeArt.length)];
+        g.save(); g.translate(x + ox * d, y + oy * d); g.rotate(Math.atan2(ox, -oy)); g.drawImage(e, -e.width / 2, -e.height * 0.55); g.restore();
+      }
+      // 水流：順著河的方向、長短不一的反光；靠岸邊偶爾一點白色水花
+      for (let i = 4; i < pts.length - 6; i += 5) {
+        const [x, y] = pts[i], [bx, by] = pts[i + 2 + Math.floor(rnd() * 3)], o = (rnd() - 0.5) * width[i] * 1.2, l = Math.hypot(bx - x, by - y) || 1, px = -(by - y) / l, py = (bx - x) / l;
+        g.strokeStyle = `rgba(190,215,210,${0.12 + rnd() * 0.16})`; g.lineWidth = rnd() < 0.3 ? 2 : 1;
+        g.beginPath(); g.moveTo(x + px * o, y + py * o); g.lineTo(bx + px * o, by + py * o); g.stroke();
+        if (rnd() < 0.35) { const s = rnd() < 0.5 ? -1 : 1, fx = x + px * s * (width[i] - 2), fy = y + py * s * (width[i] - 2); g.fillStyle = 'rgba(225,235,230,0.35)'; g.fillRect(Math.round(fx), Math.round(fy), 3, 1); g.fillRect(Math.round(fx + 2), Math.round(fy + 1), 2, 1); }
       }
     });
     // 3b. 湖泊：沙岸 → 深水 → 中間稍亮 → 岸邊的淺水線與水草
@@ -121,22 +139,53 @@ G.WorldGround = (() => {
       g.fillStyle = FLOWERS[Math.floor(rnd() * FLOWERS.length)];
       for (let j = 0; j < 7; j++) g.fillRect(Math.round(x + (rnd() - 0.5) * 22), Math.round(y + (rnd() - 0.5) * 12), 2, 2);
     }
-    // 4. 泥土路（PixelLab 的圖）：路面 tex_road、兩側撒 road_edge 打散邊線（草朝外）、終點城門前一塊空地 road_end
+    // 4. 泥土路（PixelLab 的圖）：路面 tex_road、兩側撒 road_edge 打散邊線（草朝外）、終點城門前一塊同樣路面的空地
     const paths = W().roads.map((p, i) => G.U.meander(G.U.smooth(p), 12, i * 2.3 + 1));   // 路也稍微彎來彎去
     const img = n => { const im = G.Assets.img(`assets/world/${n}.png`); return im.complete && im.naturalWidth ? im : null; };
-    const roadTex = img('tex_road'), edges = [1, 2, 3, 4, 5, 6, 7, 8].map(k => img(`road_edge${k}`)).filter(Boolean), plaza = img('road_end');
+    const roadTex = img('tex_road'), edges = [1, 2, 3, 4, 5, 6, 7, 8].map(k => img(`road_edge${k}`)).filter(Boolean);
     for (const pts of paths) for (const [x, y] of pts) soft(g, x, y, 30, 'rgba(40,32,20,0.08)');   // 路肩淡淡的陰影
     g.fillStyle = roadTex ? g.createPattern(roadTex, 'repeat') : dirt;
     for (const pts of paths) pts.forEach(([x, y], i) => { g.beginPath(); g.arc(x, y, 17 + Math.sin(i * 0.7) * 1.5, 0, Math.PI * 2); g.fill(); });
     // 城門前的空地（路的終點）
     // 每條路的終點，加上王都城門（兩條往南的路從這裡出發）
     const plazas = [...W().roads.map(p => p[p.length - 1]), ...W().roads.filter(p => p[0][1] > W().cities.find(c => c.capital).y).map(p => p[0])].filter((p, i, a) => a.findIndex(q => q[0] === p[0] && q[1] === p[1]) === i);
-    if (plaza) for (const [x, y] of plazas) { g.drawImage(plaza, Math.round(x - 90), Math.round(y - 86)); }   // 上緣貼著城牆腳（城的圖底下有一段透明）
+    // 空地用路面同一張貼圖畫成不規則的圓角一塊（以前貼 road_end 圖，形狀方方的、上面還有一道道黑色車痕），邊緣跟路一樣撒草叢
+    // 空地的形狀：中心 (cx, cy)、半徑 rx × ry，邊緣有起伏。tear：城門前的空地做成上窄下寬的水滴形，尖端塞進城門底下
+    //   （城的圖底部是尖的菱形：橢圓往上放會從兩側露出來像一顆愛心，往下放又接不到城門）
+    const plazaPt = (p, t) => {
+      const w = 1 + 0.08 * Math.sin(3 * t + p.seed) + 0.05 * Math.sin(5 * t + p.seed * 1.7), s = Math.sin(t);
+      const xs = p.tear && s < 0 ? 1 + s * 0.85 : 1;
+      return [p.cx + Math.cos(t) * p.rx * w * xs, p.cy + s * p.ry * w];
+    };
+    const plazaPath = p => { g.beginPath(); for (let a = 0; a <= 64; a++) { const [x, y] = plazaPt(p, a / 64 * Math.PI * 2); a ? g.lineTo(x, y) : g.moveTo(x, y); } g.closePath(); };
+    // 王都：城門前那塊換成一整片大的泥土地（W().capitalYard，人來人往被踩禿的地；地上不長草叢，見 ok()）
+    const cap = W().cities.find(c => c.capital), Y = W().capitalYard;
+    const patches = plazas.filter(([x, y]) => Math.hypot(x - cap.x, y - cap.y) > 260).map(([x, y], i) => {
+      const c = W().cities.find(c => Math.hypot(c.x - x, c.y - y) < 140);
+      return c ? { cx: c.x, cy: c.y + 42, rx: 78, ry: 46, tear: true, seed: i * 1.9, end: [x, y] } : { cx: x, cy: y - 40, rx: 84, ry: 46, seed: i * 1.9, end: [x, y] };
+    });
+    patches.push({ cx: Y.x, cy: Y.y - 40 * Y.k, rx: 84 * Y.k, ry: 46 * Y.k, seed: Y.seed, yard: true });
+    // 先把路接到空地中間，空地再蓋上去，路跟空地之間才不會斷開或變細
+    g.fillStyle = roadTex ? g.createPattern(roadTex, 'repeat') : dirt;
+    for (const p of patches) if (p.end) for (let t = 0; t <= 1; t += 0.1) { g.beginPath(); g.arc(p.end[0] + (p.cx - p.end[0]) * t, p.end[1] + (p.cy + p.ry * 0.3 - p.end[1]) * t, 18, 0, Math.PI * 2); g.fill(); }
+    patches.forEach(p => {   // 不再畫外圈陰影：陰影蓋在路上，會在路接進來的地方多一條暗縫
+      g.fillStyle = roadTex ? g.createPattern(roadTex, 'repeat') : dirt;
+      plazaPath(p); g.fill();
+      if (edges.length) for (let a = 0; a < 30; a++) {
+        if (rnd() < 0.35) continue;
+        const t = a / 30 * Math.PI * 2 + rnd() * 0.15;
+        if (Math.sin(t) < (p.yard ? -0.55 : -0.2)) continue;   // 上緣貼著城牆，不放
+        const [ex, ey] = plazaPt(p, t), [ax, ay] = plazaPt(p, t - 0.05), [bx, by] = plazaPt(p, t + 0.05), nx = by - ay, ny = -(bx - ax);   // 外法線
+        const e = edges[Math.floor(rnd() * edges.length)];
+        g.save(); g.translate(ex, ey); g.rotate(Math.atan2(nx, -ny));   // 草朝外
+        g.drawImage(e, -e.width / 2, -e.height * 0.55); g.restore();
+      }
+    });
     // 路邊：沿兩側每 ~20px 放一個小草叢／碎石，轉到草朝路外
     if (edges.length) for (const pts of paths) for (let i = 2; i < pts.length - 8; i++) {
       if (rnd() < 0.45) continue;
       const [x, y] = pts[i], [ax, ay] = pts[i - 1], [bx, by] = pts[i + 1], l = Math.hypot(bx - ax, by - ay) || 1, nx = -(by - ay) / l, ny = (bx - ax) / l;
-      if (W().nearRiver(x, y, 30) || plazas.some(([px, py]) => Math.hypot(px - x, py - y) < 110)) continue;   // 橋、城門前的空地不放
+      if (W().nearRiver(x, y, 30) || W().inYard(x, y, 30) || plazas.some(([px, py]) => Math.hypot(px - x, py - y) < 110)) continue;   // 橋、城門前的空地、王都前的泥土地不放
       for (const side of [-1, 1]) {
         if (rnd() < 0.3) continue;
         const e = edges[Math.floor(rnd() * edges.length)], ox = nx * side, oy = ny * side, d = 13 + rnd() * 3;

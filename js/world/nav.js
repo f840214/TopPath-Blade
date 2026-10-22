@@ -19,9 +19,7 @@ G.Nav = (() => {
     if (solid && s === sig) return;
     sig = s; cache.clear();
     cols = Math.ceil(w / CELL); rows = Math.ceil(h / CELL);
-    solid = new Uint8Array(cols * rows);
-    for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++)
-      solid[y * cols + x] = G.Map.blocked(x * CELL + CELL / 2, y * CELL + CELL / 2) ? 1 : 0;
+    solid = G.Map.blockedGrid(cols, rows, CELL);   // 每個障礙物蓋自己的格子（以前一格一格問 G.Map.blocked，大地圖要 3 秒）
   }
   const cellOf = (x, y) => G.U.clamp(Math.floor(y / CELL), 0, rows - 1) * cols + G.U.clamp(Math.floor(x / CELL), 0, cols - 1);
 

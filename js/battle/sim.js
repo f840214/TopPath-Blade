@@ -25,22 +25,25 @@ G.Battle = (() => {
   const SCENARIOS = {
     field: {
       name: '野戰', desc: '平原遭遇戰，擊敗敵方武將與所有兵團。', seed: 7,
-      player: { x: 520, y: 820, face: 0 },
-      supply: [{ x: 300, y: 820 }],
+      size: { w: 1760, h: 1120 },   // 野戰比攻城小，兩軍很快就碰面
+      player: { x: 360, y: 575, face: 0 },
+      supply: [{ x: 205, y: 575 }],
       // 地形：樹林（移動變慢、遠程傷害 ×0.6）、高地（站在上面的遠程 ×1.2）
-      terrain: [{ kind: 'forest', x: 1180, y: 380, r: 210 }, { kind: 'forest', x: 1150, y: 1260, r: 190 }, { kind: 'hill', x: 1320, y: 820, r: 150 }],
-      deploy: [{ x: 760, y: 640 }, { x: 760, y: 1000 }, { x: 880, y: 820 }, { x: 640, y: 460 }, { x: 640, y: 1180 }, { x: 520, y: 620 }],
-      enemyHero: { weapon: 'glaive', x: 2050, y: 800 },
+      terrain: [{ kind: 'forest', x: 810, y: 265, r: 150 }, { kind: 'forest', x: 790, y: 880, r: 135 }, { kind: 'hill', x: 910, y: 575, r: 110 }],
+      deploy: [{ x: 525, y: 450 }, { x: 525, y: 700 }, { x: 605, y: 575 }, { x: 440, y: 320 }, { x: 440, y: 825 }, { x: 360, y: 435 }],
+      enemyHero: { weapon: 'glaive', x: 1410, y: 560 },
       enemies: [
-        { type: 'pikeman', x: 1700, y: 700 }, { type: 'shieldman', x: 1700, y: 900 },
-        { type: 'archer', x: 1900, y: 800 }, { type: 'cavalry', x: 1950, y: 520 },
+        { type: 'pikeman', x: 1170, y: 490 }, { type: 'shieldman', x: 1170, y: 630 },
+        { type: 'archer', x: 1305, y: 560 }, { type: 'cavalry', x: 1340, y: 365 },
       ],
       timeLimit: 0,
     },
     siege: {
       name: '攻城戰', desc: '用衝車撞開城門或打穿城牆、搭雲梯爬上城，依序佔領外城 → 內城 → 主堡（B 指派兵團操作器械）。', seed: 11,
       castle: { ...CASTLE, defender: 1 },
-      siege: [{ kind: 'ram', team: 0, x: 1280, y: 1260 }, { kind: 'ladder', team: 0, x: 1110, y: 1320 }, { kind: 'ladder', team: 0, x: 1450, y: 1320 }],
+      // 三台衝車：中間撞城門，兩側對著可破壞的城牆段（x 700、1880）
+      siege: [{ kind: 'ram', team: 0, x: 1280, y: 1260 }, { kind: 'ram', team: 0, x: 700, y: 1260 }, { kind: 'ram', team: 0, x: 1880, y: 1260 },
+        { kind: 'ladder', team: 0, x: 1110, y: 1320 }, { kind: 'ladder', team: 0, x: 1450, y: 1320 }],
       player: { x: 1280, y: 1400, face: -Math.PI / 2 },
       supply: [{ x: 1280, y: 1520 }],   // 攻城時佔下的據點也是補給點
       terrain: [{ kind: 'forest', x: 420, y: 1150, r: 190 }, { kind: 'forest', x: 2150, y: 1150, r: 190 }, { kind: 'hill', x: 1280, y: 1000, r: 120 }],
@@ -90,7 +93,14 @@ G.Battle = (() => {
       enemyHero: { weapon: c.hero, x: 1280, y: 360, name: c.lord },
       enemies: c.garrison.map(([type, men], i) => ({ type, men, x: SIEGE_SLOTS[i % SIEGE_SLOTS.length][0], y: SIEGE_SLOTS[i % SIEGE_SLOTS.length][1] })) };
   }
+  /** 大地圖上兩個玩家對決：野戰地圖，兩邊都是玩家（沒有電腦兵團），各有一個補給點 */
+  function duelScenario(a, b) {
+    return { ...SCENARIOS.field, base: 'field', duel: true, name: `對決：${a} vs ${b}`, desc: '擊敗對手的武將與兵團。', enemies: [],
+      enemySupply: [{ x: 1555, y: 560 }] };
+  }
 
+  /** 場景有自己的大小（野戰較小）就換掉戰場大小；要在 G.useScale('battle') 之後呼叫 */
+  const applySize = sc => { if (sc.size) G.CONFIG.world = { ...G.CONFIG.world, ...sc.size }; };
   /** 出生點、器械、據點附近不放石頭（瀏覽器畫地圖時也用同一份） */
   const fieldAvoid = sc => [sc.player, sc.enemyHero, ...sc.enemies, ...(sc.siege || []), ...(sc.supply || []), ...(sc.deploy || []), ...(sc.castle ? sc.castle.points : [])].filter(Boolean);
 
@@ -104,8 +114,9 @@ G.Battle = (() => {
    */
   function setup(o) {
     scenario = o.scenario; demo = !!o.demo;
-    heroes = []; squads = []; timers = []; cmdrs = []; unitCache = null; result = null; api.time = 0; thinkT = 0; nid = 1;
+    heroes = []; squads = []; timers = []; cmdrs = []; unitCache = null; result = null; api.time = 0; thinkT = 0; nid = 1; api.capturedBy = null;
     G.Combat.reset();
+    applySize(scenario);
     G.Map.setupCastle(scenario.castle || null);
     G.Map.setupField(scenario.seed || 1, fieldAvoid(scenario), scenario.terrain || []);
     G.Siege.reset(scenario.siege);
@@ -113,7 +124,8 @@ G.Battle = (() => {
     for (const spec of o.commanders) addCommander(spec, byTeam[spec.team]++);
     // 沒有玩家的一方：電腦敵將與兵團
     const eh = scenario.enemyHero, p = scenario.player;
-    if (eh && !byTeam[1]) { const h = new G.Hero(1, eh.weapon, {}, eh.x, eh.y); h.face = Math.PI - (p.face || 0); h.name = eh.name || '敵將'; tag(h); heroes.push(h); }
+    if (eh && !byTeam[1] && !scenario.duel) {   // 對決兩邊都是玩家，不放電腦武將
+      const h = new G.Hero(1, eh.weapon, {}, eh.x, eh.y); h.face = Math.PI - (p.face || 0); h.name = eh.name || '敵將'; tag(h); heroes.push(h); }
     const enemies = demo ? [...scenario.enemies, ...scenario.enemies.slice(0, 2).map(e => ({ ...e, x: e.x + (p.x < e.x ? 140 : -140) }))] : scenario.enemies;
     for (const e of enemies) {
       const face = Math.atan2(p.y - e.y, p.x - e.x);
@@ -312,12 +324,12 @@ G.Battle = (() => {
       if (field.length) { const o = field[0].order === 'attack' ? 'defend' : 'attack'; for (const s of field) s.order = o; notify(c, `配置兵團：${o === 'attack' ? '進攻' : '防守'}`); }
       else notify(c, '沒有配置兵團');
     }
-    // 滑鼠指揮（HUD 選「隨身」或「配置」，左鍵點地面移動、右鍵往那裡進攻）
+    // 滑鼠指揮（HUD 選「隨身」或「配置」，左鍵點地面＝走到那裡進攻）
     for (const o of (I.orders ? I.orders() : []).slice(0, 10)) mouseOrder(c, o, sel);
     // 鍵盤：1 跟隨、2 駐守、3 進攻（隨身兵團）
     const cmd = c.supplyOpen ? null : I.pressed('Digit3') ? 'attack' : I.pressed('Digit1') ? 'follow' : I.pressed('Digit2') ? 'hold' : null;
     if (cmd) for (const sq of sel) {
-      sq.cmd = cmd; sq.waypoint = null;
+      sq.cmd = cmd; sq.waypoint = null; sq.goTo = false;
       if (cmd === 'hold') sq.cmdPoint = { x: h.x, y: h.y };
       if (cmd === 'attack') { const f = nearestFoe(c.team, h.x, h.y, 99999); sq.cmdPoint = f ? { x: f.x, y: f.y } : { x: h.x, y: h.y }; }
     }
@@ -347,15 +359,18 @@ G.Battle = (() => {
     list.forEach((sq, i) => {
       if (c.group === 'field') {
         if (o.a === 'move' || o.a === 'hold') { sq.order = 'defend'; sq.home = o.a === 'move' && pt ? spot(i) : { ...sq.center }; sq.waypoint = o.a === 'move' ? sq.home : null; sq.cmd = 'hold'; sq.cmdPoint = sq.home; }
-        else if (o.a === 'attack') { sq.order = 'attack'; sq.waypoint = null; const f = nearestFoe(c.team, pt ? pt.x : sq.center.x, pt ? pt.y : sq.center.y, 99999); sq.cmd = 'attack'; if (f) sq.cmdPoint = { x: f.x, y: f.y }; }
+        else if (o.a === 'attack' && pt) { sq.order = 'attack'; sq.waypoint = null; sq.cmd = 'attack'; sq.cmdPoint = spot(i); sq.goTo = true; }
+        else if (o.a === 'attack') { sq.order = 'attack'; sq.waypoint = null; sq.goTo = false; const f = nearestFoe(c.team, sq.center.x, sq.center.y, 99999); sq.cmd = 'attack'; if (f) sq.cmdPoint = { x: f.x, y: f.y }; }
         return;
       }
+      sq.goTo = false;
       if (o.a === 'follow') { sq.cmd = 'follow'; sq.waypoint = null; }
       else if (o.a === 'hold') { sq.cmd = 'hold'; sq.waypoint = null; sq.cmdPoint = { ...sq.center }; }
       else if (o.a === 'move' && pt) { sq.cmd = 'hold'; sq.cmdPoint = spot(i); sq.waypoint = spot(i); }
-      else if (o.a === 'attack') { const f = nearestFoe(c.team, pt ? pt.x : c.hero.x, pt ? pt.y : c.hero.y, 99999); sq.cmd = 'attack'; sq.waypoint = null; sq.cmdPoint = f ? { x: f.x, y: f.y } : pt || { x: c.hero.x, y: c.hero.y }; }
+      else if (o.a === 'attack' && pt) { sq.cmd = 'attack'; sq.waypoint = null; sq.cmdPoint = spot(i); sq.goTo = true; }   // 點地面：走到那裡，路上和到了都會打
+      else if (o.a === 'attack') { const f = nearestFoe(c.team, c.hero.x, c.hero.y, 99999); sq.cmd = 'attack'; sq.waypoint = null; sq.cmdPoint = f ? { x: f.x, y: f.y } : { x: c.hero.x, y: c.hero.y }; }
     });
-    if (c.group === 'field' && o.a !== 'move') notify(c, `配置兵團：${o.a === 'attack' ? '進攻' : '原地防守'}`);
+    if (c.group === 'field' && !pt) notify(c, `配置兵團：${o.a === 'attack' ? '進攻' : '原地防守'}`);
   }
   /** B：選中的兵團已經在操作器械就放手；否則把離武將最近、沒人操作的我方器械交給選中的步兵兵團 */
   function assignEngine(c, sel) {
@@ -374,7 +389,18 @@ G.Battle = (() => {
     h.animT += dt; if (h.flash > 0) h.flash -= dt; if (h.cd > 0) h.cd -= dt;
     for (const k in h.skillCd) if (h.skillCd[k] > 0) h.skillCd[k] -= dt;
     if (h.action) { h.action.until -= dt; if (h.action.until <= 0) h.action = null; }
-    if (h.dead) { h.vx = h.vy = 0; h.moving = false; if (h.respawnT !== undefined && (h.respawnT -= dt) <= 0) revive(h); return; }   // 倒下就不再滑動（以前屍體會帶著速度穿牆）
+    if (h.dead) {   // 倒下就不再滑動（以前屍體會帶著速度穿牆）
+      h.vx = h.vy = 0; h.moving = false;
+      if (h.respawnT === undefined) return;
+      // 等重生時 Q／E 選重生地點：Q 後方（rallyOf）、E 原地（原地要多等 respawnHereExtra 秒）
+      if (h.cmdr && !demo) {
+        const I = h.cmdr.input, extra = G.SIEGE.respawnHereExtra;
+        if (I.pressed('KeyE') && h.respawnAt !== 'here') { h.respawnAt = 'here'; h.respawnT += extra; }
+        if (I.pressed('KeyQ') && h.respawnAt === 'here') { h.respawnAt = 'rally'; h.respawnT = Math.max(0, h.respawnT - extra); }
+      }
+      if ((h.respawnT -= dt) <= 0) revive(h);
+      return;
+    }
     if (h.stun > 0) { h.stun -= dt; h.vx = h.vy = 0; h.moving = false; return; }
     G.Skills.updateHero(h, dt);
     if (h.dash) return;
@@ -387,9 +413,14 @@ G.Battle = (() => {
     } else ({ mx, my } = enemyHeroBrain(h));
     // 普攻放技能時移動變慢；自動普攻不減速，邊走邊打
     const slow = h.action && h.action.anim !== 'Attack' ? 0.35 : 1;
+    // 跑步：按住 Shift 移動就跑，耗耐力；耗光要回到 resume 才能再跑；停下來一下才開始回
+    const R = G.SPRINT, shift = h.cmdr && !demo && (h.cmdr.input.down('ShiftLeft') || h.cmdr.input.down('ShiftRight'));
+    h.running = !!(shift && (mx || my) && !h.tired && slow === 1);
+    if (h.running) { h.stamina -= R.drain * dt; h.restT = R.delay; if (h.stamina <= 0) { h.stamina = 0; h.tired = true; } h.animT += dt * (R.mul - 1); }
+    else if ((h.restT -= dt) <= 0) { h.stamina = Math.min(h.staminaMax, h.stamina + R.regen * dt); if (h.tired && h.stamina >= R.resume) h.tired = false; }
     if (mx || my) {
       const buff = h.buff && h.buff.until > api.time ? h.buff.speedMul : 1, guard = h.guard > 0 ? h.guardS.speedMul : 1;
-      const l = Math.hypot(mx, my), sp = h.speed * slow * G.Map.terrainSpeed(h) * buff * guard; h.vx = mx / l * sp; h.vy = my / l * sp; h.moving = true;
+      const l = Math.hypot(mx, my), sp = h.speed * slow * G.Map.terrainSpeed(h) * buff * guard * (h.running ? R.mul : 1); h.vx = mx / l * sp; h.vy = my / l * sp; h.moving = true;
       if (!h.action) h.face = Math.atan2(my, mx);
     } else { h.vx = h.vy = 0; h.moving = false; }
     // 自動普攻：武器範圍內有目標就面向它出手
@@ -409,19 +440,31 @@ G.Battle = (() => {
     return null;
   }
 
-  /** 攻方武將在最後佔下的據點重生 */
+  /** 攻方武將重生：在最後佔下的據點，或選了原地就在倒下的地方 */
+  const canRespawn = c => !!G.Map.castle || squads.some(s => s.owner === c && !s.ai && s.alive.length) || c.reserve.some(r => r.men > 0);
+  /** 回後方重生的地方：攻方是最後佔下的據點（還沒佔就是出發點）、守方是守將的位置；野戰是自己的補給點 */
+  function rallyOf(h) {
+    const c = G.Map.castle, home = { ...spawnOf(h.team, 0), name: '出發點' };
+    if (c) return h.team !== c.defender ? c.rally || home : { ...home, name: '城內' };
+    const s = supplyPoints(h.team)[0];
+    return s ? { ...s, name: '補給點' } : home;
+  }
   function revive(h) {
-    const p = G.Map.castle.rally;
-    Object.assign(h, { x: p.x, y: p.y + 24, hp: h.maxHp, dead: 0, stun: 0, z: 0, vz: 0, kx: 0, ky: 0, dash: null, whirl: 0, action: null, respawnT: undefined });
+    const p = rallyOf(h), here = h.respawnAt === 'here';
+    Object.assign(h, { hp: h.maxHp, stamina: h.staminaMax, tired: false, dead: 0, stun: 0, z: 0, vz: 0, kx: 0, ky: 0, dash: null, whirl: 0, action: null, respawnT: undefined, respawnAt: undefined });
+    if (!here) { h.x = p.x; h.y = p.y + 24; }
     G.FX.ring(h.x, h.y, 40, 'rgba(255,220,150,0.9)', 0.6);
-    if (h.cmdr) notify(h.cmdr, `在${p.name}重生`);
+    if (h.cmdr) notify(h.cmdr, here ? '原地重生' : `在${p.name}重生`);
   }
 
   function heroAttack(h, t) {
     const w = h.weapon;
     h.cd = w.atkCd; h.doAction('Attack', 0.2);
     // 遠程武將（火槍、長弓）：射一發投射物；打不到城門城牆
-    if (w.ranged) { if (t && !t.gate && t.team !== undefined) G.Combat.arrow(h, t, { ranged: w.ranged, base: h.atk * G.U.rand(0.9, 1.1) }); if (w.ranged.flat) G.FX.hit(h.x + Math.cos(h.face) * 14, h.y - 14 + Math.sin(h.face) * 14, '#ffd27a', 4); return; }
+    if (w.ranged) {
+      // 火槍「後撤裝填」裝好的子彈：傷害提高、下一發馬上能開
+      const loaded = h.loaded > 0 && t && !t.gate; if (loaded) { h.loaded--; if (h.loaded) h.cd = Math.min(h.cd || 0, 0.25); }
+      if (t && !t.gate && t.team !== undefined) G.Combat.arrow(h, t, { ranged: w.ranged, base: h.atk * G.U.rand(0.9, 1.1) * (loaded ? G.HERO_SKILLS.roll.loadMul : 1) }); if (w.ranged.flat) G.FX.hit(h.x + Math.cos(h.face) * 14, h.y - 14 + Math.sin(h.face) * 14, '#ffd27a', 4); return; }
     G.FX.slash(h.x, h.y - 12, h.face, w.range - 8, w.arc, { life: 0.18, width: 4 });
     forEachFoe(h.team, h.x, h.y, w.range, o => {
       if (G.U.angDiff(Math.atan2(o.y - h.y, o.x - h.x), h.face) < w.arc / 2 + 0.2) G.Combat.damage(h, o, h.atk * G.U.rand(0.9, 1.1), { knock: 7 });
@@ -489,10 +532,10 @@ G.Battle = (() => {
   function checkResult(dt) {
     if (result) return;
     const castle = G.Map.castle;
-    // 攻方武將陣亡：佔下過據點就在那裡重生
-    for (const h of heroes) if (h.dead && h.respawnT === undefined && castle && h.team !== castle.defender && castle.rally) {
-      h.respawnT = G.SIEGE.respawn;
-      if (h.cmdr) notify(h.cmdr, `武將倒下，${G.SIEGE.respawn} 秒後在${castle.rally.name}重生`);
+    // 玩家的武將倒下：攻城戰一直可以重生；野戰要身上還有隨身兵團（場上或後備還有人）才能重生
+    for (const h of heroes) if (h.dead && h.respawnT === undefined && h.cmdr && !demo && canRespawn(h.cmdr)) {
+      h.respawnT = G.SIEGE.respawn; h.respawnAt = 'rally';
+      notify(h.cmdr, `武將倒下，${G.SIEGE.respawn} 秒後在${rallyOf(h).name}重生（按 E 改成原地）`);
     }
     // 有玩家指揮官的一方：所有武將（玩家的和電腦的）都陣亡、又不會重生，就輸了
     for (const team of [0, 1]) {
@@ -503,13 +546,23 @@ G.Battle = (() => {
       // 依序佔領：只有目前這個據點能搶；佔下後就是攻方的，不會被搶回去
       const cp = castle.capture, att = 1 - castle.defender, T = G.SIEGE.captureTime;
       let a = 0, d = 0;
-      for (const u of allUnits()) if (!u.dead && Math.hypot(u.x - cp.x, (u.y - cp.y) / 0.6) < cp.r) u.team === att ? a++ : d++;
+      for (const u of allUnits()) if (!u.dead && Math.hypot(u.x - cp.x, (u.y - cp.y) / 0.6) < cp.r) {
+        u.team === att ? a++ : d++;
+        // 誰在佔點（城池歸佔下主堡的人）：每一幀記一次在圈裡的指揮官，武將本人算 10 個兵
+        const who = u.isHero ? u.cmdr : u.squad && u.squad.owner;
+        if (who && u.team === att) cp.by = cp.by || new Map(), cp.by.set(who, (cp.by.get(who) || 0) + (u.isHero ? 10 : 1) * dt);
+      }
       if (a && !d) cp.progress = Math.min(1, cp.progress + dt / T);
       else if (d && !a) cp.progress = Math.max(0, cp.progress - dt / T);
       if (cp.progress >= 1) {
         cp.taken = true;
         G.FX.ring(cp.x, cp.y, cp.r * 1.4, att === 0 ? 'rgba(120,170,255,0.9)' : 'rgba(255,120,100,0.9)', 0.8);
-        if (!castle.capture) return end(att, '主堡已佔領！');
+        if (!castle.capture) {
+          // 佔下主堡：在圈裡最久（人最多）的指揮官
+          let best = null; for (const [c, v] of cp.by || []) if (!best || v > best[1]) best = [c, v];
+          api.capturedBy = best ? best[0] : null;
+          return end(att, '主堡已佔領！');
+        }
         notifyTeam(att, `佔領${cp.name}！下一個目標：${castle.capture.name}`);
         notifyTeam(1 - att, `${cp.name}失守！退守${castle.capture.name}`);
       }
@@ -548,7 +601,7 @@ G.Battle = (() => {
   }
 
   Object.assign(api, {
-    SCENARIOS, setup, update, report, join, leave, cityScenario, fieldAvoid, NO_INPUT, supplyPoints, nearSupply, squadsOfCmdr, allUnits, notify, notifyTeam,
+    SCENARIOS, setup, update, report, join, leave, cityScenario, duelScenario, applySize, fieldAvoid, NO_INPUT, supplyPoints, nearSupply, squadsOfCmdr, allUnits, notify, notifyTeam,
     forEachFoe, nearestFoe, nearestFoeSquad, squadsOf, heroOf, later, gateTarget, hitGate, hitOpening,
   });
   for (const [k, get] of Object.entries({ heroes: () => heroes, squads: () => squads, commanders: () => cmdrs, result: () => result, scenario: () => scenario, demo: () => demo }))

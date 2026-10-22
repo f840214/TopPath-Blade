@@ -23,7 +23,23 @@ G.Map = (() => {
    * 先畫草地／泥土那一層，再把石板路地磚疊上去）。canvas 用美術原尺寸（一格 tile 像素 = tile × artScale 遊戲座標）。
    * roads：[{ x, y, w, h }] 石板路範圍；blobs：要不要隨機撒幾塊泥地（大地圖關掉，只留道路）
    */
+  // cacheKey：同樣的地面（大地圖）只畫一次，之後直接拿畫好的 canvas（每次重畫要一兩百 ms，切場景會卡）
+  const groundCache = {};
   function buildGround(seed, dirtRects = [], avoid = [], roads = [], opts = {}) {
+    const hit = opts.cacheKey && groundCache[opts.cacheKey];
+    if (hit) { ground = hit.ground; groundScale = hit.scale; decos = hit.decos; groundVer++; return; }
+    buildGroundNow(seed, dirtRects, avoid, roads, opts);
+    if (opts.cacheKey) { ground.keep = true; groundCache[opts.cacheKey] = { ground, scale: groundScale, decos }; }
+  }
+  /** 先在背景畫好某個有 cacheKey 的地面，畫完把現在場景的地面還原（在城裡時先把大地圖畫好） */
+  function prebuildGround(useScale, ...args) {
+    if (groundCache[args[4].cacheKey]) return;
+    const saved = { ground, groundVer, groundScale, decos, world: G.CONFIG.world, art: G.CONFIG.artScale };
+    G.useScale(useScale);
+    try { buildGround(...args); }
+    finally { ({ ground, groundVer, groundScale, decos } = saved); G.CONFIG.world = saved.world; G.CONFIG.artScale = saved.art; }
+  }
+  function buildGroundNow(seed, dirtRects = [], avoid = [], roads = [], opts = {}) {
     const { blobs = false, decos: decoN = 260, tufts: tuftN = 420, paint: paintExtra, ok = () => true, scale: gs = 1 } = opts;   // scale：畫布解析度（大地圖用 0.5）   // ok(x, y)：這裡能不能放樹石草叢
     const { w, h, tile } = G.CONFIG.world, ts = tile * K(), cols = Math.ceil(w / ts), rows = Math.ceil(h / ts);
     let s = seed; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
@@ -54,7 +70,7 @@ G.Map = (() => {
       const kind = rnd();
       if (kind < 0.35 && (edge < 260 || rnd() < 0.15)) { if (clear(px, py, 170) && !isDirt(px, py)) decos.push({ n: rnd() < 0.55 ? 'oak' : 'pine', x: px, y: py, flip: rnd() < 0.5 }); }
       else if (kind < 0.5) continue;   // 石頭改成擋路的障礙（setupField 的 rocks），不再隨機撒
-      else if (kind < 0.7) { if (clear(px, py, 110) && !isDirt(px, py)) decos.push({ n: 'bush', x: px, y: py, flip: rnd() < 0.5 }); }
+      // 圓形灌木（bush）不放了（太突兀）；野戰地面改成泥巴地、水窪、踩出來的土路（下面 paint 的 mud）
     }
     // 戰場地形：擋路的石堆、樹林裡的樹（位置由 setupField 決定，伺服器和瀏覽器一樣）
     for (const r of rocks) decos.push({ n: 'rocks', x: r.x, y: r.y, flip: r.flip });
@@ -64,6 +80,20 @@ G.Map = (() => {
     }
     for (let i = 0; i < tuftN; i++) { const px = rnd() * w, py = rnd() * h; if (!isDirt(px, py) && ok(px, py)) tufts.push({ x: px, y: py, flip: rnd() < 0.5 }); }
     for (let i = 0; i < 70; i++) patches.push({ x: rnd() * w, y: rnd() * h, r: 30 + rnd() * 90, dark: rnd() < 0.6 });
+    // 野戰（不是城內、不是大地圖）：一條橫過戰場、兩軍踩出來的土路，和幾塊泥巴地（有的積水）
+    const field = !paintExtra && !town;
+    const track = field ? Array.from({ length: 41 }, (_, i) => { const x = (i / 40) * (w + 200) - 100; return [x, h * 0.52 + Math.sin(i * 0.35 + seed) * h * 0.08 + Math.sin(i * 0.9) * 14]; }) : [];
+    const muds = [];
+    if (field) for (let i = 0; i < 40 && muds.length < 11; i++) {
+      const x = 120 + rnd() * (w - 240), y = 120 + rnd() * (h - 240), r = 40 + rnd() * 60;
+      if (avoid.some(a => Math.hypot(a.x - x, a.y - y) < r + 60) || muds.some(m => Math.hypot(m.x - x, m.y - y) < m.r + r + 40)) continue;
+      muds.push({ x, y, r, seed: rnd() * 10, pond: rnd() < 0.6 });
+    }
+    // 土路、泥巴地上不長草叢、不放零星的樹
+    const onMud = (x, y) => muds.some(m => Math.hypot(x - m.x, (y - m.y) / 0.62) < m.r * 1.15) || track.some(([tx, ty]) => Math.abs(tx - x) < 32 && Math.abs(ty - y) < 30);
+    if (field) { for (let i = tufts.length - 1; i >= 0; i--) if (onMud(tufts[i].x, tufts[i].y)) tufts.splice(i, 1); decos = decos.filter(d => d.n === 'rocks' || !onMud(d.x, d.y)); }
+    // 泥巴地的邊上長一圈草叢，邊緣才不會像剪下來的一塊
+    for (const m of muds) for (let a = 0; a < 14; a++) { if (rnd() < 0.35) continue; const t = a / 14 * Math.PI * 2 + rnd() * 0.3; tufts.push({ x: m.x + Math.cos(t) * m.r * 1.02, y: m.y + Math.sin(t) * m.r * 0.62 * 1.02 + 6, flip: rnd() < 0.5 }); }
 
     const paint = () => {
       // 草地：程式畫的平滑紋理（地磚的雜點太多）；泥地：用模糊過的遮罩疊上去，邊緣是自然的漸層
@@ -99,6 +129,32 @@ G.Map = (() => {
         const gr = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
         gr.addColorStop(0, p.dark ? 'rgba(20,35,10,0.12)' : 'rgba(255,240,180,0.12)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
         g.fillStyle = gr; g.fillRect(p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
+      }
+      // 土路：路面貼圖（大地圖同一張 tex_road），兩側一圈淡淡的陰影
+      const roadIm = G.Assets.img('assets/world/tex_road.png'), dirtFill = g.createPattern(roadIm.complete && roadIm.naturalWidth ? roadIm : dirtTex(), 'repeat');
+      if (track.length) {
+        for (const [x, y] of track) { const gr = g.createRadialGradient(x, y, 10, x, y, 44); gr.addColorStop(0, 'rgba(40,32,20,0.18)'); gr.addColorStop(1, 'rgba(40,32,20,0)'); g.fillStyle = gr; g.fillRect(x - 44, y - 44, 88, 88); }
+        g.fillStyle = dirtFill;
+        for (let i = 0; i < track.length - 1; i++) for (let t = 0; t < 1; t += 0.2) {
+          const x = track[i][0] + (track[i + 1][0] - track[i][0]) * t, y = track[i][1] + (track[i + 1][1] - track[i][1]) * t;
+          g.beginPath(); g.arc(x, y, 20 + Math.sin(i * 1.3 + t * 3) * 3, 0, Math.PI * 2); g.fill();
+        }
+        g.strokeStyle = 'rgba(60,46,30,0.35)'; g.lineWidth = 2;   // 車轍：兩道淡淡的線
+        for (const off of [-7, 7]) { g.beginPath(); track.forEach(([x, y], i) => i ? g.lineTo(x, y + off) : g.moveTo(x, y + off)); g.stroke(); }
+      }
+      // 泥巴地：不規則的一塊泥、中間顏色深（濕），有的中間積了一窪水
+      for (const m of muds) {
+        const shape = (k, dy = 0) => { g.beginPath(); for (let a = 0; a <= 40; a++) { const t = a / 40 * Math.PI * 2, wv = 1 + 0.14 * Math.sin(3 * t + m.seed) + 0.08 * Math.sin(5 * t + m.seed * 2);
+          const px = m.x + Math.cos(t) * m.r * k * wv, py = m.y + dy + Math.sin(t) * m.r * 0.62 * k * wv; a ? g.lineTo(px, py) : g.moveTo(px, py); } g.closePath(); };
+        g.globalAlpha = 0.55; shape(1.06); g.fillStyle = dirtFill; g.fill(); g.globalAlpha = 1;   // 外圈半透明，跟草地過渡（不畫深色外框）
+        shape(0.94); g.fillStyle = dirtFill; g.fill();
+        g.fillStyle = 'rgba(52,40,26,0.25)'; shape(0.66); g.fill(); shape(0.5); g.fill();   // 越往中間越濕、越深
+        if (m.pond) {
+          shape(0.5, 2); g.fillStyle = '#3a5560'; g.fill();
+          shape(0.42, 2); g.fillStyle = '#2c4550'; g.fill();
+          g.strokeStyle = 'rgba(200,220,215,0.22)'; g.lineWidth = 1.5;
+          for (let j = 0; j < 3; j++) { const lx = m.x + (j - 1) * m.r * 0.18, ly = m.y - m.r * 0.08 + j * 4; g.beginPath(); g.moveTo(lx - 7, ly); g.lineTo(lx + 7, ly); g.stroke(); }
+        }
       }
       // 樹林：深色的林地。高地：亮一點、偏乾黃的台地，南邊一道土坡、坡腳有碎石，北邊一道亮邊（緩坡，可以直接走上去）
       for (const z of zones) {
@@ -221,6 +277,25 @@ G.Map = (() => {
   const ellipseV = (b, x, y) => ((x - b.x) / (b.fw / 2)) ** 2 + ((y - b.y + b.fh / 2) / (b.fh / 2)) ** 2;
   const inside = (b, x, y) => b.ellipse ? ellipseV(b, x, y) < 1 : inFoot(foot(b), x, y);
   function building(x, y) { return (town && town.buildings.find(b => b.fw && inside(b, x, y))) || rocks.find(b => inside(b, x, y)) || null; }
+  /**
+   * 尋路用的整張網格（G.Nav）：每格中心被擋住就是 1，結果跟一格一格問 blocked() 一樣。
+   * 反過來做：每個障礙物只檢查自己外接方框裡的格子（大地圖 9 萬格 × 2300 個障礙物一格一格問要 3 秒，這樣幾十 ms）
+   */
+  function blockedGrid(cols, rows, C) {
+    const g = new Uint8Array(cols * rows);
+    const mark = b => {
+      const x0 = Math.max(0, Math.floor((b.x - b.fw / 2) / C)), x1 = Math.min(cols - 1, Math.floor((b.x + b.fw / 2) / C));
+      const y0 = Math.max(0, Math.floor((b.y - b.fh) / C)), y1 = Math.min(rows - 1, Math.floor(b.y / C));
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const i = y * cols + x; if (!g[i] && inside(b, x * C + C / 2, y * C + C / 2)) g[i] = 1; }
+    };
+    if (town) for (const b of town.buildings) if (b.fw) mark(b);
+    for (const b of rocks) mark(b);
+    if (castle) for (let y = 0; y < rows; y++) {
+      const cy = y * C + C / 2; if (!inBand(cy)) continue;
+      for (let x = 0; x < cols; x++) if (!openingAt(x * C + C / 2, cy)) g[y * cols + x] = 1;
+    }
+    return g;
+  }
 
   /* ---------- 戰場地形（js/battle/sim.js 開戰時呼叫，伺服器和瀏覽器結果一樣） ----------
    * rocks：擋路的石堆（橢圓障礙）；zones：樹林 forest（移動 ×0.75、遠程傷害 ×0.6）、高地 hill（遠程傷害 ×1.2）
@@ -400,7 +475,7 @@ G.Map = (() => {
       if (b.hidden) continue;   // 只擋路、不畫圖（湖泊）
       const im = artFor(b);
       if (view && (b.x < view.x - 200 || b.x > view.x + view.w + 200 || b.y < view.y - 20 || b.y > view.y + view.h + 260)) continue;
-      out.push({ y: b.y, draw: () => put(im, b.x, b.y, b.flip, b.tint) });   // 建築圖自己有底部陰影，不再加橢圓影子
+      out.push({ y: b.flat ? b.y - 1e6 : b.y, draw: () => put(im, b.x, b.y, b.flip, b.tint) });   // 建築圖自己有底部陰影，不再加橢圓影子；flat（田、水田）貼在地上，永遠畫在最底下
     }
     if (!castle) return out;
     const c = castle, bot = c.wallY + c.thick / 2;
@@ -510,7 +585,7 @@ G.Map = (() => {
   }
 
   return {
-    buildGround, setupCastle, setupTerrain, setupField, terrainAt, terrainSpeed, get zones() { return zones; }, artFor, blocked, building, resolve, route, sameSide, gatePassable, anyPassable, passable, openingAt, climbMul, addLadder,
+    buildGround, prebuildGround, setupCastle, setupTerrain, setupField, terrainAt, terrainSpeed, get zones() { return zones; }, artFor, blocked, blockedGrid, building, resolve, route, sameSide, gatePassable, anyPassable, passable, openingAt, climbMul, addLadder,
     get castle() { return castle; },
     get town() { return town; },
 

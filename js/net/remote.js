@@ -11,7 +11,7 @@ G.Remote = (() => {
   let me = null, info = null, time = 0, kills = [0, 0], lastSend = 0, exitTo = null;
   const hits = new Set();
   // 戰鬥會用到的按鍵（移動、技能、指揮、補給、器械、城門）
-  const KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyQ', 'KeyE', 'KeyR', 'Tab', 'KeyT', 'KeyH', 'KeyF', 'KeyZ', 'KeyX', 'KeyB', 'KeyG',
+  const KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight', 'KeyQ', 'KeyE', 'KeyR', 'Tab', 'KeyT', 'KeyH', 'KeyF', 'KeyZ', 'KeyX', 'KeyB', 'KeyG',
     'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
 
   /** 伺服器說開戰了 */
@@ -57,7 +57,7 @@ G.Remote = (() => {
     for (const k of units.keys()) if (!seenU.has(k)) units.delete(k);
     // 武將
     const seenH = new Set();
-    for (const [nid, team, x, y, z, face, anim, hp, maxHp, dead, respawnT, cmdrId, weapon, look, name, flash] of m.H) {
+    for (const [nid, team, x, y, z, face, anim, hp, maxHp, dead, respawnT, cmdrId, weapon, look, name, flash, here, stamina, buffOn] of m.H) {
       let h = heroes.get(nid);
       if (!h) {
         h = Object.create(G.Hero.prototype);
@@ -67,7 +67,7 @@ G.Remote = (() => {
       const prev = h.whirl > 0 ? 'Whirl' : h.action ? h.action.anim : h.moving ? 'Walk' : 'Idle';
       if (prev !== anim) h.animT = 0;
       Object.assign(h, { tx: x, ty: y, z, face, hp, maxHp, dead, flash: flash ? 0.1 : 0, cmdrId, look: look || null, name,
-        respawnT: respawnT >= 0 ? respawnT : undefined, moving: anim === 'Walk', whirl: anim === 'Whirl' ? 1 : 0, action: anim === 'Idle' || anim === 'Walk' || anim === 'Whirl' ? null : { anim } });
+        respawnT: respawnT >= 0 ? respawnT : undefined, respawnAt: here ? 'here' : 'rally', stamina: stamina ?? 100, staminaMax: G.SPRINT.stamina, buffOn: !!buffOn, moving: anim === 'Walk', whirl: anim === 'Whirl' ? 1 : 0, action: anim === 'Idle' || anim === 'Walk' || anim === 'Whirl' ? null : { anim } });
       if (cmdrId === me.id) me.hero = h;
       seenH.add(nid);
     }

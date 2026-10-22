@@ -90,17 +90,16 @@ G.World = (() => {
     W().highlands.forEach((h, i) => {
       // 從東北（t = -0.7）繞過南邊到西北（t = π + 0.7）：南半圈是完整的岩壁，兩側往北越來越矮（只畫上半截），收進北邊的崖緣
       const rampAt = h.ramps.map(r => W().highlandPt(h, i, r));   // 斜坡圖兩側直接接岩壁（圖上有內容的寬度約 116～128px）
-      // 斜坡兩側 60px 內的岩壁慢慢拉到跟斜坡同高，斜坡兩邊才接得平（台地邊緣是斜的）
-      const levelNearRamp = (x, y) => { for (const [rx, ry] of rampAt) { const d = Math.abs(x - rx); if (d < 120 && Math.abs(y - ry) < 60) { const k = Math.min(1, Math.max(0, (120 - d) / 62)); return y + (ry - y) * k; } } return y; };
+      // 斜坡兩側的岩壁拉到跟斜坡同高：在 W().highlandEdge 裡做（地面、碰撞也用同一條邊）
       let sx = 0, v = i;
-      const T0 = -0.7, T1 = Math.PI + 0.7, P = t => W().highlandPt(h, i, t);
+      const T0 = -0.7, T1 = Math.PI + 0.7, P = t => W().highlandEdge(h, i, t);
       for (let t = T0; t < T1;) {
         const [x0, y0] = P(t);
         let t2 = t + 0.004; while (t2 < T1) { const [x1, y1] = P(t2); if (Math.abs(x1 - x0) >= SL || Math.abs(y1 - y0) >= 3) break; t2 += 0.004; }   // 下一條：左右移 6px，或上下差 3px
         // 高度比例：看這一段邊緣朝哪邊（往外的法線）。朝正南畫完整的崖面，越偏東西越矮，朝北或往內凹的地方只剩草緣；邊緣彎來彎去也接得起來
         const [xa, ya] = P(t - 0.01), [xb, yb] = P(t + 0.01), nx = yb - ya, ny = -(xb - xa), ny1 = ny / (Math.hypot(nx, ny) || 1);
         const k = 0.16 + 0.84 * Math.pow(Math.max(0, ny1 - 0.22) / 0.78, 0.8);
-        if (ny1 > 0.22 && !rampAt.some(([rx, ry]) => Math.abs(x0 - rx) < 58 && Math.abs(y0 - ry) < 50)) hcliffs.push({ im: imgs[v % 3], sx, x: Math.round(x0 - SL / 2), y: Math.round(levelNearRamp(x0, y0) - 8), h: Math.max(14, Math.round(90 * k)), sort: y0 - 24 });   // 用崖頂排序：台地上的人畫在岩壁前面，崖下的人（腳在崖腳以下）也在前面
+        if (ny1 > 0.22 && !rampAt.some(([rx, ry]) => Math.abs(x0 - rx) < 58 && Math.abs(y0 - ry) < 50)) hcliffs.push({ im: imgs[v % 3], sx, x: Math.round(x0 - SL / 2), y: Math.round(y0 - 8), h: Math.max(14, Math.round(90 * k)), sort: y0 - 24 });   // 用崖頂排序：台地上的人畫在岩壁前面，崖下的人（腳在崖腳以下）也在前面
         sx = (sx + SL) % 128; if (!sx) v++;
         t = t2;
       }
@@ -127,7 +126,7 @@ G.World = (() => {
     if (at) { st.x = at.x; st.y = at.y; }
     G.FX.reset(); G.Combat.reset(); G.Siege.reset([]);
     G.Map.setupTerrain('world');
-    G.Map.buildGround(91, [], [...W().cities, ...W().camps, { x: st.x, y: st.y }], [], { blobs: false, decos: 0, tufts: 600, paint: G.WorldGround.paint, ok: G.WorldGround.ok, scale: 0.5 });   // 大地圖 6144×3840：地面用一半解析度畫
+    G.Map.buildGround(...groundArgs());   // 第一次畫好就留著（G.Map 的 cacheKey），之後切回大地圖不用重畫
     const lo = G.Menu.loadout();
     hero = new G.Hero(0, lo.weapon, lo.equip, st.x, st.y, G.Army.heroLevel());
     hero.look = G.SPRITE_META[lo.look] ? lo.look : null;
@@ -136,7 +135,7 @@ G.World = (() => {
     // 有這個外觀的騎馬圖（mount_<外觀>）就用它，沒有就用重騎兵
     const mount = lo.look && G.SPRITE_META[lo.look.replace(/^look_/, 'mount_')] ? lo.look.replace(/^look_/, 'mount_') : W().mount;
     Object.defineProperty(hero, 'sprite', { value: mount });
-    hero.nameDy = 62;
+    hero.nameDy = 62; hero.mounted = true;
     zoom = G.CONFIG.zoom; grace = 2;   // 縮放跟城內、戰場同一組三段，預設中間那段
     fixBandits();
     for (const c of W().camps) if (!st.bandits.some(b => b.camp === c.id) && !(st.respawn[c.id] > st.minutes)) spawnBandit(c);
@@ -208,6 +207,12 @@ G.World = (() => {
       if (I.pressed('Tab')) G.Town.toggleMenu();
       if (I.pressed('Slash')) G.Net.focusChat();
       if (I.pressed('KeyJ')) acceptInvite();
+      // 旁邊有別的玩家：F 對決、G 邀請組隊；別人發來的邀請 Y 接受、N 拒絕；L 離開隊伍
+      nearPeer = closestPeer();
+      if (nearPeer && grace <= 0 && I.pressed('KeyF')) { const at = { x: hero.x, y: hero.y }; if (!G.Net.duel(nearPeer.id, duelExit(at))) G.HUD.toast('沒有連上伺服器'); }
+      if (nearPeer && I.pressed('KeyG')) G.Net.inviteParty(nearPeer.id);
+      if (G.Net.request && (I.pressed('KeyY') || I.pressed('KeyN'))) G.Net.answer(I.pressed('KeyY'), duelExit({ x: hero.x, y: hero.y }));
+      if (G.Net.party && I.pressed('KeyL')) G.Net.leaveParty();
       if (I.pressed('KeyM')) toggleMini();
       const L = G.CONFIG.zoomLevels;
       if (I.pressed('Equal')) zoom = L[Math.min(L.length - 1, L.indexOf(zoom) + 1)];
@@ -244,9 +249,9 @@ G.World = (() => {
     renderHud();
   }
 
-  /** 到城門口：我方的城進城，敵方的城攻城 */
+  /** 到城門口：我方的城進城，敵方的城攻城；正在打仗的城就加入（自己的城是回防） */
   function visit(c) {
-    if (owner(c) === 0) {
+    if (owner(c) === 0 && !G.Net.fightAt(c.id)) {
       save();
       return G.Town.enter(`進入${nameOf(c)}`, { key: c.town, name: nameOf(c), city: c.id });
     }
@@ -255,7 +260,7 @@ G.World = (() => {
 
   /* ---------- 開戰 ---------- */
   /** 守軍擺位：攻城戰的守城位置（城牆後、據點附近），多的往城內排 */
-  const FIELD_SLOTS = [[1700, 700], [1700, 900], [1900, 800], [1950, 520], [1950, 1080], [1550, 800]];
+  const FIELD_SLOTS = [[1170, 490], [1170, 630], [1305, 560], [1340, 365], [1340, 755], [1065, 560]];   // 野戰地圖（1760×1120）上敵方兵團的位置
   let launching = false;
   /** 開戰：先向伺服器拿出戰單（kind 'city' / 'bandit'），拿到才開打 */
   async function launch(custom, kind, target, onExit) {
@@ -285,10 +290,23 @@ G.World = (() => {
     if (res && res.report && res.report.captured) {
       enter({ x: g.x, y: g.y + 50 }, `佔領城池！獲得 ${c.gold} 金`);
       G.Net.refreshCities().then(() => cityDialog(c, true));
-    } else if (res && res.win) enter({ x: g.x, y: g.y + 80 }, '守住了！');
+    } else if (res && res.win) enter({ x: g.x, y: g.y + 80 }, owner(c) === 0 ? '守住了！' : '勝利！城池歸佔下主堡的人（或他的隊長）');
     else if (res) enter({ x: g.x, y: g.y + 140 }, '戰敗，退到城外');
     else enter({ x: g.x, y: g.y + 140 }, '撤退');
   };
+  /** 大地圖地面：6144×3840 用一半解析度畫；不放隨機裝飾（decos 0），所以每次畫出來都一樣，可以快取 */
+  const groundArgs = () => [91, [], [], [], { blobs: false, decos: 0, tufts: 600, paint: G.WorldGround.paint, ok: G.WorldGround.ok, scale: 0.5, cacheKey: 'world' }];
+  /** 在城裡閒下來時先把大地圖的地面畫好（第一次出城就不會卡） */
+  function prebuild() { if (!st) G.Map.prebuildGround('world', ...groundArgs()); }
+  /** 離自己最近、在對決／組隊距離內的其他玩家 */
+  let nearPeer = null;
+  function closestPeer() {
+    let best = null, bd = 70;
+    for (const [id, p] of G.Net.peers) { const d = Math.hypot(p.x - hero.x, p.y - hero.y); if (d < bd) { bd = d; best = { id, p }; } }
+    return best;
+  }
+  /** 對決打完回到原地 */
+  const duelExit = at => res => enter(at, res ? (res.win ? '對決勝利！' : '對決落敗') : '從對決撤退');
   /** J：接受別人的邀請（一起攻城或回防自己的城），打完回到現在的位置 */
   function acceptInvite() {
     const at = { x: hero.x, y: hero.y };
@@ -302,7 +320,7 @@ G.World = (() => {
   }
   function fightRaid(r) {
     const base = G.Game.SCENARIOS.field;
-    const custom = { ...base, base: 'field', name: '攔截北境聯軍', enemyHero: { weapon: 'glaive', x: 2050, y: 800, name: '聯軍先鋒' },
+    const custom = { ...base, base: 'field', name: '攔截北境聯軍', enemyHero: { weapon: 'glaive', x: 1410, y: 560, name: '聯軍先鋒' },
       enemies: r.members.map(([type, men], i) => ({ type, men, x: FIELD_SLOTS[i % FIELD_SLOTS.length][0], y: FIELD_SLOTS[i % FIELD_SLOTS.length][1] })) };
     launch(custom, 'raid', r.id, res => {
       if (res && res.win) enter(null, res.report && res.report.raid ? `擊潰北境聯軍！獲得 ${W().raidGold} 金` : '伺服器不認這場勝利');
@@ -379,7 +397,7 @@ G.World = (() => {
       list.push({ y: c.sort < 0 ? -1 : c.sort, draw: () => { if (c.im.complete && c.im.naturalWidth) G.Render.image(c.im, c.x, c.y); } });
     list.push({ y: hero.y, draw: c => { hero.draw(c); armyBanner(c, hero.x, hero.y - 32, 0, menOf()); } }, ...G.Net.drawables(true));
     for (const r of G.Net.raids) list.push({ y: r.y, draw: c => {   // 北境聯軍：重騎兵領頭，紅旗寫人數
-      G.Render.shadow(r.x, r.y, 12, 4, 0.35);
+      G.Hero.horseShadow(r.x, r.y, Math.PI / 2);
       G.Sprites.draw('heavycav', 'Walk', Math.PI / 2, t, r.x, r.y, { red: true });
       armyBanner(c, r.x, r.y - 24, 1, r.men, '北境聯軍');
     } });
@@ -407,15 +425,21 @@ G.World = (() => {
   /** 城池名牌：藍邊自己的、紅邊別的玩家的、灰字空城；有主的城名牌旁和城上插城主的旗；站在城門口時提示 Enter */
   function drawCityLabels(ctx) {
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const sub = (text, x, y, color) => { ctx.font = '8px "Cubic11", system-ui'; ctx.fillStyle = 'rgba(0,0,0,0.8)'; ctx.fillText(text, x + 0.6, y + 0.6); ctx.fillStyle = color; ctx.fillText(text, x, y); };
+    // 名牌下面的一行（守軍、城主）：深色底條，字才看得清楚
+    const sub = (text, x, y, color) => {
+      ctx.font = 'bold 9px "Cubic11", system-ui';
+      const sw = Math.round(ctx.measureText(text).width + 10);
+      ctx.fillStyle = 'rgba(12,13,15,0.82)'; ctx.fillRect(Math.round(x - sw / 2), y - 6, sw, 12);
+      ctx.fillStyle = color; ctx.fillText(text, x, y + 0.5);
+    };
     for (const c of W().cities) {
       const o = owner(c), owned = o !== 1, im = G.Map.artFor({ src: `assets/world/${artOf(c)}.png` }), h = im.naturalHeight || 110;
-      const y = Math.round(c.y - h - 8), label = nameOf(c), w = label.length * 10 + 20 + (owned ? 14 : 0), lx = c.x + (owned ? 7 : 0);
+      const y = Math.round(c.y - h - 10), label = nameOf(c), w = label.length * 12 + 22 + (owned ? 14 : 0), lx = c.x + (owned ? 7 : 0);
       // 名牌：深色底、淡金細線，兩側一塊陣營色
-      ctx.fillStyle = 'rgba(12,13,15,0.88)'; ctx.fillRect(c.x - w / 2, y - 8, w, 16);
-      ctx.fillStyle = '#a8874f'; ctx.fillRect(c.x - w / 2, y - 8, w, 1); ctx.fillRect(c.x - w / 2, y + 7, w, 1);
-      ctx.fillStyle = o === 0 ? '#3d5f92' : o === 2 ? '#8a2a22' : '#55534e'; ctx.fillRect(c.x - w / 2, y - 7, 4, 14); ctx.fillRect(c.x + w / 2 - 4, y - 7, 4, 14);
-      ctx.font = 'bold 10px "Cubic11", system-ui'; ctx.fillStyle = owned ? '#e8d8ae' : '#a9a397'; ctx.fillText(label, lx, y + 0.5);
+      ctx.fillStyle = 'rgba(12,13,15,0.92)'; ctx.fillRect(c.x - w / 2, y - 9, w, 18);
+      ctx.fillStyle = '#a8874f'; ctx.fillRect(c.x - w / 2, y - 9, w, 1); ctx.fillRect(c.x - w / 2, y + 8, w, 1);
+      ctx.fillStyle = o === 0 ? '#3d5f92' : o === 2 ? '#8a2a22' : '#6b665c'; ctx.fillRect(c.x - w / 2, y - 8, 4, 16); ctx.fillRect(c.x + w / 2 - 4, y - 8, 4, 16);
+      ctx.font = 'bold 12px "Cubic11", system-ui'; ctx.fillStyle = owned ? '#f0e2b8' : '#d8d2c4'; ctx.fillText(label, lx, y + 0.5);
       if (owned) {
         const f = flagOf(c);
         ctx.drawImage(G.Heraldry.draw(f, 12, 15), Math.round(c.x - w / 2 + 5), y - 7);
@@ -424,19 +448,40 @@ G.World = (() => {
         ctx.drawImage(G.Heraldry.draw(f, 16, 20), fx + 1, fy + 1);
       }
       const garrison = c.garrison ? `守軍 ${c.garrison.reduce((a, g) => a + g[1], 0)}` : '';
-      if (o === 1) sub(garrison, c.x, y + 15, '#d9a39a');
-      if (o === 2) sub(`城主 ${cityInfo(c).user}・${garrison}`, c.x, y + 15, '#d9a39a');
+      if (o === 1) sub(garrison, c.x, y + 17, '#f0b8a8');
+      if (o === 2) sub(`城主 ${cityInfo(c).user}・${garrison}`, c.x, y + 17, '#f0b8a8');
+      // 正在打仗：名牌上方閃一塊紅底「交戰中」，走到城門口按 Enter 加入
+      const fight = G.Net.fightAt(c.id);
+      if (fight) {
+        ctx.font = 'bold 10px "Cubic11", system-ui';
+        const txt = `⚔ 交戰中・${fight.n} 人`, fw = Math.round(ctx.measureText(txt).width + 14), fy = y - 21;
+        ctx.fillStyle = `rgba(150,36,28,${0.75 + Math.sin(t * 6) * 0.2})`; ctx.fillRect(Math.round(c.x - fw / 2), fy - 7, fw, 14);
+        ctx.fillStyle = '#ffe9d0'; ctx.fillText(txt, c.x, fy + 0.5);
+      }
       if (c === near) {
         const g = gateOf(c), py = g.y + 22 + Math.sin(t * 5) * 1.5;
-        ctx.font = 'bold 9px "Cubic11", system-ui';
-        const tip = o === 0 ? `Enter 進入${label}${c.capital ? '' : '・R 管理'}` : `Enter 攻打${label}`, tw = ctx.measureText(tip).width + 12;
+        ctx.font = 'bold 10px "Cubic11", system-ui';
+        const tip = fight ? `Enter ${o === 0 ? '回防' : '加入攻城'}` : o === 0 ? `Enter 進入${label}${c.capital ? '' : '・R 管理'}` : `Enter 攻打${label}`, tw = ctx.measureText(tip).width + 12;
         ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(g.x - tw / 2, py - 8, tw, 15);
         ctx.fillStyle = o === 0 ? '#e8d8ae' : '#d9a39a'; ctx.fillText(tip, g.x, py);
       }
     }
+    // 旁邊的玩家：腳下提示 F 對決・G 組隊
+    if (nearPeer) {
+      const p = nearPeer.p, inParty = G.Net.party && G.Net.party.members.some(m => m.id === nearPeer.id);
+      const tip = inParty ? '隊友' : 'F 對決・G 組隊', py = p.y + 16;
+      ctx.font = 'bold 10px "Cubic11", system-ui';
+      const tw = ctx.measureText(tip).width + 12;
+      ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(p.x - tw / 2, py - 8, tw, 15);
+      ctx.fillStyle = '#e8d8ae'; ctx.fillText(tip, p.x, py);
+    }
+    // 強盜營地的名字：深色底條＋紅邊，跟城池名牌同一種樣子，遠遠看得出是強盜
     for (const c of W().camps) {
-      ctx.font = '8px "Cubic11", system-ui'; ctx.fillStyle = '#000'; ctx.fillText(c.name, c.x + 0.6, c.y + 12.6);
-      ctx.fillStyle = '#ffb3a8'; ctx.fillText(c.name, c.x, c.y + 12);
+      ctx.font = 'bold 10px "Cubic11", system-ui';
+      const tw = Math.round(ctx.measureText(c.name).width + 14), y = c.y + 14;
+      ctx.fillStyle = 'rgba(12,13,15,0.88)'; ctx.fillRect(Math.round(c.x - tw / 2), y - 7, tw, 14);
+      ctx.fillStyle = '#8a2a22'; ctx.fillRect(Math.round(c.x - tw / 2), y - 7, 3, 14); ctx.fillRect(Math.round(c.x + tw / 2) - 3, y - 7, 3, 14);
+      ctx.fillStyle = '#ffc2b6'; ctx.fillText(c.name, c.x, y + 0.5);
     }
   }
   /** 右下角小地圖：城池（藍我方、紅敵方）、強盜、目前的視野 */
@@ -468,7 +513,12 @@ G.World = (() => {
     // 現在站在誰的領地：王都直轄、自己的、別的玩家的、空城
     const r = regionAt(hero.x, hero.y), o = owner(r);
     const region = r.capital ? '王都直轄' : o === 0 ? `${G.U.esc(nameOf(r))}・你的領地` : o === 2 ? `${G.U.esc(nameOf(r))}・${G.U.esc(cityInfo(r).user)} 的領地` : `空城領地（無主）`;
-    $('thCityInfo').innerHTML = `<b>大地圖</b><div class="clock">${G.Town.clock()}</div><div class="region ${o === 0 ? 'mine' : o === 2 ? 'other' : ''}">${region}</div>${near ? `<small>${G.U.esc(nameOf(near))}城門口</small>` : ''}`;
+    $('thCityInfo').innerHTML = `<b>大地圖</b><div class="clock">${G.Town.clock()}</div><div class="region ${o === 0 ? 'mine' : o === 2 ? 'other' : ''}">${region}</div>${near ? `<small>${G.U.esc(nameOf(near))}城門口</small>` : ''}${partyHtml()}`;
+  }
+  /** 隊伍名單（隊長標★），L 離開 */
+  function partyHtml() {
+    const P = G.Net.party; if (!P) return '';
+    return `<div class="party"><b>隊伍</b>${P.members.map(m => `<span>${m.id === P.leader ? '★' : ''}${G.U.esc(m.name)}</span>`).join('')}<small>攻城佔下的城歸隊長・L 離開隊伍</small></div>`;
   }
   /** 小地圖收起／展開（按鈕或 M），記在這台電腦上 */
   let miniOff = false;
@@ -484,5 +534,5 @@ G.World = (() => {
   }
 
   G.Net.onCities(() => { if (st) { syncCities(); if (G.Game.state === 'world') renderHud(); } });
-  return { enter, leave, update, draw, bindHud, acceptInvite, nameOf: c => (st ? nameOf(c) : c.name), get active() { return !!st; }, get hero() { return hero; } };
+  return { enter, leave, update, draw, bindHud, acceptInvite, prebuild, nameOf: c => (st ? nameOf(c) : c.name), get active() { return !!st; }, get hero() { return hero; } };
 })();

@@ -171,11 +171,11 @@ def import_sprite(sprite, cfg, refresh):
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith('--')]
     refresh = '--refresh' in sys.argv
-    cfg = json.loads((ROOT / 'tools' / 'pixellab.json').read_text())
+    cfg = json.loads((ROOT / 'tools' / 'pixellab.json').read_text(encoding='utf-8'))
     meta_path = ROOT / 'js' / 'data' / 'sprites-meta.js'
     old = {}
     if meta_path.exists():
-        m = re.search(r'G\.SPRITE_META = (\{.*\});', meta_path.read_text(), re.S)
+        m = re.search(r'G\.SPRITE_META = (\{.*\});', meta_path.read_text(encoding='utf-8'), re.S)
         if m:
             old = json.loads(m.group(1))
     for sprite, c in cfg.items():
@@ -183,7 +183,7 @@ def main():
             continue
         old[sprite] = import_sprite(sprite, c, refresh)
     meta_path.write_text('/* 由 tools/import_pixellab.py 產生，不要手改 */\nG.SPRITE_META = '
-                         + json.dumps(old, ensure_ascii=False) + ';\n')
+                         + json.dumps(old, ensure_ascii=False) + ';\n', encoding='utf-8', newline='\n')
     print('已更新 js/data/sprites-meta.js')
 
 

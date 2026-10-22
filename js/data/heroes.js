@@ -33,9 +33,9 @@ G.WEAPONS = {
   },
   musket: {
     name: '火槍', sprite: 'look_ming_officer',
-    atk: 60, range: 300, arc: 0.3, atkCd: 1.6, ranged: { speed: 900, flat: true },
+    atk: 66, range: 300, arc: 0.3, atkCd: 1.25, ranged: { speed: 900, flat: true },
     skills: { Q: 'buckshot', E: 'roll', R: 'snipe' },
-    desc: '遠程：一發傷害高、裝填慢；近身用散彈，大招遠距狙擊。',
+    desc: '遠程：一發傷害高；近身用散彈轟退，後撤裝填拉開距離，大招穿甲彈貫穿一整排。',
   },
   maul: {
     name: '戰錘', sprite: 'look_jarl',
@@ -52,6 +52,8 @@ G.WEAPONS = {
 };
 
 G.HERO_BASE = { hp: 320, armor: 6, speed: 100, radius: 7 };
+// 跑步（戰鬥中按住 Shift）：速度 ×mul，每秒耗 drain 點耐力；停下來 delay 秒後每秒回 regen；耗光要回到 resume 才能再跑
+G.SPRINT = { stamina: 100, mul: 1.6, drain: 25, regen: 18, delay: 0.8, resume: 25 };
 
 // 稀有度：0 普通、1 精良、2 史詩
 G.RARITY = [

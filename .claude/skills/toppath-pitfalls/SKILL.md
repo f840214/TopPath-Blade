@@ -89,3 +89,12 @@ description: TopPath Blade 開發時踩過的坑與對應做法：瀏覽器測�
 
 - 城內配置是程式產生的：改 `tools/town_main.py`、`tools/town_castle.py`，再執行 `python3 tools/town_main.py .`，不要手改 `js/data/town-main.js`。小城（`town-small.js`）從主城切出來，主城座標改了要一起調整它的門檻值。
 - 只在使用者要求時才 commit。不要用 `git rm --cached` 這類會動到 index 的指令「順手整理」。
+
+## 8. 2026-10 新踩的坑
+
+- **影子是淡灰色的一塊**：`G.Render.shadow` 用白色貼圖，要設 `tint`（以前沒設）。精靈池共用，新屬性每次都要設。
+- **打完同場戰鬥回大地圖，別人看不到你、不能對決組隊**：瀏覽器端的 `scene` 沒變成 battle，回來時 `setScene('world')` 不會送出去。`startRemote` 要先 `G.Net.setScene('battle')`。
+- **大地圖騎馬看起來浮空**：影子、光圈中心要比錨點高一點（`G.Hero.HORSE_DY`），而且要跟馬一樣大。
+- **外圍山壁、高地岩壁走得進去**：碰撞只擋錨點（馬蹄中間），要再多擋半匹馬寬；岩壁整面都要擋（以前只擋一排，從斜坡走一半往旁邊就上去了）。看起來「走進山裡」也可能是排序線（sort）比碰撞線低，人被岩壁蓋住。
+- **Windows 開發**：Python 用 python.org 的版本（winget），讀寫一律 `encoding='utf-8'`；專案檔有的是 CRLF，用 Python 做多行字串替換會對不到，改用 Edit。用 sed 插註解時小心把後面的程式也變成註解。
+- **測試多人**：兩個分頁一個 localhost、一個 127.0.0.1。背景分頁的遊戲迴圈不跑：用 `G.Net.answer()`、`G.Net.attackCity()`、`G.Net.send({ t: 'b.in', … })` 代替按鍵。開場要等頁面載完再按 Enter（太早按會變成沒登入）。

@@ -17,7 +17,8 @@ G.Game = (() => {
     G.useScale('battle');
     if (!isDemo) G.Net.setScene('battle');   // 單人戰鬥不廣播位置
     demo = isDemo; scenario = lo.custom || SCENARIOS[lo.scenario];
-    if (demo) scenario = { ...scenario, terrain: (scenario.terrain || []).filter(z => z.kind !== 'hill') };   // 開場畫面的背景：不放小山丘 exitTo = isDemo ? null : lo.exit || null; settled = null;
+    if (demo) scenario = { ...scenario, terrain: (scenario.terrain || []).filter(z => z.kind !== 'hill') };   // 開場畫面的背景：不放小山丘
+    exitTo = isDemo ? null : lo.exit || null; settled = null;
     result = null; select = 'all';
     G.FX.reset();
     // 單人戰鬥：只有自己一個指揮官，鍵盤就是 G.Input
@@ -37,9 +38,13 @@ G.Game = (() => {
   /** 同場戰鬥開始（伺服器送來 b.start）：建地圖，切到遠端模式（不跑模擬，只畫 G.Remote 的狀態） */
   function startRemote(sc, team) {
     G.Town.leave(); G.World.leave(); document.getElementById('townHud').style.display = 'none';
+    // 伺服器那邊已經是戰鬥中；這裡也記成 battle，打完回大地圖時 setScene('world') 才會真的送出去
+    // （以前沒記，回大地圖後伺服器還以為在戰鬥：別人看不到你、也不能對決、組隊）
+    G.Net.setScene('battle');
     G.useScale('battle');
     demo = false; remote = true; scenario = sc; exitTo = null; settled = null; result = null;
     G.FX.reset(); G.Combat.reset();
+    B.applySize(sc);
     G.Map.setupCastle(sc.castle || null);
     G.Map.setupField(sc.seed || 1, B.fieldAvoid(sc), sc.terrain || []);   // 跟伺服器同一份石頭、地形
     G.Siege.reset([]);
@@ -48,7 +53,8 @@ G.Game = (() => {
     G.Map.buildGround(sc.seed, dirt, avoid, G.Map.town ? G.Map.town.roads : []);
     state = 'battle';
     G.HUD.show(true);
-    G.HUD.intro(team === 1 ? `守衛${sc.name.replace(/^攻打/, '')}` : sc.name, team === 1 ? '擋住攻方，守住主堡' : '攻破城門，依序佔領外城、內城、主堡');
+    if (sc.duel) G.HUD.intro(sc.name, '擊敗對手的武將與兵團');
+    else G.HUD.intro(team === 1 ? `守衛${sc.name.replace(/^攻打/, '')}` : sc.name, team === 1 ? '擋住攻方，守住主堡' : '攻破城門，依序佔領外城、內城、主堡');
   }
   /** 同場戰鬥結束（伺服器已經結算好）；onExit 是開戰時給的回程 */
   function remoteEnd(m, onExit) {

@@ -17,6 +17,7 @@ G.SIEGE = {
   boulder: { interval: 9, warn: 2.0, radius: 46, dmg: 70, minDist: 220, maxDist: 760 },
 
   captureTime: 10,      // 每個據點要佔幾秒（據點內只有攻方）
-  respawn: 10,          // 攻方武將陣亡後，在最後佔領的據點重生（秒）
+  respawn: 10,          // 玩家武將倒下後幾秒重生（攻城一直可以；野戰要還有隨身兵團）。攻方在最後佔領的據點、守方在城內、野戰在補給點
+  respawnHereExtra: 10, // 倒下時按 E 改成原地重生，要多等幾秒
   slowmo: { dur: 0.9, scale: 0.3 },   // 破門、破牆瞬間的慢動作
 };

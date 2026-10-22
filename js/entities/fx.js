@@ -124,7 +124,9 @@ G.FX = (() => {
   function drawScreen(ctx, w, h) {
     if (!cutin) return;
     const t = cutin.t, inK = Math.min(1, t / 0.15), outK = Math.max(0, (t - (cutin.life - 0.25)) / 0.25), k = inK * (1 - outK);
-    const S = Math.min(150, h * 0.2), x = 16 - (1 - inK) * (S + 60), y = h - S - 110;
+    // 放在左下角指揮列的上面（以前固定離底 110px，會蓋到指揮列）
+    const bar = document.getElementById('cmdBar'), top = bar && bar.offsetParent ? bar.getBoundingClientRect().top : h - 110;
+    const S = Math.min(150, h * 0.2), x = 16 - (1 - inK) * (S + 60), y = Math.max(90, Math.min(h - S - 110, top - S - 14));
     ctx.save(); ctx.globalAlpha = k;
     // 底：深色、淡金細框，往右淡出
     const grd = ctx.createLinearGradient(x, 0, x + S * 2.6, 0);

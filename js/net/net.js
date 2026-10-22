@@ -11,7 +11,8 @@ G.Net = (() => {
   let ws = null, me = null, cities = {}, scene = 'none', sx = 0, sy = 0, retry = 0, lastPos = 0, last = '', stopped = true, heard = 0, timer = null;
   const peers = new Map();   // 連線 id → { name, look, flag, x, y, tx, ty, f, m, animT }
   const listeners = [];
-  let pendingExit = null, invite = null, raids = [];   // 開戰後打完要回哪裡；別人邀請加入的戰鬥（30 秒內按 J）
+  let request = null, party = null;   // 別人發來的對決／組隊邀請；自己的隊伍 { leader, members }
+  let pendingExit = null, invite = null, raids = [], fights = [];   // 開戰後打完要回哪裡；別人邀請加入的戰鬥（30 秒內按 J）；正在打的城（{ room, city, owner, n }）
 
   async function start() {
     stopped = false;
@@ -30,7 +31,7 @@ G.Net = (() => {
     ws.onopen = () => { retry = 0; status('已連線'); send({ t: 'scene', scene, x: sx, y: sy }); refreshCities().catch(() => {}); };
     ws.onmessage = e => { heard = performance.now(); let m; try { m = JSON.parse(e.data); } catch { return; } onMessage(m); };
     ws.onclose = e => {
-      peers.clear();
+      peers.clear(); party = null; request = null;   // 斷線後伺服器那邊的隊伍也沒了
       if (e.code === 4002) { stopped = true; status('已在別處登入'); G.HUD.toast('這個帳號在別的地方登入了，這裡已經離線'); return; }
       if (stopped || e.code === 4001) { status(e.code === 4001 ? '未登入' : '離線'); return; }
       status('重新連線中…');
@@ -65,6 +66,12 @@ G.Net = (() => {
     else if (m.t === 'b.end') G.Remote.end(m);
     else if (m.t === 'b.msg') G.HUD.toast(m.text);
     else if (m.t === 'b.err') { pendingExit = null; G.HUD.toast(m.text); }
+    else if (m.t === 'b.rooms') fights = Array.isArray(m.list) ? m.list : [];
+    // 對決、組隊的邀請：20 秒內按 Y 接受、N 拒絕（大地圖 world.js 處理按鍵）
+    else if (m.t === 'b.duelReq') { request = { kind: 'duel', from: m.from, until: performance.now() + 20000 }; const s = `${m.name} 向你發起對決：Y 接受・N 拒絕`; G.HUD.toast(s); addChat('系統', s); }
+    else if (m.t === 'b.duelNo') { pendingExit = null; G.HUD.toast(m.text); }
+    else if (m.t === 'p.invite') { request = { kind: 'party', from: m.from, until: performance.now() + 20000 }; const s = `${m.name} 邀請你組隊：Y 接受・N 拒絕`; G.HUD.toast(s); addChat('系統', s); }
+    else if (m.t === 'party') party = m.leader ? m : null;
     else if (m.t === 'b.invite') { invite = { room: m.room, side: m.side, until: performance.now() + 30000 }; G.HUD.toast(m.text); addChat('系統', m.text); }
   }
 
@@ -94,17 +101,17 @@ G.Net = (() => {
   }
   /** 其他玩家的可繪製物件（跟建築、單位一起依 y 排序）；mounted：大地圖上騎馬 */
   function drawables(mounted) {
-    return [...peers.values()].map(p => ({ y: p.y, draw: ctx => {
+    return [...peers].map(([id, p]) => ({ y: p.y, draw: ctx => {
       const mount = p.look && p.look.replace(/^look_/, 'mount_');
       const sprite = mounted ? (G.SPRITE_META[mount] ? mount : G.WORLD.mount) : G.SPRITE_META[p.look] ? p.look : 'hero_sword';
-      G.Render.shadow(p.x, p.y, 9, 3.5, 0.3);
+      if (mounted) G.Hero.horseShadow(p.x, p.y, p.f); else G.Render.shadow(p.x, p.y, 9, 3.5, 0.3);
       G.Sprites.draw(sprite, p.m ? 'Walk' : 'Idle', p.f, p.m ? p.animT : 0, p.x, p.y, {});
       // 頭上：旗幟徽章＋名字（其他玩家用淡藍色，跟自己的金色分開）
       ctx.font = 'bold 7px system-ui'; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
       const ny = Math.round(p.y - (mounted ? 62 : 42)), w = ctx.measureText(p.name).width, x0 = Math.round(p.x - (w + 9) / 2);
       ctx.drawImage(G.Heraldry.draw(p.flag || G.Heraldry.DEFAULT, 6, 8), x0, ny - 8);
       ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillText(p.name, x0 + 9.6, ny + 0.6);
-      ctx.fillStyle = '#a9c8ff'; ctx.fillText(p.name, x0 + 9, ny);
+      ctx.fillStyle = party && party.members.some(m => m.id === id) ? '#9fe6a0' : '#a9c8ff'; ctx.fillText(p.name, x0 + 9, ny);   // 隊友綠色
     } }));
   }
 
@@ -138,6 +145,22 @@ G.Net = (() => {
       pendingExit = onExit; send({ t: 'b.join', room: invite.room, side: invite.side }); invite = null; return true;
     },
     get raids() { return raids; },
+    /** 這座城正在打仗嗎（大地圖標「交戰中」；到城門口按 Enter 就加入，攻城的訊息走 attackCity） */
+    fightAt: city => fights.find(f => f.city === city) || null,
+    /** 對決（F）：onExit 是打完回大地圖要做的事 */
+    duel(id, onExit) { if (!ws || ws.readyState !== 1) return false; pendingExit = onExit; send({ t: 'b.duel', to: id }); return true; },
+    inviteParty(id) { send({ t: 'p.invite', to: id }); },
+    leaveParty() { send({ t: 'p.leave' }); },
+    /** 回應別人的邀請（Y／N）；接受對決時 onExit 是打完回大地圖要做的事 */
+    answer(ok, onExit) {
+      const r = request; request = null;
+      if (!r || performance.now() > r.until) return false;
+      if (r.kind === 'duel') { if (ok) pendingExit = onExit; send({ t: 'b.duelAnswer', ok }); }
+      else send({ t: 'p.answer', ok });
+      return true;
+    },
+    get request() { return request && performance.now() < request.until ? request : null; },
+    get party() { return party; },
     get invite() { return invite && performance.now() < invite.until ? invite : null; },
     start, stop, bind, setScene, pos, update, drawables, focusChat, typing, refreshCities,
     async saveCity(id, name, art) { setCities((await G.Api.saveCity(id, name, art)).cities); },
