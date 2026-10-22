@@ -1,38 +1,38 @@
 {
   "_說明": "tools/import_pixellab.py 讀這個檔，下載 PixelLab 角色並轉成遊戲用的精靈圖。anims 的 key 是遊戲裡的動畫名，source 是 PixelLab 的動畫名稱（animation_name），fps/loop/hit 是播放設定；group 只是紀錄，補方向時要用。",
   "hero_sword": {
-    "id": "cd9d2809-0ce5-43fa-80c8-7cd4e36a394e",
+    "id": "7022e769-e3b7-4706-ae9d-ffd2fe638c29",
     "anims": {
       "Walk": {
         "source": "Walk",
         "fps": 10,
         "loop": true,
-        "group": "37c774e6-3eda-4bbd-9751-5156a7e0640c"
+        "group": "277bf166-3871-477d-b1a6-415b8f714dbb"
       },
       "Attack": {
         "source": "Attack",
         "fps": 16,
         "loop": false,
         "hit": 2,
-        "group": "86d21da8-26d1-4b2d-a186-3b90328c45e1"
+        "group": "01ea6050-b7fe-4c63-9fb6-9c2247cee11e"
       },
       "Spin": {
         "source": "Spin",
         "fps": 16,
         "loop": false,
         "hit": 3,
-        "group": "cf7f3b7a-dea7-45b4-b339-3f136d172a64"
+        "group": "5077e37c-baac-47f1-8176-6fe2c62d43c4"
       },
       "Shout": {
         "source": "Shout",
         "fps": 8,
         "loop": false,
-        "group": "f62d1fea-848e-461e-8927-42815135501d"
+        "group": "13bcc298-ce20-46d7-a979-bb9ef765bb13"
       }
     }
   },
   "hero_glaive": {
-    "id": "8ec0be4c-1bd0-40bb-bb82-9b5a87f1281f",
+    "id": "0ab6629b-be97-4f0b-847b-5ac5418ad826",
     "anims": {
       "Walk": {
         "source": "Walk",
@@ -48,19 +48,19 @@
       "Whirl": {
         "source": "Whirl",
         "fps": 16,
-        "loop": true
+        "loop": true,
+        "group": "5205d83d-d741-4d44-9b91-34876bdb2d05"
       }
     }
   },
   "pikeman": {
-    "id": "b09d6fce-edc2-4a91-803c-45c2ce93f101",
+    "id": "10e819fa-cdd5-46b3-8a0c-86038d204d2c",
     "red": true,
     "anims": {
       "Walk": {
         "source": "Walk",
         "fps": 10,
-        "loop": true,
-        "group": "f3c6fe23-62bf-458f-98d8-7827b1581301"
+        "loop": true
       },
       "Attack": {
         "source": "Attack",
@@ -71,12 +71,46 @@
     }
   },
   "shieldman": {
-    "id": "4e729481-0eff-4e1b-b223-2abbe7122c0b",
+    "id": "12dca6d5-54aa-4199-a238-9528a442a782",
     "red": true,
     "anims": {
       "Walk": {
         "source": "Walk",
         "fps": 9,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Attack2",
+        "fps": 12,
+        "loop": false,
+        "hit": 3
+      }
+    }
+  },
+  "archer": {
+    "id": "e96fc159-184b-40dc-9f8e-ffbe5fd3f544",
+    "red": true,
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Shoot",
+        "fps": 8,
+        "loop": false,
+        "hit": 4
+      }
+    }
+  },
+  "cavalry": {
+    "id": "d9b50ac0-a0f3-4f73-ae41-94b14d308c93",
+    "red": true,
+    "anims": {
+      "Walk": {
+        "source": "Gallop",
+        "fps": 12,
         "loop": true
       },
       "Attack": {
@@ -87,8 +121,8 @@
       }
     }
   },
-  "archer": {
-    "id": "ca8b4395-1fa7-48a5-aa12-100c65e5fd85",
+  "swordshield": {
+    "id": "92b04da6-496b-40df-a24b-1d55cd82d261",
     "red": true,
     "anims": {
       "Walk": {
@@ -98,38 +132,523 @@
       },
       "Attack": {
         "source": "Attack",
-        "fps": 8,
+        "fps": 12,
+        "loop": false,
+        "hit": 3
+      }
+    }
+  },
+  "halberdier": {
+    "id": "10b2d3c5-9242-4af0-84d7-ec3c3490ab71",
+    "red": true,
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Attack",
+        "fps": 12,
+        "loop": false,
+        "hit": 3
+      }
+    }
+  },
+  "greatsword": {
+    "id": "96d7272a-b1b9-4664-9f79-6f7ad8aeddc9",
+    "red": true,
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Attack",
+        "fps": 12,
+        "loop": false,
+        "hit": 3
+      }
+    }
+  },
+  "axeman": {
+    "id": "567d352d-80c6-4c96-be5f-02fdf35137d5",
+    "red": true,
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Attack",
+        "fps": 12,
+        "loop": false,
+        "hit": 3
+      }
+    }
+  },
+  "maceman": {
+    "id": "5ed86cdc-d672-4cdc-99b9-4f36bddddac3",
+    "red": true,
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Attack",
+        "fps": 12,
+        "loop": false,
+        "hit": 3
+      }
+    }
+  },
+  "modao": {
+    "id": "ff726a2c-abeb-4e68-b28e-68a825ca0ef7",
+    "red": true,
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Attack",
+        "fps": 12,
+        "loop": false,
+        "hit": 3
+      }
+    }
+  },
+  "militia": {
+    "id": "5f8847d1-aad5-4bf9-834b-3487c4193821",
+    "red": true,
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Attack",
+        "fps": 12,
+        "loop": false,
+        "hit": 3
+      }
+    }
+  },
+  "longbowman": {
+    "id": "2a4da81f-d02a-4819-a276-a4c4fea89ee8",
+    "red": true,
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Shoot",
+        "fps": 12,
         "loop": false,
         "hit": 4
       }
     }
   },
-  "horse": {
-    "id": "4799e799-aa03-4535-9622-cd37e5b13630",
+  "crossbowman": {
+    "id": "1af11d83-5a08-4a16-b604-2458bc8eaa62",
     "red": true,
-    "saddle": true,
     "anims": {
       "Walk": {
-        "source": "Run",
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Shoot",
+        "fps": 12,
+        "loop": false,
+        "hit": 4
+      }
+    }
+  },
+  "pavise": {
+    "id": "7b0bb1e6-a3c7-4687-9239-97a1b60b5aa9",
+    "red": true,
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Shoot",
+        "fps": 12,
+        "loop": false,
+        "hit": 4
+      }
+    }
+  },
+  "arquebusier": {
+    "id": "336453a9-31a9-4dc6-bbda-6886a44abe80",
+    "red": true,
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Shoot",
+        "fps": 12,
+        "loop": false,
+        "hit": 4
+      }
+    }
+  },
+  "javelineer": {
+    "id": "574a61f1-9844-48c0-9697-42b3585f0ec8",
+    "red": true,
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Throw",
+        "fps": 12,
+        "loop": false,
+        "hit": 4
+      }
+    }
+  },
+  "grenadier": {
+    "id": "a6974e4f-64cd-44cf-8adb-831c2bf2dd63",
+    "red": true,
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Throw",
+        "fps": 12,
+        "loop": false,
+        "hit": 4
+      }
+    }
+  },
+  "engineer": {
+    "id": "27879318-9cbd-418e-823c-1587e2ef451a",
+    "red": true,
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Attack",
+        "fps": 12,
+        "loop": false,
+        "hit": 3
+      }
+    }
+  },
+  "horsearcher": {
+    "id": "08ec5fc8-5ae3-4ab4-94bc-6605405a9239",
+    "red": true,
+    "anims": {
+      "Walk": {
+        "source": "Gallop",
         "fps": 12,
         "loop": true
+      },
+      "Attack": {
+        "source": "Shoot",
+        "fps": 12,
+        "loop": false,
+        "hit": 4
       }
-    },
-    "_說明": "舊版：馬和騎士分開疊圖，已由 cavalry 取代"
+    }
   },
-  "rider": {
-    "id": "321d74dd-8170-4a6c-b929-6dde53f336a7",
-    "red": true,
-    "upperBody": 0.58,
-    "anims": {}
-  },
-  "cavalry": {
-    "id": "e56f508d-acc4-47c2-9b25-13c60ebcc528",
+  "heavycav": {
+    "id": "22fc80e4-f0d3-421f-b622-238a4954bd56",
     "red": true,
     "anims": {
       "Walk": {
-        "source": "Run",
+        "source": "Gallop",
         "fps": 12,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Attack",
+        "fps": 12,
+        "loop": false,
+        "hit": 3
+      }
+    }
+  },
+  "look_samurai": {
+    "id": "64584ab8-90b7-4538-82b7-d9cdd8d2eb1f",
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Attack",
+        "fps": 14,
+        "loop": false,
+        "hit": 3
+      }
+    }
+  },
+  "look_ashigaru_taisho": {
+    "id": "53580c38-8a65-41aa-b8c3-19ab0909b3ae",
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Attack",
+        "fps": 14,
+        "loop": false,
+        "hit": 3
+      }
+    }
+  },
+  "look_knight": {
+    "id": "454e7905-6cb3-4570-892a-296202362417",
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Attack",
+        "fps": 14,
+        "loop": false,
+        "hit": 3
+      }
+    }
+  },
+  "look_templar": {
+    "id": "14f503e1-cfc1-4d40-a1bb-9ace4cdd8dc2",
+    "anims": {
+      "Walk": {
+        "source": "WalkV3",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Attack",
+        "fps": 14,
+        "loop": false,
+        "hit": 3
+      }
+    }
+  },
+  "look_landsknecht": {
+    "id": "64c68f0b-6430-4cc2-a400-1dc10ec54c50",
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Attack",
+        "fps": 14,
+        "loop": false,
+        "hit": 3
+      }
+    }
+  },
+  "look_han_general": {
+    "id": "a4a9a44b-3e35-4f08-bf20-f12f9377e6e4",
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Attack",
+        "fps": 14,
+        "loop": false,
+        "hit": 3
+      }
+    }
+  },
+  "look_ming_officer": {
+    "id": "5afb0b9f-f07c-4510-8517-d2062ad6814a",
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Attack",
+        "fps": 14,
+        "loop": false,
+        "hit": 3
+      }
+    }
+  },
+  "look_viking": {
+    "id": "f9dd4b64-1181-4c14-8e67-96e19c9ec2e8",
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Attack",
+        "fps": 14,
+        "loop": false,
+        "hit": 3
+      }
+    }
+  },
+  "look_jarl": {
+    "id": "7d10c8f0-d95b-436e-a309-a0817fa5cd91",
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Attack",
+        "fps": 14,
+        "loop": false,
+        "hit": 3
+      }
+    }
+  },
+  "look_mongol": {
+    "id": "b74d87d9-bff1-4cf6-bad4-17481d56725c",
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      },
+      "Attack": {
+        "source": "Attack",
+        "fps": 14,
+        "loop": false,
+        "hit": 3
+      }
+    }
+  },
+  "mount_samurai": {
+    "id": "adb7e21c-fcfb-4561-979f-16c2bb5871a5",
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      }
+    }
+  },
+  "mount_ashigaru_taisho": {
+    "id": "15248349-9b2e-41ed-82ee-05e25eb9ba16",
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      }
+    }
+  },
+  "mount_knight": {
+    "id": "c8db02ad-d115-48a2-b0fa-a59bf09510cf",
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      }
+    }
+  },
+  "mount_templar": {
+    "id": "ff81f5cd-0ef4-4307-a5db-33f311096d5a",
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      }
+    }
+  },
+  "mount_landsknecht": {
+    "id": "a65b7953-8923-469e-b5cc-6f6ab0b21e9a",
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      }
+    }
+  },
+  "mount_han_general": {
+    "id": "3f694770-76d9-42ca-8950-605e21bd6be4",
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      }
+    }
+  },
+  "mount_ming_officer": {
+    "id": "28bc90a3-b1e8-4e69-b7cf-8708a511a494",
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      }
+    }
+  },
+  "mount_viking": {
+    "id": "3891a383-23cd-445c-87f9-a9de415e3f4f",
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      }
+    }
+  },
+  "mount_jarl": {
+    "id": "7439f01a-d7a5-4b2f-b6dd-555d83119e32",
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
+        "loop": true
+      }
+    }
+  },
+  "mount_mongol": {
+    "id": "a3ca9240-de10-4eac-be78-c5167a9e224c",
+    "anims": {
+      "Walk": {
+        "source": "Walk",
+        "fps": 10,
         "loop": true
       }
     }

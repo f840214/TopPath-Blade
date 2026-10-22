@@ -1,0 +1,95 @@
+gens start 871
+ming_musket cd5d2069-901a-410f-b3b1-9acbe5cf4a52
+mongol_bow 69d08ed4-8b84-4dde-a6bf-8bb5b333e67b
+samurai_nodachi 2cdea3b7-c6f2-4f3a-bdbe-20ea0e8054e9
+landsknecht pike f13e670b cancelled+deleted (plan change)
+mongol ok (2). walk group 2bf75890-3f8c-4a73-8c91-74a42c6a6fc4 S queued (1)
+ming v1 cd5d2069 rejected (blue cape, straw hat) ; ming v2 f1e35739-c903-46fb-a68c-7a5f9d4468b4 (2)
+samurai ok
+jarl 7f30fa44-f21f-4619-8ee9-0d9bcd6b6e3e (2)
+gens used so far ~ 2*6 +1 = 13 (incl cancelled landsknecht)
+ming2 ACCEPTED f1e35739 (red cape, plume). ming v1 deleted.
+jarl v1 7f30fa44 cloak too light -> jarl2 a5757b55-0a9e-4e80-9936-3c61d6f9ebeb queued
+samurai walk group 32d6ec92-0cdb-4a17-b4e2-657c0d4da78f S queued
+mongol walk: S SE done, E queued
+LEG thresholds: feet.py metric (bottom 12px band ax±12) pass >=13
+before (assets): see feet_before.txt
+walk redo dirs: knight S,N ; han all8 ; templar S,SW ; viking S,N,NE ; ashigaru all8 ; landsknecht S,N,NE,NW
+jarl2 ACCEPTED a5757b55 ; jarl v1 deleted. jarl walk group d111e3a0-9c84-4b2a-941c-e7cfabbce826 (S queued)
+samurai walk: SE ok(15.1); S deleted & requeued strong prompt
+mongol walk: S SE E NE done
+WALK PROMPTS: S/SE/SW "walking toward the camera with clearly alternating leg steps, knees lifting, feet stepping, <W> stays in the <hand>, <gear> always visible, no visual effects"; others "walking forward with clearly ..."
+METRIC FIX: bg now green (90,110,80); threshold = 0.7*mean(E,W) of same look
+redo existing: knight S,N,NE,NW ; han S,N,NW ; templar S,SW ; viking S,N,NE ; ashigaru S,SW ; landsknecht S,N
+samurai walk: S SE E NE N done; left NW W SW
+mongol: S SE E NE N done, NW queued; left W SW
+ming: S SE E done, NE queued; left N NW W SW
+jarl: S SE E done, NE queued; left N NW W SW
+walk groups existing: knight a57c2cac-537b-4394-96f3-55ad40554d7c ; han d66d7b75-53bc-4666-aa51-54182eae3731 ; templar(WalkV3) 868238bd-4cd4-4320-a667-d5259eb998cd ; viking d35306eb-e78d-4437-acc2-0a2149eeaca4 ; ashigaru 2d483492-ade7-4fca-b907-bc93336dfcb2 ; landsknecht d128aa61-6414-402b-89c0-1e3cc19eface
+old zips in tools/cache/look_*.zip (backup copy -> wpn/oldzips)
+[t2] samurai: +NW done, W queued; left SW | mongol: +NW done, W queued; left SW | ming: +NE done; left N NW W SW | jarl: +NE done; left N NW W SW
+knight S deleted+requeued
+knight S redo DONE feet 9.99->27.5(green bg metric 16.7->27.5)
+FINAL REDO LIST: knight N NE NW W SW ; han S SE NE N NW W SW ; templar S SW ; viking S N NE ; ashigaru S SW ; landsknecht S N
+[t3] mongol walk 8/8 DONE. samurai SW queued (last). ming N queued; left NW W SW. jarl left N NW W SW. knight N queued
+knight N done. mongol Attack group 9058f711-e2d8-48ec-8b57-ae520659fd6f S queued
+[t4] samurai walk 8/8 done(verify later). samurai Attack group 2108ccd6-c904-4867-82c1-e5f40248f54b S queued. ming N done; left NW W SW. knight NE queued, NW W SW deleted pending. jarl left N NW W SW
+[t5] BUDGET unlimited (~4880), <=4 in flight.
+samurai walk 8/8 VERIFIED ok. samurai Attack v1 (bad, no slash) deleted; v2 group a97858db-40f4-4680-b964-433d0dc1185c S queued
+mongol Attack S ok (hit 3), SE queued
+knight: NE done, NW queued, W SW pending
+ming: NW queued; left W SW
+jarl: left N NW W SW
+[t6] samurai Att S ok (hit 4), SE queued. mongol Att S SE E done. knight NW done, W queued, SW left. ming NW done, W queued, SW left. jarl N queued; NW W SW left
+[t7] knight W done, SW queued (last). ming W done, SW queued(last). jarl N done; NW W SW left. mongol att NE queued; samurai att SE queued
+[t8] knight walk COMPLETE & verified (S27.5 SE39.7 E39.2 NE23.1 N21.9 NW24.2 W27.4 SW29.4)
+samurai att: S ok; SE,E had white slash FX -> deleted, retry w/ "solid grey steel ... no white streaks" queued
+ming walk 8/8 done (verify later; ming Attack group 200e127e-b90e-4ee9-8a39-e218793ac4a2 S queued)
+jarl walk: NW done (23.1), W queued, SW left
+mongol att: S SE E NE done; N NW W SW left
+[t9] ming walk 8/8 verified (NE 17.45 weak -> TODO retry). ming att S ok (pan flash f2, hit 2); SE queued
+samurai att: S, SE ok; E retry2 queued (profile prompt); NE N NW W SW left
+mongol att: N, NW queued; W SW left
+jarl walk W queued; SW left
+[t10] ming Attack v1 deleted (inconsistent flash); v2 group efcd2909-7c01-41e4-8d79-971b4b53d418 S queued
+samurai att E accepted after 2 retries (weak). NE queued; N NW W SW left
+mongol att N ok-ish; NW retry queued; W SW left
+jarl walk SW queued (last)
+[t11] jarl walk 8/8 VERIFIED (S23.9 SE25.1 E32.4 NE21.6 N20.0 NW23.1 W32.5 SW29.8). jarl Attack group dd3bb990-7f78-4361-8ea2-75d1d254186c S queued
+ming att v2 S ok (fire f3, hit 3); SE queued
+[t12] in flight: templar S walk, samurai att N, mongol att W, jarl att S(v2 group 97d9cb7a-2216-4d46-a1bd-13dee85cc108), ming att E  (5)
+ming att SE ok (fires f4). mongol att NW accepted (2nd). samurai att NE done(unverified)
+jarl att v1 deleted (white burst)
+[t13] templar S done(38.1), SW queued. samurai att N done
+[t14] jarl att v2 also white burst -> deleted; v3 group 40e12b89-4aaa-46fd-911d-4580b5fa56ea S queued. samurai att NE retry queued. mongol att W done, SW queued. templar SW queued. ming att E queued
+[t15] templar walk DONE (S38.1 SW36.6). samurai NE accepted w/ fxclean needed. samurai NW queued. PLAN: mkzip.py clean -> tools/cache, import w/o --refresh
+[t16] mongol Attack 8/8 DONE (hit 3; NW weak accepted). jarl att v3 S ok w/ clean (hit 2); SE,E queued. ming att E ok (no flash), NE queued. samurai att NW queued; W SW left
+HITS: mongol 3, samurai 4, ming 3, jarl 2(?) re-check at end
+[t17] DELETED (pending regen): viking S N NE ; ashigaru S SW ; landsknecht S N ; han S SE NE N NW W SW
+in flight: jarl att SE,E ; ming att NE ; samurai att W ; samurai NW done(unverified)
+[t18] queued walk S for viking, ashigaru, landsknecht, han.
+samurai att NW ok-weak; W bad -> deleted (retry). jarl att SE ok w/ clean; E bad (burst replaces head) deleted. ming att NE bad (flash f1) deleted.
+TODO retries: samurai W, jarl E, ming NE ; remaining: samurai SW; jarl NE N NW W SW; ming N NW W SW
+[t19] walk S done: viking(26.6) ashigaru(23.2) landsknecht(33.1) han(18.4 visually ok). queued: lands N, viking N, ashi SW, han SE
+left: viking NE; han NE N NW W SW; attacks: samurai W(retry) SW; jarl E(retry) NE N NW W SW; ming NE(retry) N NW W SW
+[t20] ashigaru walk DONE (S23.2 SW31.6). viking N done 24.7, NE queued. lands N retry queued (14.9 weak). samurai att W retry2 queued. han SE queued
+[t21] han SE done(22.7). samurai att W accepted (white hooked blade, 2 retries used). queued: lands N, viking NE, jarl att E, han NE, samurai att SW (5)
+[t22] viking walk DONE (S26.6 N24.7 NE30.4). landsknecht walk DONE (S33.1, N14.6 visually ok, 2 tries). remaining walk: han N NW W SW (NE queued). Then SKILLS.
+[t23] jarl att E v2 ok w/ clean. samurai att SW v1 blue arcs -> retry queued.
+SKILLS queued: templar Spin (group 6779d109-3a69-4360-993a-189b1a92988f), landsknecht Spin (bb504048-5283-48d0-9ba5-8811236264e7)
+in flight: han NE walk, ming att NE, templar Spin, lands Spin, samurai att SW (5)
+[t24] samurai Attack 8/8 DONE (clean needed SE, NE; W hooked blade). han NE walk done (21.6). ming att NE retry2 queued.
+templar Spin v1 (no real spin) deleted; v2 group aff1bb6e-6160-4c80-9dae-1d9ffd69850a queued (explicit turn prompt). templar Shout group 1a6eff6f-7cd1-423a-8fa0-deb2be71fe8b queued
+hero_sword Spin reference is also modest partial turn.
+[t25] templar Spin v2 ACCEPT (half-turn sweep, hit 4); templar Shout ACCEPT (hit 3, clean sparkle). ming att NE v3 ok (muzzle right). han N done.
+queued: han NW, W ; ming att N ; lands Spin v2 (41045602-0a51-4407-bb6f-2575318aa14e) ; samurai Spin (11136ef9-071d-4a1b-b139-00853e29f7cf)
+left walk: han SW. left att: jarl NE N NW W SW ; ming NW W SW
+skills left: ashigaru Spin; Shout lands, samurai, knight, viking; Whirl han, jarl; Smash jarl
+[t26] samurai Spin ACCEPT (full body turn, blade low; hit 4). han W done. jarl att NE done(unverified). queued: jarl att N, han SW, ming att N retry, lands Spin v2
+[t27] lands Spin v2 ACCEPT (hit 4). ming att N retry2 queued (last). queued: ashigaru Spin (92eca2bd-1005-42ef-bf1c-a04a9f0fd186), lands Shout (1a365869-7441-4e09-a19a-fe08f2236c3d), jarl att N, han SW
+[t28] han walk DONE (S18.4 SE22.7 E33.4 NE21.6 N15.6 NW20.6 W26.0 SW20.5; visually stepping). jarl att NE,N accepted w/ clean. ALL WALKS DONE. left: jarl att NW(q) W SW; ming att N(q) NW W SW; skills: ashi Spin(q) lands Shout(q) samurai Shout, knight Shout, viking Shout, han Whirl, jarl Whirl, jarl Smash
+[t29] ming att N accepted (3rd, multi flash->clean). jarl att NW ok. ashi Spin v1 no spin -> v2 group 54269396-1716-4009-a0b1-d1fc2180bea6 queued. lands Shout v1 weak -> v2 b965404a-ce5e-4924-b5d4-ec1a8f7070cb queued.
+queued: han Whirl (8696ff05-74f6-4d49-8a0c-d0554e11cd53), samurai Shout (a362cc6d-...), knight Shout (24b51a27-...), jarl att W
+left: jarl att SW; ming att NW W SW; viking Shout; jarl Whirl; jarl Smash
+[t30] han Whirl ACCEPT (loop). lands Shout v2 ACCEPT (sword raised diagonal, hit 3).
+[t31] knight Shout ACCEPT(hit3). viking Shout ACCEPT(hit3). ashi Spin v2 ACCEPT(hit4). jarl att W done(unverified). queued: jarl Whirl(50e1f226), ming att NW W. left: jarl att SW, ming att SW, jarl Smash; samurai Shout pending

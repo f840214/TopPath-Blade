@@ -1,4 +1,4 @@
-/* ============ api.js — 呼叫後端（server/）：帳號與存檔 ============
+/* ============ api.js — 呼叫後端（server/）：帳號、存檔、名冊操作、出戰結算、城池 ============
  * 登入狀態放在 httpOnly cookie，JS 讀不到也不用管；失敗時丟出帶中文訊息的 Error（e.status 是 HTTP 狀態碼）。
  */
 G.Api = (() => {
@@ -24,6 +24,13 @@ G.Api = (() => {
     register: (username, password) => call('POST', '/api/register', { username, password }),
     logout: () => call('POST', '/api/logout'),
     loadProfile: () => call('GET', '/api/profile'),
+    /** 只會存 settings、flag、world（位置、強盜）；金幣、經驗、名冊由伺服器決定 */
     saveProfile: data => call('PUT', '/api/profile', { data }),
+    armyOp: (op, args) => call('POST', '/api/army', { op, args }),
+    battleStart: (kind, target) => call('POST', '/api/battle/start', { kind, target }),
+    battleEnd: body => call('POST', '/api/battle/end', body),
+    world: () => call('GET', '/api/world'),
+    saveCity: (id, name, art) => call('POST', '/api/world/city', { id, name, art }),
+    collect: () => call('POST', '/api/world/collect'),
   };
 })();

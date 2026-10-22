@@ -1,195 +1,82 @@
-/* ============ game.js — 戰場：場景、主迴圈、武將操作、物理、繪製 ============ */
+/* ============ game.js — 戰場的瀏覽器端：主迴圈、鏡頭、繪製、結算（模擬本身在 js/battle/sim.js） ============ */
 G.Game = (() => {
   const W = () => G.CONFIG.world;
   let ctx, state = 'menu';
-  let heroes = [], squads = [], timers = [];
-  let player = null, select = 'all', cam = { x: 0, y: 0 }, zoom = 1;
-  let thinkT = 0, result = null, scenario = null, showPerf = false, fps = 0, frameMs = 0;
+  let player = null, me = null, select = 'all', cam = { x: 0, y: 0 }, zoom = 1;
+  let result = null, scenario = null, showPerf = false, fps = 0, frameMs = 0;
   let demo = false;   // 開場畫面背景：兩軍自動交戰，沒有玩家操作
-  const api = { time: 0 };
+  let remote = false;   // 同場戰鬥：模擬在伺服器跑，這裡只畫（G.Remote）
+  const api = {};
 
-  /* ---------- 場景 ---------- */
-  const SCENARIOS = {
-    field: {
-      name: '野戰', desc: '平原遭遇戰，擊敗敵方武將與所有兵團。', seed: 7,
-      player: { x: 520, y: 820, face: 0 },
-      enemyHero: { weapon: 'glaive', x: 2050, y: 800 },
-      enemies: [
-        { type: 'pikeman', x: 1700, y: 700 }, { type: 'shieldman', x: 1700, y: 900 },
-        { type: 'archer', x: 1900, y: 800 }, { type: 'cavalry', x: 1950, y: 520 },
-      ],
-      timeLimit: 0,
-    },
-    siege: {
-      name: '攻城戰', desc: '打破城門，攻入城內佔領主堡（站在據點內、周圍沒有守軍）。', seed: 11,
-      castle: { wallY: 640, gateX: 1280, gateHp: 1400, towers: [420, 2140], captureX: 1280, captureY: 300, defender: 1 },
-      player: { x: 1280, y: 1400, face: -Math.PI / 2 },
-      enemyHero: { weapon: 'glaive', x: 1280, y: 360 },
-      enemies: [
-        { type: 'archer', x: 1050, y: 590 }, { type: 'archer', x: 1510, y: 590 },
-        { type: 'shieldman', x: 1280, y: 560 }, { type: 'pikeman', x: 1280, y: 470 },
-        { type: 'cavalry', x: 900, y: 300 },
-      ],
-      timeLimit: 480,
-    },
-    defend: {
-      name: '守城・出城', desc: '守住主堡。按 G 開關城門，可以出城迎擊；據點被佔領或武將陣亡就失敗。', seed: 23,
-      castle: { wallY: 640, gateX: 1280, gateHp: 1400, towers: [420, 2140], captureX: 1280, captureY: 300, defender: 0 },
-      player: { x: 1280, y: 480, face: Math.PI / 2 },
-      enemyHero: { weapon: 'sword', x: 1280, y: 1350 },
-      enemies: [
-        { type: 'shieldman', x: 1180, y: 1120 }, { type: 'pikeman', x: 1380, y: 1120 },
-        { type: 'archer', x: 1100, y: 1260 }, { type: 'archer', x: 1460, y: 1260 },
-        { type: 'cavalry', x: 1800, y: 1200 },
-      ],
-      timeLimit: 0,
-    },
-    stress: {
-      name: '大軍測試', desc: '效能測試：雙方合計約 2000 人自動交戰，按 F3 看 fps。不計入名冊。', seed: 31, test: true,
-      player: { x: 560, y: 800, face: 0 },
-      enemyHero: { weapon: 'glaive', x: 1950, y: 800 },
-      enemies: [],
-      army: 2000,   // 開戰後雙方輪流補 50 人的兵團，直到全場總人數到這個數字；我方補的兵團由電腦指揮
-      timeLimit: 0,
-    },
-  };
+  const SCENARIOS = G.Battle.SCENARIOS;   // 場景定義在 js/battle/sim.js
+  const B = G.Battle;
 
+  let exitTo = null;   // 從大地圖開的仗：打完（或撤退）時呼叫，參數是 { win } 或 null（撤退）
   function start(lo, isDemo = false) {
-    demo = isDemo; scenario = SCENARIOS[lo.scenario];
-    heroes = []; squads = []; timers = []; unitCache = null; result = null; api.time = 0; thinkT = 0; select = 'all';
-    G.FX.reset(); G.Combat.reset();
-    G.Map.setupCastle(scenario.castle || null);
+    if (!isDemo) G.Town.leave();
+    G.useScale('battle');
+    if (!isDemo) G.Net.setScene('battle');   // 單人戰鬥不廣播位置
+    demo = isDemo; scenario = lo.custom || SCENARIOS[lo.scenario];
+    if (demo) scenario = { ...scenario, terrain: (scenario.terrain || []).filter(z => z.kind !== 'hill') };   // 開場畫面的背景：不放小山丘 exitTo = isDemo ? null : lo.exit || null; settled = null;
+    result = null; select = 'all';
+    G.FX.reset();
+    // 單人戰鬥：只有自己一個指揮官，鍵盤就是 G.Input
+    B.onNotify = (c, text) => { if (!c || c === me) G.HUD.toast(text); };
+    B.onEnd = r => end(r.winTeam === 0, r.winTeam === 0 ? r.msg : r.loseMsg);
+    B.setup({ scenario, demo, commanders: [{ id: 1, team: 0, name: lo.name, weapon: lo.weapon, equip: lo.equip, look: lo.look, heroLevel: lo.heroLevel, squads: lo.squads, field: lo.field, fieldOrder: lo.fieldOrder, input: G.Input, local: true }] });
+    me = B.commanders[0]; player = me.hero;
     const dirt = scenario.castle ? [{ x: 0, y: 0, w: W().w, h: scenario.castle.wallY }, { x: scenario.castle.gateX - 60, y: scenario.castle.wallY, w: 120, h: W().h }] : [];
     // 出生點附近不放樹和石頭
-    const avoid = [scenario.player, scenario.enemyHero, ...scenario.enemies].filter(Boolean);
-    G.Map.buildGround(scenario.seed + (demo ? Math.floor(Math.random() * 1000) : 0), dirt, avoid);
-
-    const p = scenario.player;
-    player = new G.Hero(0, lo.weapon, lo.equip, p.x, p.y, lo.heroLevel || 1); player.face = p.face;
-    heroes.push(player);
-    const bonus = { atk: player.stats.squadAtk, speed: player.stats.squadSpeed, armor: player.stats.squadArmor };
-    // lo.squads：名冊給的 { id, type, men, level, mods }；開場對戰只給兵種字串
-    lo.squads.map(s => typeof s === 'string' ? { type: s } : s).forEach((s, i) => {
-      const side = i % 2 === 0 ? -1 : 1, back = 60 + Math.floor(i / 2) * 110;   // 兩隊一排，多的往後排
-      const sx = p.x - Math.cos(p.face) * back + Math.cos(p.face + Math.PI / 2) * 50 * side;
-      const sy = p.y - Math.sin(p.face) * back + Math.sin(p.face + Math.PI / 2) * 50 * side;
-      const lv = s.level || 1;
-      const sq = new G.Squad(0, s.type, sx, sy, p.face, { cmd: 'follow', bonus, count: s.men, level: lv, mods: s.mods, label: `第${i + 1}隊・${G.UNITS[s.type].name}${lv > 1 ? ` Lv${lv}` : ''}` });
-      sq.followSide = 46 * side; sq.followOffset = 20 + Math.floor(i / 2) * 70; sq.rosterId = s.id;
-      squads.push(sq);
-    });
-    const eh = scenario.enemyHero;
-    if (eh) { const h = new G.Hero(1, eh.weapon, {}, eh.x, eh.y); h.face = Math.PI - (p.face || 0); heroes.push(h); }
-    const enemies = demo ? [...scenario.enemies, ...scenario.enemies.slice(0, 2).map(e => ({ ...e, x: e.x + (p.x < e.x ? 140 : -140) }))] : scenario.enemies;
-    for (const e of enemies) {
-      const face = Math.atan2(p.y - e.y, p.x - e.x);
-      squads.push(new G.Squad(1, e.type, e.x, e.y, face, { cmd: 'hold' }));
-    }
-    if (scenario.army) spawnArmy(scenario.army);
+    const avoid = [scenario.player, scenario.enemyHero, ...scenario.enemies, ...(scenario.siege || []), ...(scenario.castle ? scenario.castle.points : [])].filter(Boolean);
+    G.Map.buildGround(scenario.seed + (demo ? Math.floor(Math.random() * 1000) : 0), dirt, avoid, G.Map.town ? G.Map.town.roads : []);
     state = demo ? 'demo' : 'battle';
     G.HUD.show(!demo);
-    if (demo) for (const s of squads) s.cmd = 'attack';
+    if (!demo) G.HUD.intro(scenario.name, scenario.castle ? (scenario.castle.defender === 0 ? '守住三個據點' : '攻破城門，依序佔領外城、內城、主堡') : '擊敗敵將與所有兵團');
   }
 
-  /** 大軍測試：雙方輪流補 50 人兵團（四兵種輪替），我方在左、敵方在右，直到全場總人數到 n */
-  function spawnArmy(n) {
-    const types = ['pikeman', 'shieldman', 'archer', 'cavalry'], total = () => squads.reduce((a, s) => a + s.units.length, 0);
-    for (let i = 0; total() < n; i++) {
-      const team = i % 2, col = Math.floor(i / 2) % 6, y = 200 + ((i * 97) % 1200);
-      const x = team ? 1500 + col * 60 : 700 - col * 60, cmdPoint = { x: team ? 700 : 1500, y };
-      const sq = new G.Squad(team, types[(i >> 1) % 4], x, y, team ? Math.PI : 0, { cmd: 'attack', count: 50 });
-      sq.cmdPoint = cmdPoint; sq.army = true;   // army：電腦指揮時一直往敵人推進（見 G.AI.think）
-      if (team === 0) sq.ai = true;              // ai：我方補的兵團由電腦指揮，不算玩家的兵團
-      squads.push(sq);
-    }
+  /** 同場戰鬥開始（伺服器送來 b.start）：建地圖，切到遠端模式（不跑模擬，只畫 G.Remote 的狀態） */
+  function startRemote(sc, team) {
+    G.Town.leave(); G.World.leave(); document.getElementById('townHud').style.display = 'none';
+    G.useScale('battle');
+    demo = false; remote = true; scenario = sc; exitTo = null; settled = null; result = null;
+    G.FX.reset(); G.Combat.reset();
+    G.Map.setupCastle(sc.castle || null);
+    G.Map.setupField(sc.seed || 1, B.fieldAvoid(sc), sc.terrain || []);   // 跟伺服器同一份石頭、地形
+    G.Siege.reset([]);
+    const dirt = sc.castle ? [{ x: 0, y: 0, w: W().w, h: sc.castle.wallY }, { x: sc.castle.gateX - 60, y: sc.castle.wallY, w: 120, h: W().h }] : [];
+    const avoid = [sc.player, sc.enemyHero, ...sc.enemies, ...(sc.siege || []), ...(sc.castle ? sc.castle.points : [])].filter(Boolean);
+    G.Map.buildGround(sc.seed, dirt, avoid, G.Map.town ? G.Map.town.roads : []);
+    state = 'battle';
+    G.HUD.show(true);
+    G.HUD.intro(team === 1 ? `守衛${sc.name.replace(/^攻打/, '')}` : sc.name, team === 1 ? '擋住攻方，守住主堡' : '攻破城門，依序佔領外城、內城、主堡');
+  }
+  /** 同場戰鬥結束（伺服器已經結算好）；onExit 是開戰時給的回程 */
+  function remoteEnd(m, onExit) {
+    const rep = m.report;
+    if (rep && rep.data) G.Army.adopt(rep.data);
+    result = { win: m.win, msg: m.msg };
+    exitTo = onExit;
+    settled = Promise.resolve(rep || null);
+    if (m.left) return leaveBattle();   // 自己撤退的：直接回去
+    G.HUD.result(m.win, m.msg, { kills: G.Remote.view().stats.kills }, settled);
+    G.HUD.resultButtons([['Escape', '返回']]);
+  }
+  /** 離開戰場：回大地圖（或城裡） */
+  function leaveBattle() {
+    const f = exitTo, r = result, pr = settled || Promise.resolve(null);
+    exitTo = null; remote = false; state = 'wait';
+    pr.then(rep => {
+      if (f) f(r && { win: r.win, report: rep });
+      else G.Town.enter(!r && rep && !rep.drill ? `撤退：傷亡已計入名冊，金幣 +${rep.gold}` : '');
+    });
   }
 
-  /* ---------- 查詢工具（給 AI、技能用） ----------
-   * 單位清單每幀只組一次（unitCache）；空間網格 64px 一格、依陣營分開，找敵人時只掃對方的格子。
-   */
-  const CELL = 6, GW = () => (W().w >> CELL) + 1, GH = () => (W().h >> CELL) + 1;
-  let unitCache = null, grids = [[], []];
-  function allUnits() {
-    if (unitCache) return unitCache;
-    const a = []; for (const s of squads) for (const u of s.units) a.push(u); for (const h of heroes) a.push(h);
-    return unitCache = a;
-  }
-  function rebuildGrid() {
-    const n = GW() * GH();
-    for (const g of grids) { if (g.length !== n) { g.length = 0; for (let i = 0; i < n; i++) g.push([]); } else for (const c of g) c.length = 0; }
-    for (const u of allUnits()) if (!u.dead) grids[u.team][(u.y >> CELL) * GW() + (u.x >> CELL)].push(u);
-  }
-  function forCells(g, x, y, r, fn) {
-    const w = GW(), x0 = Math.max(0, (x - r) >> CELL), x1 = Math.min(w - 1, (x + r) >> CELL), y0 = Math.max(0, (y - r) >> CELL), y1 = Math.min(GH() - 1, (y + r) >> CELL);
-    for (let gy = y0; gy <= y1; gy++) for (let gx = x0; gx <= x1; gx++) for (const u of g[gy * w + gx]) fn(u);
-  }
-  function forNear(x, y, r, fn) { for (const g of grids) forCells(g, x, y, r, fn); }
-  function forEachFoe(team, x, y, r, fn) {
-    forCells(grids[1 - team], x, y, r, u => { if (!u.dead && Math.hypot(u.x - x, u.y - y) <= r + (u.radius || 6)) fn(u); });
-  }
-  /** 由近到遠一圈一圈掃對方的格子；下一圈不可能比目前找到的更近就停 */
-  function nearestFoe(team, x, y, r) {
-    const g = grids[1 - team], w = GW(), h = GH(), cx = x >> CELL, cy = y >> CELL;
-    const rings = Math.min(Math.ceil(r / 64) + 1, Math.max(w, h));
-    let best = null, bd = r * r;
-    for (let k = 0; k <= rings; k++) {
-      if (best && ((k - 1) * 64) ** 2 > bd) break;
-      for (let gy = cy - k; gy <= cy + k; gy++) {
-        if (gy < 0 || gy >= h) continue;
-        const step = gy === cy - k || gy === cy + k ? 1 : 2 * k;   // 上下兩列整排掃，中間只掃左右兩格
-        for (let gx = cx - k; gx <= cx + k; gx += step) {
-          if (gx < 0 || gx >= w) continue;
-          for (const u of g[gy * w + gx]) if (!u.dead) { const d = (u.x - x) ** 2 + (u.y - y) ** 2; if (d < bd) { bd = d; best = u; } }
-        }
-      }
-    }
-    return best;
-  }
-  function nearestFoeSquad(sq) {
-    let best = null, bd = Infinity; const c = sq.center;
-    for (const o of squads) if (o.team !== sq.team && o.alive.length) { const d = G.U.dist(o.center, c); if (d < bd) { bd = d; best = o; } }
-    return best && { center: best.center, face: best.face };
-  }
-  const squadsOf = team => squads.filter(s => s.team === team);
-  const playerSquads = () => squads.filter(s => s.team === 0 && !s.ai);   // 玩家能指揮的兵團（HUD、Tab、指令）
-  const heroOf = team => heroes.find(h => h.team === team);
-  function later(sec, fn) { timers.push({ t: api.time + sec, fn }); }
+  const playerSquads = () => (me ? B.squadsOfCmdr(me) : []);   // 自己能指揮的兵團（HUD、旗標的選取框）
+  const allUnits = () => B.allUnits();
 
-  function gateTarget(u) {
-    const c = G.Map.castle, g = c.gate, side = u.y < c.wallY ? -1 : 1;
-    return { gate: true, x: g.x + G.U.clamp(u.x - g.x, -g.w / 2 + 6, g.w / 2 - 6), y: c.wallY + side * (c.thick / 2 + 3), radius: 4, team: c.defender };
-  }
-  function hitGate(att, dmg) {
-    const g = G.Map.castle.gate;
-    if (g.hp <= 0) return;
-    g.hp -= dmg; g.flash = 0.1;
-    G.FX.hit(G.U.clamp(att.x, g.x - g.w / 2, g.x + g.w / 2), G.Map.castle.wallY, '#c8a070', 3);
-    if (g.hp <= 0) {
-      g.hp = 0; G.FX.addShake(8); G.HUD.toast('城門已被攻破！');
-      for (let i = 0; i < 6; i++) G.FX.dust(g.x + G.U.rand(-25, 25), G.Map.castle.wallY + G.U.rand(-10, 10), 6);
-    }
-  }
-
-  /* ---------- 輸入 ---------- */
-  function handleInput() {
+  /* ---------- 只跟畫面有關的按鍵（指揮官的操作在 G.Battle.handleInput） ---------- */
+  function handleViewKeys() {
     const I = G.Input;
-    const mine = playerSquads();
-    if (I.pressed('Tab')) select = select === 'all' ? 0 : select + 1 < mine.length ? select + 1 : 'all';   // 全軍 → 第 1 隊 → … → 全軍
-    const sel = select === 'all' ? mine : [mine[select]].filter(Boolean);
-    const cmd = I.pressed('Digit1') ? 'follow' : I.pressed('Digit2') ? 'hold' : I.pressed('Digit3') ? 'attack' : null;
-    if (cmd) for (const sq of sel) {
-      sq.cmd = cmd; sq.waypoint = null;
-      if (cmd === 'hold') sq.cmdPoint = { x: player.x, y: player.y };
-      if (cmd === 'attack') { const f = nearestFoe(0, player.x, player.y, 99999); sq.cmdPoint = f ? { x: f.x, y: f.y } : { x: player.x, y: player.y }; }
-    }
-    if (I.pressed('KeyF')) for (const sq of sel) sq.cycleFormation();
-    if (I.pressed('KeyZ')) for (const sq of sel) G.Skills.useUnit(sq, sq.def.skills[0]);
-    if (I.pressed('KeyX')) for (const sq of sel) G.Skills.useUnit(sq, sq.def.skills[1]);
-    if (I.pressed('KeyG') && G.Map.castle && G.Map.castle.defender === 0) {
-      const g = G.Map.castle.gate;
-      if (g.hp > 0 && Math.hypot(player.x - g.x, player.y - G.Map.castle.wallY) < 160) { g.open = !g.open; G.HUD.toast(g.open ? '城門開啟' : '城門關閉'); }
-      else if (g.hp > 0) G.HUD.toast('要靠近城門才能開關');
-    }
     if (I.pressed('Equal')) stepZoom(1);
     if (I.pressed('Minus')) stepZoom(-1);
     if (I.pressed('F3')) showPerf = !showPerf;
@@ -197,120 +84,23 @@ G.Game = (() => {
   }
   function stepZoom(d) { const L = G.CONFIG.zoomLevels; zoom = L[G.U.clamp(L.indexOf(zoom) + d, 0, L.length - 1)]; }
 
-  /* ---------- 武將 ---------- */
-  function updateHero(h, dt) {
-    h.animT += dt; if (h.flash > 0) h.flash -= dt; if (h.cd > 0) h.cd -= dt;
-    for (const k in h.skillCd) if (h.skillCd[k] > 0) h.skillCd[k] -= dt;
-    if (h.action) { h.action.until -= dt; if (h.action.until <= 0) h.action = null; }
-    if (h.dead) return;
-    if (h.stun > 0) { h.stun -= dt; h.vx = h.vy = 0; h.moving = false; return; }
-    G.Skills.updateHero(h, dt);
-    if (h.dash) return;
-    let mx = 0, my = 0, attack = false;
-    if (h === player && !demo) {
-      const I = G.Input;
-      mx = (I.down('KeyD') ? 1 : 0) - (I.down('KeyA') ? 1 : 0);
-      my = (I.down('KeyS') ? 1 : 0) - (I.down('KeyW') ? 1 : 0);
-      h.blocking = I.down('KeyK') && !h.action && h.whirl <= 0;
-      attack = I.down('KeyJ');
-      for (const [code, slot] of [['KeyQ', 'Q'], ['KeyE', 'E'], ['KeyR', 'R']]) if (I.pressed(code)) G.Skills.useHero(h, slot);
-    } else ({ mx, my, attack } = enemyHeroBrain(h));
-    const slow = h.blocking ? G.CONFIG.heroBlockSpeedMul : h.action ? 0.35 : 1;
-    if (mx || my) {
-      const l = Math.hypot(mx, my); h.vx = mx / l * h.speed * slow; h.vy = my / l * h.speed * slow; h.moving = true;
-      if (!h.blocking && !h.action) h.face = Math.atan2(my, mx);
-    } else { h.vx = h.vy = 0; h.moving = false; }
-    if (attack && h.cd <= 0 && !h.blocking && h.whirl <= 0) heroAttack(h);
-  }
-
-  function heroAttack(h) {
-    const w = h.weapon;
-    h.cd = w.atkCd; h.doAction('Attack', 0.2);
-    G.FX.slash(h.x, h.y - 12, h.face, w.range - 8, w.arc, { life: 0.18, width: 4 });
-    forEachFoe(h.team, h.x, h.y, w.range, o => {
-      if (G.U.angDiff(Math.atan2(o.y - h.y, o.x - h.x), h.face) < w.arc / 2 + 0.2) G.Combat.damage(h, o, h.atk * G.U.rand(0.9, 1.1), { knock: 7 });
-    });
-    const c = G.Map.castle;
-    if (c && c.defender !== h.team && !G.Map.gatePassable() && Math.abs(h.x - c.gate.x) < c.gate.w / 2 + w.range && Math.abs(h.y - c.wallY) < c.thick / 2 + w.range) hitGate(h, h.atk);
-  }
-
-  /** 敵方武將：找最近的目標接近、攻擊，偶爾放技能 */
-  function enemyHeroBrain(h) {
-    const t = nearestFoe(h.team, h.x, h.y, 360);
-    const home = h.team === 1 ? scenario.enemyHero : scenario.player;
-    let tx = home.x, ty = home.y;
-    if (t) { tx = t.x; ty = t.y; }
-    const d = Math.hypot(tx - h.x, ty - h.y);
-    if (t) {
-      h.face = Math.atan2(ty - h.y, tx - h.x);
-      if (d < 60) for (const slot of ['Q', 'E', 'R']) if (h.skillCd[slot] <= 0 && Math.random() < 0.01) G.Skills.useHero(h, slot);
-    }
-    const reach = h.weapon.range - 6;
-    const r = G.Map.route(h, tx, ty);
-    return { mx: d > reach ? r.x - h.x : 0, my: d > reach ? r.y - h.y : 0, attack: t && d < h.weapon.range };
-  }
-
-  /* ---------- 物理 ---------- */
-  function physics(dt) {
-    const all = allUnits();
-    for (const u of all) {
-      if (u.dead) { u.dead += dt; }
-      u.x += (u.vx + u.kx) * dt; u.y += (u.vy + u.ky) * dt;
-      const k = Math.exp(-7 * dt); u.kx *= k; u.ky *= k;
-      if (u.z > 0 || u.vz > 0) {
-        u.vz -= 420 * dt; u.z += u.vz * dt;
-        if (u.z <= 0) { if (u.vz < -120) G.FX.dust(u.x, u.y, 3); u.z = 0; u.vz = 0; }
-      }
-      if (u.flash > 0) u.flash -= dt;
-      if (u.animT !== undefined) u.animT += dt;
-      if (!u.isHero && u.anim === 'Attack' && u.animT > (G.Sprites.duration(u.def.sprite, 'Attack') || 0.3)) u.play('Idle');
-    }
-    // 互相推開
-    for (const u of all) {
-      if (u.dead || u.z > 4) continue;
-      forNear(u.x, u.y, 20, o => {
-        if (o === u || o.dead) return;
-        const dx = u.x - o.x, dy = u.y - o.y, d = Math.hypot(dx, dy) || 0.01, min = (u.radius || 6) + (o.radius || 6);
-        if (d < min) {
-          const push = (min - d) / d * 0.5 * (u.isHero ? 0.25 : o.isHero ? 1.2 : 1);
-          u.x += dx * push; u.y += dy * push;
-        }
-      });
-    }
-    for (const u of all) {
-      u.x = G.U.clamp(u.x, 8, W().w - 8); u.y = G.U.clamp(u.y, 8, W().h - 8);
-      if (!u.dead) G.Map.resolve(u);
-    }
-    for (const s of squads) s.units = s.units.filter(u => !u.dead || u.dead < 1.2);
-    unitCache = null;
-  }
-
-  /* ---------- 勝負 ---------- */
-  function checkResult(dt) {
-    if (result) return;
-    const castle = G.Map.castle;
-    if (player.dead) return end(false, '武將陣亡');
-    if (castle) {
-      const cp = castle.capture, att = 1 - castle.defender;
-      let a = 0, d = 0;
-      for (const u of allUnits()) if (!u.dead && Math.hypot(u.x - cp.x, (u.y - cp.y) / 0.6) < cp.r) u.team === att ? a++ : d++;
-      if (a && !d) cp.progress = Math.min(1, cp.progress + dt / 10);
-      else if (d && !a) cp.progress = Math.max(0, cp.progress - dt / 10);
-      if (cp.progress >= 1) return end(att === 0, att === 0 ? '主堡已佔領！' : '主堡失守');
-    }
-    const foes = allUnits().filter(u => u.team === 1 && !u.dead).length;
-    if (!foes) return end(true, '敵軍全滅！');
-    if (scenario.timeLimit && api.time > scenario.timeLimit) return end(castle ? castle.defender === 0 : false, '時間到');
-  }
+  /* ---------- 勝負（判定在 G.Battle.checkResult） ---------- */
   function end(win, msg) {
     result = { win, msg };
     if (demo) setTimeout(() => { if (state === 'demo') startDemo(); }, 2500);   // 開場對戰打完就換一場
-    else G.HUD.result(win, msg, G.Combat.stats, settle(win));
+    else {
+      settled = settle(win);
+      G.HUD.result(win, msg, G.Combat.stats, settled);
+      G.HUD.resultButtons(exitTo ? [['Escape', '返回大地圖']] : [['KeyR', '再打一次'], ['Escape', '回城']]);
+    }
   }
-  /** 把傷亡、經驗、金幣寫回軍團名冊；大軍測試不結算。回傳結算報告（不結算時是 null） */
+  let settled = null;   // 結算中的 Promise（伺服器回傳結算報告）
+  /** 把戰報送到伺服器結算（傷亡、經驗、金幣、佔城）；大軍測試不結算。回傳 Promise<結算報告 | null> */
   function settle(win) {
-    if (demo || scenario.test) return null;
-    return G.Army.settle(win, playerSquads().filter(s => s.rosterId), player.kills || 0);
+    if (demo || scenario.test) return Promise.resolve(null);
+    // 戰場上的隨身、配置兵團，加上後備（換下場或還沒上場的）
+    const rep = B.report(me);
+    return G.Army.finishBattle(win, rep.squads.map(s => ({ rosterId: s.rosterId, alive: { length: s.alive }, kills: s.kills })), rep.heroKills).catch(e => { G.HUD.toast(`結算失敗：${e.message}`); return null; });
   }
   /** 開場畫面背景用的自動對戰 */
   function startDemo() {
@@ -320,25 +110,25 @@ G.Game = (() => {
   /* ---------- 主迴圈 ---------- */
   function update(dt) {
     if (G.FX.update(dt)) return;     // 命中停頓
-    api.time += dt;
-    for (const t of timers) if (api.time >= t.t) { t.fn(); t.done = true; }
-    timers = timers.filter(t => !t.done);
-    unitCache = null; rebuildGrid();
-    if (!result && !demo) handleInput();
-    for (const h of heroes) updateHero(h, dt);
-    if ((thinkT -= dt) <= 0) { thinkT = 0.5; for (const s of squads) if (s.team === 1 || demo || s.ai) G.AI.think(s); }
-    for (const s of squads) G.AI.updateSquad(s, dt);
-    G.Combat.updateProjectiles(dt, allUnits());
-    physics(dt);
-    const c = G.Map.castle; if (c && c.gate.flash > 0) c.gate.flash -= dt;
-    checkResult(dt);
+    if (!demo) handleViewKeys();
+    B.update(dt);
+  }
+
+  /**
+   * 畫面要的資料：單人戰鬥直接從 G.Battle 拿；同場戰鬥從 G.Remote（伺服器送來的狀態）拿。
+   * { units, squads, time, me: { hero, team, select, reserve, supplyOpen, supplyCd }, supply, near, castle }
+   */
+  function view() {
+    if (remote) return G.Remote.view();
+    return { units: B.allUnits(), squads: B.squads, time: B.time, me, mine: playerSquads(), supply: me ? B.supplyPoints(me.team) : [], near: me && B.nearSupply(me), stats: G.Combat.stats };
   }
 
   function draw() {
-    const vw = G.Render.width / zoom, vh = G.Render.height / zoom;
-    let fx = player.x, fy = player.y;
+    const V = view(), hero = V.me.hero, vw = G.Render.width / zoom, vh = G.Render.height / zoom;
+    G.viewTeam = V.me.team;   // 畫面上「我方」是哪一隊（同場戰鬥守城的玩家是 team 1）
+    let fx = hero.x, fy = hero.y;
     if (demo) {   // 開場：鏡頭慢慢跟著交戰中心
-      const f = nearestFoe(0, player.x, player.y, 99999); if (f) { fx = (player.x + f.x) / 2; fy = (player.y + f.y) / 2; }
+      const f = B.nearestFoe(0, hero.x, hero.y, 99999); if (f) { fx = (hero.x + f.x) / 2; fy = (hero.y + f.y) / 2; }
       fx = cam.x + vw / 2 + (fx - cam.x - vw / 2) * 0.02; fy = cam.y + vh / 2 + (fy - cam.y - vh / 2) * 0.02;
     }
     cam.x = G.U.clamp(fx - vw / 2, 0, Math.max(0, W().w - vw));
@@ -348,57 +138,93 @@ G.Game = (() => {
     G.Render.begin(zoom, Math.round((-cam.x + sh.x) * zoom), Math.round((-cam.y + sh.y) * zoom));
     G.Map.drawGround();
     G.Combat.drawGround();
-    G.Map.drawCapture(api.time);
-    // 依 y 排序繪製
-    const list = [];
-    for (const u of allUnits()) if (u.x > cam.x - 60 && u.x < cam.x + vw + 60 && u.y > cam.y - 60 && u.y < cam.y + vh + 80) {
-      list.push({ y: u.y, draw: c => u.draw(c) });
+    G.Map.drawCapture(V.time);
+    G.Siege.drawGround(V.time);
+    drawSupply(V);
+    // 依 y 排序繪製；正在爬雲梯的人排在城牆和梯子前面，才不會被牆蓋住
+    const list = [], castle = G.Map.castle, ladderY = castle && castle.wallY + castle.thick / 2 + 1;
+    for (const u of V.units) if (u.x > cam.x - 60 && u.x < cam.x + vw + 60 && u.y > cam.y - 60 && u.y < cam.y + vh + 80) {
+      const o = castle && G.Map.openingAt(u.x, u.y);
+      list.push({ y: o && o.kind === 'ladder' ? ladderY : u.y, draw: c => u.draw(c) });
       if (!u.isHero) G.Render.shadow(u.x, u.y, u.radius + 1, 3, 0.25);
     }
-    list.push(...G.Map.wallDrawables({ x: cam.x, y: cam.y, w: vw, h: vh }));
+    const viewRect = { x: cam.x, y: cam.y, w: vw, h: vh };
+    list.push(...G.Map.wallDrawables(viewRect), ...G.Siege.drawables(viewRect, demo ? null : hero));
+    // 補給站（PixelLab 的帳篷木箱圖，assets/battle/supply.png）：放在補給圈後面，站在圈裡的武將畫在它前面
+    if (!demo) { const im = G.Assets.img('assets/battle/supply.png'); for (const s of V.supply) list.push({ y: s.y - 30, draw: () => { if (im.complete && im.naturalWidth) G.Render.image(im, s.x - 70, s.y - 112); } }); }
     list.sort((a, b) => a.y - b.y);
     for (const d of list) d.draw(ctx);
     G.Combat.drawAir(ctx);
+    G.Siege.drawAir(ctx);
     G.FX.drawWorld(ctx);
-    drawBanners();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    drawBanners(V);
+    G.Render.screen();
     G.FX.drawScreen(ctx, G.Render.width, G.Render.height);
     G.Render.end();
-    if (!demo) G.HUD.update({ player, squads: playerSquads(), select, time: api.time, scenario, castle: G.Map.castle, stats: G.Combat.stats, foes: allUnits().filter(u => u.team === 1 && !u.dead).length, perf: showPerf && { fps, frameMs, units: allUnits().length }, zoom });
+    const m = V.me;
+    if (!demo) G.HUD.update({ player: hero, squads: V.mine, group: m.group || 'escort', select: m.select, reserve: m.reserve, supplyOpen: m.supplyOpen, supplyCd: m.supplyCd, near: V.near,
+      field: V.squads.filter(s => s.field && (s.owner === m || s.ownerId === m.id)), time: V.time, scenario, castle: G.Map.castle, stats: V.stats,
+      foes: V.units.filter(u => u.team !== m.team && !u.dead).length, perf: showPerf && { fps, frameMs, units: V.units.length }, zoom });
   }
 
-  /** 兵團旗標：藍色我方、紅色敵方，顯示人數；選中的兵團有金框 */
-  function drawBanners() {
+  /** 補給點：地上的範圍圈和名字（補給站的圖跟單位一起依 y 排序畫）；武將靠近時顯示按鍵提示 */
+  function drawSupply(V) {
+    if (demo) return;
+    const g = G.Render.under, near = V.near;
+    for (const s of V.supply) {
+      g.ellipse(s.x, s.y, 46, 28).stroke({ width: 2, color: 0x7fb2ff, alpha: s === near || (near && near.x === s.x && near.y === s.y) ? 0.95 : 0.5 });
+      const isNear = near && near.x === s.x && near.y === s.y;
+      ctx.font = 'bold 7px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#000'; ctx.fillText(isNear ? '補給點（T 換兵）' : '補給點', s.x + 0.6, s.y + 34.6);
+      ctx.fillStyle = '#9cc3ff'; ctx.fillText(isNear ? '補給點（T 換兵）' : '補給點', s.x, s.y + 34);
+    }
+  }
+
+  /** 兵團旗標：藍色我方、紅色敵方，顯示人數；自己選中的兵團有金框 */
+  function drawBanners(V) {
     ctx.font = 'bold 8px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    squads.forEach(s => {
+    const sel = V.me.select === 'all' ? V.mine : [V.mine[V.me.select]];
+    V.squads.forEach(s => {
       const a = s.alive.length; if (!a) return;
       const c = s.center, x = Math.round(c.x), y = Math.round(c.y - 44);
-      const mine = s.team === 0, selected = mine && !s.ai && (select === 'all' || playerSquads()[select] === s);
-      ctx.fillStyle = mine ? '#2f5fb0' : '#a8322a';
+      const mine = s.team === V.me.team, selected = sel.includes(s);
+      ctx.fillStyle = mine ? '#34557f' : '#7f2a22';
       ctx.fillRect(x - 13, y - 6, 26, 12);
       if (selected) { ctx.strokeStyle = '#f2c94c'; ctx.lineWidth = 1; ctx.strokeRect(x - 13.5, y - 6.5, 27, 13); }
-      ctx.fillStyle = '#fff'; ctx.fillText(a, x + 3, y + 0.5);
+      ctx.fillStyle = s.rout > 0 ? '#ffb347' : '#fff'; ctx.fillText(s.rout > 0 ? '潰' : a, x + 3, y + 0.5);   // 潰散中的兵團
       ctx.fillStyle = mine ? '#9cc3ff' : '#ffb3a8';
-      ctx.fillText({ pike: '槍', shield: '盾', archer: '弓', cav: '騎' }[s.def.type], x - 7, y + 0.5);
+      ctx.fillText(s.def.short || s.def.name[0], x - 7, y + 0.5);
     });
   }
 
   let last = 0, acc = 0, frames = 0;
   function loop(now) {
     const dt = Math.min(0.05, (now - last) / 1000 || 0); last = now;
+    G.Input.mouseOrders = state === 'battle';   // 戰場上滑鼠點地面＝指揮兵團
     if (state === 'battle' || state === 'demo') {
       const t0 = performance.now();
-      if (!result) update(dt); else G.FX.update(dt);
-      if (!demo && result && G.Input.pressed('KeyR')) G.Menu.deploy();   // 用結算後的名冊再打一次
-      if (!demo && G.Input.pressed('Escape')) {
-        const rep = !result && settle(false);   // 中途撤退也要計入傷亡
-        G.HUD.show(false); startDemo();
-        G.Menu.open(rep ? `撤退：傷亡已計入名冊（${rep.squads.map(s => `${s.name} ${s.before}→${s.after}`).join('、')}），金幣 +${rep.gold}` : '');
+      if (remote) {   // 同場戰鬥：伺服器在算，這裡只更新畫面、送按鍵
+        G.FX.update(dt); handleViewKeys();
+        if (!result) G.Remote.update(dt);
+        if (G.Input.pressed('Escape')) { if (result) leaveBattle(); else G.Remote.leave(); }
+        else if (G.Remote.view().me.hero) draw();
+        G.Input.endFrame(); requestAnimationFrame(loop); return;
       }
-      draw();
+      const gdt = dt * G.FX.timeScale(dt);   // 破門、破牆時的慢動作
+      if (!result) update(gdt); else G.FX.update(gdt);
+      if (!demo && result && !exitTo && G.Input.pressed('KeyR')) G.Menu.deploy();   // 演習：用結算後的名冊再打一次
+      if (!demo && G.Input.pressed('Escape')) {
+        const pr = result ? settled || Promise.resolve(null) : settle(false);   // 中途撤退也要計入傷亡
+        const f = exitTo, r = result; exitTo = null; state = 'wait';   // 等伺服器結算時先停住（迴圈不更新也不畫）
+        pr.then(rep => {
+          if (f) f(r && { win: r.win, report: rep });   // 回大地圖
+          else G.Town.enter(!r && rep && !rep.drill ? `撤退：傷亡已計入名冊，金幣 +${rep.gold}` : '');   // 演習：回城
+        });
+      } else draw();
       frameMs = frameMs * 0.9 + (performance.now() - t0) * 0.1;
       frames++; acc += dt; if (acc >= 0.5) { fps = frames / acc; frames = 0; acc = 0; }
-    }
+    } else if (state === 'town') { G.Town.update(dt); if (state === 'town') G.Town.draw(); }
+    else if (state === 'world') { G.World.update(dt); if (state === 'world') G.World.draw(); }
     G.Input.endFrame();
     requestAnimationFrame(loop);
   }
@@ -409,9 +235,13 @@ G.Game = (() => {
     requestAnimationFrame(loop);
   }
 
-  Object.assign(api, { SCENARIOS, init, start, startDemo, forEachFoe, nearestFoe, nearestFoeSquad, squadsOf, heroOf, later, gateTarget, hitGate });
+  Object.assign(api, { SCENARIOS, init, start, startDemo, startRemote, remoteEnd });
   Object.defineProperty(api, 'state', { get: () => state });
+  /** 切到城內場景（G.Town 建好地圖後呼叫） */
+  api.toScene = s => { state = s; demo = false; remote = false; result = null; exitTo = null; $result().style.display = 'none'; };
+  api.toTown = () => api.toScene('town');
+  const $result = () => document.getElementById('result');
   // 除錯用：在主控台看目前戰場
-  Object.defineProperty(api, 'debug', { get: () => ({ heroes, squads, player, result }) });
+  Object.defineProperty(api, 'debug', { get: () => ({ heroes: B.heroes, squads: B.squads, player, result }) });
   return api;
 })();

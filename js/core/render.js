@@ -8,7 +8,7 @@
  * 注意：WebGL 不能讀 file:// 的圖片，要用本機伺服器開（見 README）。
  */
 G.Render = (() => {
-  let app, overlay, ctx;
+  let app, overlay, ctx, dpr = 1;   // dpr：上層 canvas 依螢幕像素密度畫，Retina 上文字才不會糊
   let groundSprite = null, groundSrc = null, groundVer = -1;
   const layers = {};   // ground / zones / under（Graphics）/ shadows / sorted
   const pools = {};
@@ -28,7 +28,12 @@ G.Render = (() => {
     for (const k of ['zones', 'shadows', 'sorted']) pools[k] = { c: layers[k], list: [], n: 0 };
     shadowTex = PIXI.Texture.from(ellipseCanvas(64, 16, false));
     glowTex = PIXI.Texture.from(ellipseCanvas(128, 128, true));
-    const resize = () => { app.renderer.resize(innerWidth, innerHeight); overlay.width = innerWidth; overlay.height = innerHeight; };
+    const resize = () => {
+      app.renderer.resize(innerWidth, innerHeight);
+      dpr = Math.min(3, window.devicePixelRatio || 1);
+      overlay.width = Math.round(innerWidth * dpr); overlay.height = Math.round(innerHeight * dpr);
+      overlay.style.width = innerWidth + 'px'; overlay.style.height = innerHeight + 'px';
+    };
     addEventListener('resize', resize); resize();
   }
 
@@ -65,12 +70,17 @@ G.Render = (() => {
   }
 
   /** 每幀開始：設定鏡頭（縮放＋位移，已含震動），清空上層 canvas 並套用同樣的轉換 */
+  let viewT = { zoom: 1, ox: 0, oy: 0 };
+  /** 螢幕座標（CSS px）→ 世界座標（用上一幀的鏡頭） */
+  const toWorld = (sx, sy) => ({ x: (sx - viewT.ox) / viewT.zoom, y: (sy - viewT.oy) / viewT.zoom });
   function begin(zoom, ox, oy) {
+    viewT = { zoom, ox, oy };
     app.stage.scale.set(zoom); app.stage.position.set(ox, oy);
     for (const k in pools) pools[k].n = 0;
     layers.under.clear();
+    if (terrSprite) terrSprite.visible = false;   // 領地圖只有大地圖每幀會打開
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, overlay.width, overlay.height);
-    ctx.setTransform(zoom, 0, 0, zoom, ox, oy); ctx.imageSmoothingEnabled = false;
+    ctx.setTransform(zoom * dpr, 0, 0, zoom * dpr, ox * dpr, oy * dpr); ctx.imageSmoothingEnabled = false;
   }
 
   function end() {
@@ -78,12 +88,26 @@ G.Render = (() => {
     app.renderer.render(app.stage);
   }
 
-  /** 地面：整張預先畫好的 canvas；version 變了（地磚、小草載入後重畫）就重新上傳 */
-  function ground(canvas, version) {
+  /** 地面：整張預先畫好的 canvas（解析度是遊戲座標的 1 / artScale 倍）；version 變了（地磚、小草載入後重畫）就重新上傳 */
+  /** 疊在地面上的領地色塊（大地圖）：canvas 一格是 scale 個遊戲像素，放大時用線性內插讓邊界柔和；version 變了才重傳 */
+  let terrSprite = null, terrSrc = null, terrVer = -1;
+  function territory(canvas, version, scale) {
+    if (!canvas) return;
+    if (canvas !== terrSrc) {
+      if (terrSprite) terrSprite.destroy({ texture: true, textureSource: true });
+      const tex = PIXI.Texture.from(canvas); tex.source.scaleMode = 'linear';
+      terrSprite = new PIXI.Sprite(tex); layers.ground.addChild(terrSprite);
+      terrSrc = canvas; terrVer = version;
+    } else if (version !== terrVer) { terrSprite.texture.source.update(); terrVer = version; }
+    layers.ground.addChild(terrSprite);   // 永遠在地面圖上面（地面圖重建時會被加到最後）
+    terrSprite.scale.set(scale); terrSprite.visible = true;
+  }
+  /** 地面圖；scale 是畫布像素對遊戲座標的比例（大地圖的地面用一半解析度畫，省顯示記憶體） */
+  function ground(canvas, version, scale = 1) {
     if (!canvas) return;
     if (canvas !== groundSrc) {
       if (groundSprite) groundSprite.destroy({ texture: true, textureSource: true });
-      groundSprite = new PIXI.Sprite(PIXI.Texture.from(canvas)); layers.ground.addChild(groundSprite);
+      groundSprite = new PIXI.Sprite(PIXI.Texture.from(canvas)); groundSprite.scale.set(G.CONFIG.artScale / scale); layers.ground.addChild(groundSprite);
       groundSrc = canvas; groundVer = version;
     } else if (version !== groundVer) { groundSprite.texture.source.update(); groundVer = version; }
   }
@@ -100,15 +124,20 @@ G.Render = (() => {
     s.texture = glowTex; s.tint = color; s.x = x - rx; s.y = y - ry; s.width = rx * 2; s.height = ry * 2; s.alpha = alpha;
   }
 
-  /** 依 y 排序層：畫圖片的一塊（精靈圖的一格）；flip 左右翻轉 */
-  function frame(img, sx, sy, w, h, dx, dy, alpha = 1, flip = false) {
+  /** 依 y 排序層：畫圖片的一塊（精靈圖的一格）；flip 左右翻轉；k 是縮放（PixelLab 美術用 G.CONFIG.artScale） */
+  function frame(img, sx, sy, w, h, dx, dy, alpha = 1, flip = false, k = 1, tint = 0xffffff) {
     const s = take(pools.sorted);
-    s.texture = texOf(img, sx, sy, w, h); s.alpha = alpha;
-    s.scale.x = flip ? -1 : 1; s.scale.y = 1;
-    s.x = flip ? dx + w : dx; s.y = dy;
+    s.texture = texOf(img, sx, sy, w, h); s.alpha = alpha; s.tint = tint;
+    s.scale.x = flip ? -k : k; s.scale.y = k;
+    s.x = flip ? dx + w * k : dx; s.y = dy;
   }
   /** 依 y 排序層：畫整張圖 */
-  function image(img, dx, dy, alpha = 1, flip = false) { frame(img, 0, 0, img.width, img.height, dx, dy, alpha, flip); }
+  function image(img, dx, dy, alpha = 1, flip = false, k = 1) { frame(img, 0, 0, img.width, img.height, dx, dy, alpha, flip, k); }
+  /** 美術圖（縮成 artScale）：以腳底中心 (x, y) 為錨點 */
+  function art(img, x, y, alpha = 1, flip = false, tint) {
+    const k = G.CONFIG.artScale;
+    frame(img, 0, 0, img.width, img.height, x - img.width * k / 2, y - img.height * k, alpha, flip, k, tint);
+  }
 
   /** 程式畫的小貼圖（例如城門的各種狀態），依 key 快取，只在第一次用到時畫 */
   const drawn = new Map();
@@ -118,11 +147,13 @@ G.Render = (() => {
     return c;
   }
 
-  return {
-    init, begin, end, ground, shadow, zone, frame, image, canvasTex,
+  return { toWorld,
+    init, begin, end, ground, territory, shadow, zone, frame, image, art, canvasTex,
     get ctx() { return ctx; },
     get under() { return layers.under; },   // 地面上、影子下的 Graphics（每幀清空）：據點圈、武將光圈
-    get width() { return overlay.width; },
-    get height() { return overlay.height; },
+    /** 上層 canvas 改用螢幕座標（CSS px）畫：特寫、提示這類不跟鏡頭走的東西 */
+    screen() { ctx.setTransform(dpr, 0, 0, dpr, 0, 0); },
+    get width() { return innerWidth; },
+    get height() { return innerHeight; },
   };
 })();

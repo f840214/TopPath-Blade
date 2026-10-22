@@ -51,7 +51,8 @@ def recolor_red(im):
     for y in range(im.height):
         for x in range(im.width):
             r, g, b, a = px[x, y]
-            if a and b > r + 25 and b > g + 10:
+            # 只換飽和的藍色（布料）；偏藍的灰色鋼甲（飽和度低）保留，不然盔甲會變粉紅
+            if a and b > r + 25 and b > g + 10 and b - min(r, g) > 0.35 * b:
                 px[x, y] = (b, round(g * 0.5), r, a)
     return im
 

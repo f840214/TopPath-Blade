@@ -1,5 +1,5 @@
 /* ============ index.js — TopPath Blade 後端 ============
- * 一個程式同時提供：遊戲靜態檔案（只開放 index.html、css、js、lib、assets）＋ /api（帳號、存檔）。
+ * 一個程式同時提供：遊戲靜態檔案（只開放 index.html、sw.js、css、js、lib、assets）＋ /api（帳號、存檔）。
  * 環境變數：PORT（預設 8765）、DATABASE_URL（不設就用本機 PGlite）、PGLITE_DIR、COOKIE_SECURE=1（走 HTTPS 時）
  */
 import path from 'node:path';
@@ -9,25 +9,38 @@ import fastifyStatic from '@fastify/static';
 import fastifyCookie from '@fastify/cookie';
 import fastifyCompress from '@fastify/compress';
 import fastifyRateLimit from '@fastify/rate-limit';
+import fastifyWebsocket from '@fastify/websocket';
 import { openDb } from './db.js';
 import { hashPassword, verifyPassword, createSession, userFromToken, deleteSession, purgeExpiredSessions, checkCredentials, SESSION_COOKIE, SESSION_DAYS } from './auth.js';
-import { checkProfile } from './profile.js';
+import { loadGame } from './gamedata.js';
+import { createLive } from './live.js';
+import { registerGameApi } from './game-api.js';
+import { createBattles } from './battle-host.js';
+import { createWorldSim } from './world-sim.js';
+import { buildManifest } from './manifest.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PORT = +(process.env.PORT || 8765);
 
 const db = await openDb(ROOT);
+const game = await loadGame(ROOT);   // 伺服器重用遊戲的資料與名冊邏輯（gamedata.js）
+const live = createLive();
 const app = Fastify({ logger: { level: 'info' }, bodyLimit: 64 * 1024, trustProxy: true });
 
 await app.register(fastifyCompress);
 await app.register(fastifyCookie);
 await app.register(fastifyRateLimit, { global: false });
+await app.register(fastifyWebsocket, { options: { maxPayload: 16 * 1024, perMessageDeflate: true } });   // 壓縮：戰場狀態每秒 20 次，壓縮後小很多
 
 /* ---------- 靜態檔案：只開放遊戲需要的資料夾，server/、data/、.git 都不會被讀到 ---------- */
 // maxAge 0：瀏覽器每次都會向伺服器確認有沒有新版（沒變就回 304），改版後重新整理就拿到新檔
 for (const [i, dir] of ['css', 'js', 'lib', 'assets'].entries())
   await app.register(fastifyStatic, { root: path.join(ROOT, dir), prefix: `/${dir}/`, decorateReply: i === 0, maxAge: 0 });
 app.get('/', (req, reply) => reply.sendFile('index.html', ROOT));
+// service worker 要放在網站根目錄才管得到整個網站；它自己不能被快取，不然更新不到
+app.get('/sw.js', (req, reply) => reply.header('Cache-Control', 'no-cache').sendFile('sw.js', ROOT));
+// 檔案清單（js/core/assets.js 和 sw.js 用）
+app.get('/assets-manifest.json', async (req, reply) => reply.header('Cache-Control', 'no-store').send(await buildManifest(ROOT)));
 
 /* ---------- 帳號 ---------- */
 const cookieOpts = { path: '/', httpOnly: true, sameSite: 'lax', secure: process.env.COOKIE_SECURE === '1', maxAge: SESSION_DAYS * 86400 };
@@ -77,22 +90,22 @@ app.post('/api/logout', async (req, reply) => {
 
 app.get('/api/me', { preHandler: requireUser }, async req => ({ username: req.user.username }));
 
-/* ---------- 存檔 ---------- */
-app.get('/api/profile', { preHandler: requireUser }, async req => {
-  const { rows: [p] } = await db.query('SELECT data FROM profiles WHERE user_id = $1', [req.user.id]);
-  return { data: p ? p.data : null };
-});
+/* ---------- 存檔、名冊、出戰結算、城池歸屬（由伺服器決定，見 game-api.js） ---------- */
+// 大地圖共用的事：城池收入、糧食、北境聯軍（world-sim.js）
+const world = createWorldSim({ db, game, live });
+registerGameApi(app, { db, game, live, world, requireUser });
+// 同場戰鬥：伺服器跑戰鬥模擬（battle-host.js），訊息走同一條 WebSocket
+live.attach(await createBattles({ root: ROOT, game, live, db }));
 
-app.put('/api/profile', { preHandler: requireUser }, async (req, reply) => {
-  const data = req.body && req.body.data, bad = checkProfile(data);
-  if (bad) return reply.code(400).send({ error: bad });
-  await db.query(
-    `INSERT INTO profiles (user_id, data, updated_at) VALUES ($1, $2, now())
-     ON CONFLICT (user_id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()`, [req.user.id, JSON.stringify(data)]);
-  return { ok: true };
+/* ---------- 即時連線（live.js）：登入的 cookie 驗證 ---------- */
+app.get('/ws', { websocket: true }, async (socket, req) => {
+  const user = await userFromToken(db, req.cookies[SESSION_COOKIE]);
+  if (!user) return socket.close(4001, 'login');
+  const { rows: [p] } = await db.query('SELECT data FROM profiles WHERE user_id = $1', [user.id]);
+  live.join(socket, user, p && p.data);
 });
 
 /* ---------- 啟動 ---------- */
-for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, async () => { await app.close(); await db.close(); process.exit(0); });
+for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, async () => { live.close(); world.close(); await app.close(); await db.close(); process.exit(0); });
 await app.listen({ port: PORT, host: '0.0.0.0' });
 app.log.info(`資料庫：${db.kind}`);

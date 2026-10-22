@@ -4,15 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>TopPath Blade</title>
-<link rel="stylesheet" href="css/game.css?v=0.3">
+<link rel="stylesheet" href="css/game.css?v=0.8">
 </head>
 <body>
 <canvas id="game"></canvas>
 <canvas id="overlay"></canvas>
+<div id="light"></div>
+<div id="grade"></div>
 
+<div id="intro"><div class="introBox"><small id="introSub"></small><b id="introTitle"></b></div></div>
+<div id="hurt"></div>
 <div id="hud">
   <div id="heroPanel" class="pframe">
-    <img src="assets/portraits/hero.png" alt="" onerror="this.style.visibility='hidden'">
+    <img id="heroFace" src="assets/portraits/hero.png" alt="" onerror="this.style.visibility='hidden'">
     <div><b>主帥</b><div class="hp"><i id="hpFill"></i></div><small id="hpText"></small></div>
   </div>
   <div id="objective" class="pframe"></div>
@@ -20,81 +24,171 @@
   <div id="skills"></div>
   <div id="kills"></div>
   <div id="perf"></div>
-  <div id="keys">WASD 移動・J 普攻・K 格擋・Q/E/R 技能｜Tab 指揮對象・1 跟隨 2 駐守 3 進攻・F 陣型・Z/X 兵團技能｜G 開關城門（守城）・-/= 縮放・V 震動開關・Esc 回選單</div>
-  <div id="toast"></div>
+  <div id="supply" class="pframe"></div>
+  <div id="cmdBar" class="pframe" title="左鍵點地面：移動到那裡　右鍵：往那裡進攻"></div>
+</div>
+<div id="toast"></div>
+
+<!-- 城內介面（G.Town） -->
+<div id="townHud">
+  <div id="thHero" class="pframe"></div>
+  <div id="thCity" class="pframe"><div id="thCityInfo"></div><button type="button" id="miniToggle" title="小地圖（M）">▾</button><canvas id="thMini" width="220" height="137"></canvas></div>
+  <!-- 選單：資源、兵團、功能列收在一起，按按鈕或 Tab 展開 -->
+  <button type="button" id="thMenuBtn">☰ 選單<small>Tab</small></button>
+  <div id="thDrawer" class="pframe">
+  <div id="thRes"></div>
+  <div id="thSquads"></div>
+  <div id="thBar">
+    <button data-tb="recruit">部隊</button><button data-tb="hero">主角</button><button data-tb="smith">裝備</button><button data-tb="codex">圖鑑</button>
+    <button data-tb="drill">演習</button><button data-tb="gate">出城</button><button data-tb="help">說明</button><button data-tb="logout">登出</button>
+  </div>
+  </div>
+  <div id="chat"><div id="chatLog"></div><div class="chatRow"><input id="chatIn" maxlength="100" placeholder="按 / 聊天，Enter 送出" autocomplete="off"><small id="chatStatus">離線</small></div></div>
 </div>
 
-<div id="result"><div class="plate"><h2></h2><p></p></div><div class="report"></div><small>R 再打一次・Esc 回選單</small></div>
+<div id="result"><div class="resBanner"><div class="band"><i class="tail l"></i><i class="tail r"></i><h2></h2></div></div><p></p><div class="report"></div><div class="resBtns"></div></div>
 
 <div id="title">
   <canvas id="embers"></canvas>
   <div class="bar top"></div><div class="bar bottom"></div>
-  <div class="banner left"><i></i></div><div class="banner right"><i></i></div>
   <div class="logo">
+    <div class="crest"><i class="crRays"></i><span class="crWing l"><i></i><b></b><i></i></span><span class="crWing r"><i></i><b></b><i></i></span><svg class="crMedal" viewBox="0 0 200 200" aria-hidden="true"><defs><radialGradient id="crBg" cx=".5" cy=".42" r=".6"><stop offset="0" stop-color="#20242a"/><stop offset="1" stop-color="#0b0c0e"/></radialGradient><linearGradient id="crGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f1e3bd"/><stop offset=".5" stop-color="#c9a865"/><stop offset="1" stop-color="#7d6234"/></linearGradient></defs><g class="crBlades" fill="url(#crGold)" opacity=".85"><g transform="rotate(-38 100 100)"><rect x="97" y="-8" width="6" height="150" rx="2"/><rect x="84" y="138" width="32" height="6" rx="2"/><rect x="97" y="144" width="6" height="22"/><circle cx="100" cy="170" r="5"/></g><g transform="rotate(38 100 100)"><rect x="97" y="-8" width="6" height="150" rx="2"/><rect x="84" y="138" width="32" height="6" rx="2"/><rect x="97" y="144" width="6" height="22"/><circle cx="100" cy="170" r="5"/></g></g><circle cx="100" cy="100" r="66" fill="url(#crBg)"/><circle cx="100" cy="100" r="66" fill="none" stroke="url(#crGold)" stroke-width="4"/><circle cx="100" cy="100" r="58" fill="none" stroke="#c9a865" stroke-opacity=".45" stroke-width="1"/><g fill="#c9a865"><rect x="98" y="30" width="4" height="4" transform="rotate(0 100 100) rotate(45 100 32)"/><rect x="98" y="30" width="4" height="4" transform="rotate(30 100 100) rotate(45 100 32)"/><rect x="98" y="30" width="4" height="4" transform="rotate(60 100 100) rotate(45 100 32)"/><rect x="98" y="30" width="4" height="4" transform="rotate(90 100 100) rotate(45 100 32)"/><rect x="98" y="30" width="4" height="4" transform="rotate(120 100 100) rotate(45 100 32)"/><rect x="98" y="30" width="4" height="4" transform="rotate(150 100 100) rotate(45 100 32)"/><rect x="98" y="30" width="4" height="4" transform="rotate(180 100 100) rotate(45 100 32)"/><rect x="98" y="30" width="4" height="4" transform="rotate(210 100 100) rotate(45 100 32)"/><rect x="98" y="30" width="4" height="4" transform="rotate(240 100 100) rotate(45 100 32)"/><rect x="98" y="30" width="4" height="4" transform="rotate(270 100 100) rotate(45 100 32)"/><rect x="98" y="30" width="4" height="4" transform="rotate(300 100 100) rotate(45 100 32)"/><rect x="98" y="30" width="4" height="4" transform="rotate(330 100 100) rotate(45 100 32)"/></g></svg><svg class="emblem" viewBox="0 0 170 190" aria-hidden="true"><defs><clipPath id="emTc"><path d="M10 18 L82 58 L82 176 L64 176 L64 72 L10 44 Z M88 58 L160 18 L160 46 L88 86 Z M90 88.9 L100 83.3 L100 176 L90 176 Z M104 81.1 L114 75.5 L114 152 L104 152 Z M118 73.3 L128 67.8 L128 128 L118 128 Z M132 65.5 L142 60.0 L142 104 L132 104 Z"/></clipPath><linearGradient id="emTg" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".75"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs><path class="emShape" d="M10 18 L82 58 L82 176 L64 176 L64 72 L10 44 Z M88 58 L160 18 L160 46 L88 86 Z M90 88.9 L100 83.3 L100 176 L90 176 Z M104 81.1 L114 75.5 L114 152 L104 152 Z M118 73.3 L128 67.8 L128 128 L118 128 Z M132 65.5 L142 60.0 L142 104 L132 104 Z"/><g clip-path="url(#emTc)"><rect class="emSheen" x="-120" y="0" width="70" height="190" fill="url(#emTg)" transform="skewX(-20)"/></g></svg></div>
     <div class="plate"><h1 data-text="TopPath Blade">TopPath Blade</h1><p>千軍萬馬・攻城略地</p></div>
   </div>
-  <div class="press">◆ 按任意鍵開始 ◆</div>
-  <small class="ver">原型 v0.3</small>
+  <div class="press loading"><span id="loadText">載入中</span><i class="loadBar"><b id="loadFill"></b></i></div>
   <div class="flash"></div>
 </div>
 
 <div id="login">
   <div class="pframe loginBox">
-    <div class="menuHead"><h1>TopPath Blade</h1></div>
+    <div class="menuHead"><svg class="emblem small" viewBox="0 0 170 190" aria-hidden="true"><defs><clipPath id="emLc"><path d="M10 18 L82 58 L82 176 L64 176 L64 72 L10 44 Z M88 58 L160 18 L160 46 L88 86 Z M90 88.9 L100 83.3 L100 176 L90 176 Z M104 81.1 L114 75.5 L114 152 L104 152 Z M118 73.3 L128 67.8 L128 128 L118 128 Z M132 65.5 L142 60.0 L142 104 L132 104 Z"/></clipPath><linearGradient id="emLg" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".75"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs><path class="emShape" d="M10 18 L82 58 L82 176 L64 176 L64 72 L10 44 Z M88 58 L160 18 L160 46 L88 86 Z M90 88.9 L100 83.3 L100 176 L90 176 Z M104 81.1 L114 75.5 L114 152 L104 152 Z M118 73.3 L128 67.8 L128 128 L118 128 Z M132 65.5 L142 60.0 L142 104 L132 104 Z"/><g clip-path="url(#emLc)"><rect class="emSheen" x="-120" y="0" width="70" height="190" fill="url(#emLg)" transform="skewX(-20)"/></g></svg><h1>TopPath Blade</h1></div>
     <form id="loginForm">
       <label>帳號<input id="lgUser" autocomplete="username" maxlength="16" spellcheck="false"></label>
       <label>密碼<input id="lgPass" type="password" autocomplete="current-password" maxlength="128"></label>
       <div id="lgMsg"></div>
       <button type="submit" id="loginBtn">登入（Enter）</button>
       <button type="button" id="registerBtn" class="mini">註冊新帳號</button>
-      <small>帳號 2～16 個字（文字、數字、底線），密碼至少 8 個字</small>
+      <small>帳號 2～16 個字（文字、數字、底線），密碼至少 1 個字</small>
     </form>
+  </div>
+</div>
+
+<div id="create">
+  <div class="pframe createBox">
+    <div class="menuHead"><h1 id="crTitle">創建武將</h1></div>
+    <h3 class="ribbon">角色外觀</h3><div id="crLooks"></div>
+    <h3 class="ribbon">頭像</h3><div id="crPortraits"></div>
+    <div class="crFoot"><span id="crPick"></span><button type="button" id="crCancel" class="mini">取消</button><button type="button" id="crOk">確定</button></div>
+  </div>
+</div>
+
+<!-- 大地圖：佔領／管理城池（G.World）、旗幟編輯（G.Heraldry） -->
+<div id="cityDlg" class="dlg">
+  <div class="pframe dlgBox">
+    <div class="menuHead"><h1 id="cdTitle">佔領城池</h1></div>
+    <label class="field">城池名稱<input id="cdName" maxlength="8" spellcheck="false"></label>
+    <h3 class="ribbon">大地圖上的城堡樣子</h3><div id="cdArts"></div>
+    <h3 class="ribbon">旗幟</h3>
+    <div class="cdFlag"><canvas id="cdFlag" width="48" height="60"></canvas><button type="button" class="mini" id="cdEditFlag">編輯旗幟</button><small>旗幟是你自己的徽章，所有佔領的城池都會插上</small></div>
+    <div id="cdMsg"></div>
+    <div class="crFoot"><span></span><button type="button" id="cdOk" class="okBtn">確定</button></div>
+  </div>
+</div>
+<div id="flagDlg" class="dlg">
+  <div class="pframe dlgBox">
+    <div class="menuHead"><h1>旗幟</h1></div>
+    <div class="flWrap">
+      <canvas id="flPreview" width="96" height="120"></canvas>
+      <div class="flOpts">
+        <div class="flRow"><span>底色</span><div id="flBg"></div></div>
+        <div class="flRow"><span>第二色</span><div id="flFg"></div></div>
+        <div class="flRow"><span>分割</span><div id="flDiv"></div></div>
+        <div class="flRow"><span>圖案</span><div id="flIcon"></div></div>
+        <div class="flRow"><span>上傳</span><div><label class="mini upBtn">選擇圖片<input type="file" id="flFile" accept="image/png,image/jpeg,image/gif,image/webp"></label><small>圖片會縮成 32×40，原檔上限 2MB</small></div></div>
+      </div>
+    </div>
+    <div id="flMsg"></div>
+    <div class="crFoot"><button type="button" class="mini" id="flCancel">取消</button><button type="button" id="flOk" class="okBtn">確定</button></div>
   </div>
 </div>
 
 <div id="menu">
   <div class="pframe menuBox">
-    <div class="menuHead"><h1>TopPath Blade</h1><div id="userBar"></div></div>
-    <section><h3 class="ribbon">戰場</h3><div id="scenarios" class="row"></div></section>
-    <section><h3 class="ribbon">武將武器（決定技能）</h3><div id="weapons" class="row"></div></section>
-    <section class="two">
+    <div class="menuHead"><h1 id="panelTitle">TopPath Blade</h1><button class="mini" id="closePanel">離開（Esc）</button></div>
+    <!-- data-p：哪些面板會顯示這一段（城內建築的 role，見 G.Menu.openPanel） -->
+    <section data-p="drill"><h3 class="ribbon">演習戰場（不影響大地圖）</h3><div id="scenarios" class="row"></div>
+      <div class="row" id="fieldOrder"></div></section>
+    <section data-p="smith"><h3 class="ribbon">武將職業（決定武器與技能；外觀會換成這個職業的）</h3><div id="weapons" class="row"></div></section>
+    <section class="two" data-p="smith hero">
       <div><h3 class="ribbon">裝備</h3><div id="equip"></div></div>
-      <div><h3 class="ribbon">武將</h3><div id="heroInfo"></div></div>
+      <div><h3 class="ribbon">武將</h3><div id="heroInfo"></div><button type="button" class="mini" id="changeLook">更換外觀・頭像</button></div>
     </section>
-    <section><h3 class="ribbon">軍團名冊（勾選出戰，總統率不能超過上限）</h3><div id="roster"></div><div id="recruit" class="row"></div></section>
+    <section data-p="recruit drill"><h3 class="ribbon">軍團名冊（隨身：跟在武將身邊、到補給點換；配置：開戰時擺在戰場上，可以用滑鼠指揮）</h3><div id="roster"></div><div id="recruit" data-p="recruit"></div></section>
+    <section data-p="inn"><h3 class="ribbon">糧食</h3>
+      <p class="note" id="foodInfo"></p>
+      <div class="row" id="foodBuy"><button class="mini" data-food="50">買 50 份</button><button class="mini" data-food="100">買 100 份</button><button class="mini" data-food="500">買 500 份</button></div>
+    </section>
+    <section data-p="help"><h3 class="ribbon">操作</h3>
+      <div class="help">
+        <div><b>城內</b>WASD 走動；走到有名牌的建築門口按 Enter 進去（募兵處、鐵匠鋪、主堡、旅店、兵營、城門）；Esc 離開面板；-／= 縮放</div>
+        <div><b>大地圖</b>WASD 騎馬行軍；M 收起／展開小地圖；城門口按 Enter 進城或攻城；自己的城門口按 R 改城名、城堡樣子、旗幟；碰到強盜會打野戰</div>
+        <div><b>選單</b>Tab 或左上角「選單」展開資源、兵團和功能按鈕</div>
+        <div><b>聊天</b>按 / 開始打字，Enter 送出，Esc 取消</div>
+        <div><b>戰鬥</b>WASD 移動，靠近敵人自動普攻；Q／E／R 武將技能；指揮兵團用滑鼠：左下角選「隨身」或「配置」，左鍵點地面移動到那裡、右鍵往那裡進攻，按鈕可以下跟隨／進攻／駐守（也可以用 1 跟隨、2 駐守、3 進攻）；Tab 切換指揮哪一支隨身兵團；F 陣型；Z／X 兵團技能；T 在補給點換兵；B 指派攻城器械；G 開關城門（守城）；V 震動開關；Esc 撤退</div>
+      </div>
+    </section>
     <div id="menuMsg"></div>
-    <button id="startBtn">開戰（Enter）</button>
-    <section><h3 class="ribbon">兵種圖鑑・克制表</h3><div id="codex"></div></section>
+    <button id="startBtn" data-p="drill">開始演習（Enter）</button>
+    <section data-p="codex"><h3 class="ribbon">兵種圖鑑・克制表</h3><div id="codex"></div></section>
   </div>
 </div>
 
 <script src="lib/pixi.min.js?v=8.22.0"></script>
-<script src="js/data/config.js?v=0.3"></script>
+<script src="js/data/config.js?v=0.8"></script>
 <script src="js/core/util.js?v=0.3"></script>
+<script src="js/core/assets.js?v=0.8"></script>
 <script src="js/core/api.js?v=0.4"></script>
 <script src="js/core/input.js?v=0.3"></script>
 <script src="js/data/sprites-meta.js?v=0.3"></script>
-<script src="js/data/tiles.js?v=0.3"></script>
-<script src="js/data/units.js?v=0.3"></script>
-<script src="js/data/counters.js?v=0.3"></script>
+<script src="js/data/tiles.js?v=0.8"></script>
+<script src="js/data/road-tiles.js?v=0.8"></script>
+<script src="js/data/units.js?v=0.8"></script>
+<script src="js/data/counters.js?v=0.8"></script>
 <script src="js/data/formations.js?v=0.3"></script>
-<script src="js/data/skills.js?v=0.3"></script>
+<script src="js/data/skills.js?v=0.8"></script>
 <script src="js/data/heroes.js?v=0.3"></script>
-<script src="js/data/army.js?v=0.4"></script>
-<script src="js/data/veteran.js?v=0.4"></script>
-<script src="js/core/render.js?v=0.4"></script>
-<script src="js/core/sprites.js?v=0.3"></script>
-<script src="js/entities/fx.js?v=0.3"></script>
-<script src="js/entities/unit.js?v=0.3"></script>
-<script src="js/entities/hero.js?v=0.3"></script>
-<script src="js/world/map.js?v=0.3"></script>
-<script src="js/systems/combat.js?v=0.3"></script>
-<script src="js/systems/skills.js?v=0.3"></script>
-<script src="js/systems/ai.js?v=0.3"></script>
-<script src="js/systems/army.js?v=0.4"></script>
-<script src="js/ui/hud.js?v=0.3"></script>
-<script src="js/ui/menu.js?v=0.3"></script>
-<script src="js/game.js?v=0.3"></script>
+<script src="js/data/army.js?v=0.8"></script>
+<script src="js/data/veteran.js?v=0.8"></script>
+<script src="js/data/siege.js?v=0.8"></script>
+<script src="js/data/town.js?v=0.8"></script>
+<script src="js/data/town-main.js?v=0.9"></script>
+<script src="js/data/town-small.js?v=0.9"></script>
+<script src="js/data/world.js?v=0.8"></script>
+<script src="js/core/render.js?v=0.8"></script>
+<script src="js/core/sprites.js?v=0.8"></script>
+<script src="js/entities/fx.js?v=0.8"></script>
+<script src="js/entities/unit.js?v=0.8"></script>
+<script src="js/entities/hero.js?v=0.8"></script>
+<script src="js/world/nav.js?v=0.8"></script>
+<script src="js/world/world-ground.js?v=0.8"></script>
+<script src="js/world/map.js?v=0.8"></script>
+<script src="js/systems/combat.js?v=0.8"></script>
+<script src="js/systems/skills.js?v=0.8"></script>
+<script src="js/systems/ai.js?v=0.8"></script>
+<script src="js/systems/army.js?v=0.8"></script>
+<script src="js/systems/siege.js?v=0.8"></script>
+<script src="js/battle/sim.js?v=0.8"></script>
+<script src="js/ui/hud.js?v=0.8"></script>
+<script src="js/data/looks.js?v=0.8"></script>
+<script src="js/ui/menu.js?v=0.8"></script>
+<script src="js/ui/create.js?v=0.8"></script>
+<script src="js/ui/heraldry.js?v=0.8"></script>
+<script src="js/ui/daylight.js?v=0.8"></script>
+<script src="js/net/net.js?v=0.8"></script>
+<script src="js/net/remote.js?v=0.8"></script>
+<script src="js/scenes/town.js?v=0.8"></script>
+<script src="js/scenes/world.js?v=0.8"></script>
+<script src="js/game.js?v=0.8"></script>
 <script src="js/main.js?v=0.3"></script>
 </body>
 </html>

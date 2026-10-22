@@ -3,7 +3,7 @@
  * 把資料存在本機資料夾（預設專案根目錄的 data/pglite），不需要另外裝資料庫。
  * 兩種都提供 query(sql, params) → { rows } 和 exec(多行 SQL)。
  */
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import pg from 'pg';
 
@@ -15,6 +15,7 @@ export async function openDb(rootDir) {
   } else {
     const { PGlite } = await import('@electric-sql/pglite');
     const dir = process.env.PGLITE_DIR || path.join(rootDir, 'data', 'pglite');
+    await mkdir(dir, { recursive: true });   // 第一次跑時 data/ 還不存在，PGlite 不會建上層資料夾
     const lite = await PGlite.create(dir);
     db = { kind: `pglite (${dir})`, query: (sql, params) => lite.query(sql, params), exec: sql => lite.exec(sql), close: () => lite.close() };
   }

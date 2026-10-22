@@ -13,19 +13,20 @@ G.Hero = class {
     this.stats = st;
     this.level = level;
     this.maxHp = G.HERO_BASE.hp + st.hp + G.ARMY.heroHpPerLevel * (level - 1); this.hp = this.maxHp;
-    this.armor = G.HERO_BASE.armor + st.armor;
+    this.armor = G.HERO_BASE.armor + st.armor + (this.weapon.armor || 0);   // 劍盾本身多護甲
     this.atk = this.weapon.atk * (1 + st.atk / 100);
     this.cdr = Math.min(40, st.cdr) / 100;
     this.speed = G.HERO_BASE.speed; this.radius = G.HERO_BASE.radius;
     this.x = x; this.y = y; this.z = 0; this.vz = 0; this.vx = 0; this.vy = 0; this.kx = 0; this.ky = 0;
-    this.face = -Math.PI / 2; this.moving = false; this.blocking = false;
+    this.face = -Math.PI / 2; this.moving = false;
     this.anim = 'Idle'; this.animT = 0; this.action = null;   // action：正在播的一次性動作 { anim, until }
     this.cd = 0; this.skillCd = { Q: 0, E: 0, R: 0 };
     this.dash = null; this.whirl = 0; this.whirlTick = 0;
     this.stun = 0; this.flash = 0; this.dead = 0;
     this.type = 'hero';
   }
-  get sprite() { return this.weapon.sprite; }
+  /** 精靈圖：玩家選的外觀（look，見 js/data/looks.js），沒有就用武器預設的 */
+  get sprite() { return this.look || this.weapon.sprite; }
   skillKey(slot) { return this.weapon.skills[slot]; }
 
   doAction(anim, minDur = 0) {
@@ -37,16 +38,18 @@ G.Hero = class {
     const alpha = this.dead ? 0.5 : 1, y = this.y - this.z;
     G.Render.shadow(this.x, this.y, 9, 3.5, 0.3);
     // 腳下的主將光圈
-    G.Render.under.ellipse(this.x, this.y, 12, 4.5).stroke({ width: 1, color: this.team === 0 ? 0xffd25a : 0xe65046, alpha: 0.8 });
+    G.Render.under.ellipse(this.x, this.y, 12, 4.5).stroke({ width: 1, color: this.team === (G.viewTeam || 0) ? 0xffd25a : 0xe65046, alpha: 0.8 });
     let anim = 'Idle', t = 0;
     if (this.whirl > 0) { anim = 'Whirl'; t = this.animT; }
     else if (this.action) { anim = this.action.anim; t = this.animT; }
     else if (this.moving) { anim = 'Walk'; t = this.animT; }
     G.Sprites.draw(this.sprite, anim, this.face, t, this.x, y, { alpha, flash: this.flash });
-    // 格擋弧線畫在上層 canvas（ctx）
-    if (this.blocking) {
-      ctx.strokeStyle = 'rgba(150,210,255,0.9)'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(this.x, y - 14, 16, this.face - G.CONFIG.heroBlockArc, this.face + G.CONFIG.heroBlockArc); ctx.stroke();
+    // 頭上的名字（畫在上層 canvas）：我方金色、敵方紅色
+    if (this.name && !this.dead) {
+      ctx.font = 'bold 7px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      const ny = Math.round(y - (this.nameDy || 42));
+      ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillText(this.name, this.x + 0.6, ny + 0.6);
+      ctx.fillStyle = this.team === (G.viewTeam || 0) ? '#ffe28a' : '#ff9a8a'; ctx.fillText(this.name, this.x, ny);
     }
   }
 };

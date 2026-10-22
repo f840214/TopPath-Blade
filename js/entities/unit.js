@@ -69,14 +69,15 @@ G.Unit = class {
   play(anim) { if (this.anim !== anim) { this.anim = anim; this.animT = 0; } }
 
   draw(ctx) {
-    const red = this.team === 1, alpha = this.dead ? Math.max(0, 1 - this.dead / 1.2) : 1;
+    const red = this.team !== (G.viewTeam || 0), alpha = this.dead ? Math.max(0, 1 - this.dead / 1.2) : 1;
     const y = this.y - this.z;
     // 影子在 game.js 的 drawShadows 一次畫完
     const anim = this.moving ? 'Walk' : (this.anim === 'Attack' ? 'Attack' : 'Idle');
     const t = anim === 'Idle' ? 0 : this.animT;
-    // 騎兵沒有攻擊動畫，衝鋒時用奔跑代替
-    const a = this.def.mounted && anim === 'Attack' ? 'Walk' : anim;
-    G.Sprites.draw(this.def.sprite, a, this.face, t, this.x, y, { red, alpha, flash: this.flash });
+    // 美術還沒生成好的兵種用 base 的圖；沒有攻擊動畫的騎兵（衝鋒）用奔跑代替，騎射兵有射箭動畫
+    const sprite = G.SPRITE_META[this.def.sprite] ? this.def.sprite : this.def.base;
+    const a = this.def.mounted && anim === 'Attack' && !(G.SPRITE_META[sprite] && G.SPRITE_META[sprite].anims.Attack) ? 'Walk' : anim;
+    G.Sprites.draw(sprite, a, this.face, t, this.x, y, { red, alpha, flash: this.flash });
     // 下面這些畫在上層 canvas（ctx）
     if (this.stun > 0 && !this.dead) {
       ctx.fillStyle = '#ffe680';

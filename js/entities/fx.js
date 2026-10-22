@@ -4,10 +4,10 @@
  */
 G.FX = (() => {
   let parts = [], arcs = [], rings = [], texts = [], cutin = null;
-  let shake = 0, hitStop = 0;
+  let shake = 0, hitStop = 0, slow = null;   // slow：慢動作 { left, scale }
   const S = { shake: false };   // 設定：畫面震動開關（預設關，V 鍵可開）
 
-  function reset() { parts = []; arcs = []; rings = []; texts = []; cutin = null; shake = 0; hitStop = 0; }
+  function reset() { parts = []; arcs = []; rings = []; texts = []; cutin = null; shake = 0; hitStop = 0; slow = null; }
 
   /** 受擊火花＋塵土 */
   function hit(x, y, color = '#fff2b0', n = 6) {
@@ -41,12 +41,20 @@ G.FX = (() => {
   }
   function addShake(v) { if (S.shake) shake = Math.max(shake, v); }
   function addHitStop(v) { hitStop = Math.max(hitStop, v); }
+  /** 關鍵時刻的短暫慢動作（破門、破牆） */
+  function slowMo(dur, scale) { slow = { left: dur, scale }; }
+  /** 每幀用真實時間呼叫：回傳這幀遊戲時間要乘的倍率 */
+  function timeScale(dt) {
+    if (!slow) return 1;
+    if ((slow.left -= dt) <= 0) { slow = null; return 1; }
+    return slow.scale;
+  }
 
   /** 大招特寫：斜切的技能名稱帶＋立繪滑入 */
   function showCutin(name, portraitSrc) { cutin = { name, t: 0, life: 1.1, img: portraitSrc ? G.FX.portrait(portraitSrc) : null }; }
   const portraits = new Map();
   function portrait(src) {
-    if (!portraits.has(src)) { const i = new Image(); i.src = src; portraits.set(src, i); }
+    if (!portraits.has(src)) portraits.set(src, G.Assets.img(src));
     return portraits.get(src);
   }
 
@@ -112,39 +120,30 @@ G.FX = (() => {
   }
 
   /** 在螢幕座標系中畫（大招特寫） */
+  /** 大招特寫：左下角一小塊（頭像面向右、技能名稱），從左邊滑進來再淡出，不蓋住戰場 */
   function drawScreen(ctx, w, h) {
     if (!cutin) return;
-    const t = cutin.t, inK = Math.min(1, t / 0.18), outK = Math.max(0, (t - (cutin.life - 0.2)) / 0.2);
-    const k = inK * (1 - outK);
-    ctx.save();
-    ctx.fillStyle = `rgba(0,0,0,${0.35 * k})`; ctx.fillRect(0, 0, w, h);
-    // 斜切色帶
-    const cy = h * 0.45, bh = Math.min(140, h * 0.2), slide = (1 - inK) * -w + outK * w;
-    ctx.translate(slide, 0);
-    const grd = ctx.createLinearGradient(0, 0, w, 0);
-    grd.addColorStop(0, 'rgba(90,15,15,0.0)'); grd.addColorStop(0.15, 'rgba(110,20,20,0.92)'); grd.addColorStop(1, 'rgba(60,10,10,0.92)');
-    ctx.fillStyle = grd;
-    ctx.beginPath(); ctx.moveTo(0, cy - bh / 2 + 30); ctx.lineTo(w, cy - bh / 2 - 30); ctx.lineTo(w, cy + bh / 2 - 30); ctx.lineTo(0, cy + bh / 2 + 30); ctx.closePath(); ctx.fill();
-    // 火焰刀光
+    const t = cutin.t, inK = Math.min(1, t / 0.15), outK = Math.max(0, (t - (cutin.life - 0.25)) / 0.25), k = inK * (1 - outK);
+    const S = Math.min(150, h * 0.2), x = 16 - (1 - inK) * (S + 60), y = h - S - 110;
+    ctx.save(); ctx.globalAlpha = k;
+    // 底：深色、淡金細框，往右淡出
+    const grd = ctx.createLinearGradient(x, 0, x + S * 2.6, 0);
+    grd.addColorStop(0, 'rgba(10,10,12,0.88)'); grd.addColorStop(0.7, 'rgba(10,10,12,0.75)'); grd.addColorStop(1, 'rgba(10,10,12,0)');
+    ctx.fillStyle = grd; ctx.fillRect(x, y, S * 2.6, S);
+    ctx.fillStyle = 'rgba(214,189,134,0.8)'; ctx.fillRect(x, y, S * 2.2, 1); ctx.fillRect(x, y + S - 1, S * 2.2, 1);
+    // 頭像（圖本身就是面向右，朝著戰場）
+    if (cutin.img && cutin.img.complete && cutin.img.naturalWidth) { ctx.imageSmoothingEnabled = false; ctx.drawImage(cutin.img, x, y, S, S); }
+    // 技能名稱：金色，旁邊一道短的刀光
     ctx.globalCompositeOperation = 'lighter';
-    for (const [lw, c] of [[22, 'rgba(255,90,20,0.45)'], [12, 'rgba(255,170,60,0.8)'], [4, 'rgba(255,250,220,1)']]) {
-      ctx.strokeStyle = c; ctx.lineWidth = lw;
-      ctx.beginPath(); ctx.arc(w * 0.62, cy + 10, bh * 0.85, Math.PI * 0.55, Math.PI * 1.35); ctx.stroke();
-    }
+    ctx.strokeStyle = 'rgba(255,170,60,0.7)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x + S + 10, y + S * 0.72); ctx.lineTo(x + S + 10 + S * 1.1 * inK, y + S * 0.72); ctx.stroke();
     ctx.globalCompositeOperation = 'source-over';
-    // 立繪
-    if (cutin.img && cutin.img.complete && cutin.img.naturalWidth) {
-      const ih = bh * 2.1, iw = ih * cutin.img.naturalWidth / cutin.img.naturalHeight;
-      ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(cutin.img, w * 0.66, cy - ih * 0.62, iw, ih);
-    }
-    // 技能名稱
-    ctx.fillStyle = '#f6e3c0'; ctx.font = `bold ${Math.round(bh * 0.42)}px "PingFang TC", "Noto Serif TC", serif`;
-    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 8;
-    ctx.fillText(cutin.name, w * 0.12, cy + 4);
+    ctx.fillStyle = '#e8d8ae'; ctx.font = `600 ${Math.round(S * 0.3)}px "Noto Serif TC", "Songti TC", serif`;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.shadowColor = 'rgba(0,0,0,0.8)'; ctx.shadowBlur = 6;
+    ctx.fillText(cutin.name, x + S + 14, y + S * 0.45);
     ctx.restore();
   }
 
-  return { S, reset, hit, blood, dust, embers, slash, ring, number, addShake, addHitStop, showCutin, portrait, update, shakeOffset, drawWorld, drawScreen };
+
+  return { S, reset, hit, blood, dust, embers, slash, ring, number, addShake, addHitStop, slowMo, timeScale, showCutin, portrait, update, shakeOffset, drawWorld, drawScreen };
 })();

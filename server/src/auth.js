@@ -45,9 +45,9 @@ export async function deleteSession(db, token) {
 
 export const purgeExpiredSessions = db => db.query('DELETE FROM sessions WHERE expires_at <= now()');
 
-/** 帳號：2～16 個字（中英文、數字、底線）；密碼：8～128 個字 */
+/** 帳號：2～16 個字（中英文、數字、底線）；密碼：1～128 個字 */
 export function checkCredentials(username, password) {
   if (typeof username !== 'string' || !/^[\p{L}\p{N}_]{2,16}$/u.test(username)) return '帳號要 2～16 個字，只能用文字、數字、底線';
-  if (typeof password !== 'string' || password.length < 8 || password.length > 128) return '密碼要 8～128 個字';
+  if (typeof password !== 'string' || password.length < 1 || password.length > 128) return '密碼要 1～128 個字';
   return null;
 }

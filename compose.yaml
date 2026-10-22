@@ -8,6 +8,7 @@ services:
     volumes:
       - ./data:/app/data          # 帳號與存檔（PGlite）存在主機的 data/ 資料夾，重建容器也不會不見
     environment:
+      PORT: "8765"                 # 容器內的 port（對外是上面的 8899）
       # 架在 HTTPS 後面（反向代理）時打開，登入 cookie 只走加密連線
       # COOKIE_SECURE: "1"
       # 之後玩家多了要換成獨立的 PostgreSQL：設定連線字串即可，程式不用改

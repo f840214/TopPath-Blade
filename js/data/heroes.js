@@ -1,16 +1,53 @@
 /* ============ heroes.js — 武將武器（決定技能組）與裝備 ============ */
 G.WEAPONS = {
   sword: {
-    name: '長劍', sprite: 'hero_sword',
+    name: '長劍', sprite: 'look_templar',
     atk: 30, range: 34, arc: 1.6, atkCd: 0.45,
     skills: { Q: 'spin', E: 'dash', R: 'warcry' },
     desc: '出手快，技能偏機動與指揮。',
   },
   glaive: {
-    name: '長柄刀', sprite: 'hero_glaive',
+    name: '長柄刀', sprite: 'look_han_general',
     atk: 40, range: 44, arc: 2.4, atkCd: 0.75,
     skills: { Q: 'sweep', E: 'launch', R: 'whirl' },
     desc: '出手慢但範圍大，擅長清兵。',
+  },
+  // sprite 是沒選外觀時用的圖（綁定這個職業的第一個外觀，js/data/looks.js 的 weapon）
+  shield: {
+    name: '劍盾', sprite: 'look_knight', armor: 6,
+    atk: 28, range: 32, arc: 1.4, atkCd: 0.5,
+    skills: { Q: 'bash', E: 'guard', R: 'rally' },
+    desc: '最耐打：本身護甲 +6；盾擊暈眩、舉盾減傷，大招鼓舞全軍。',
+  },
+  nodachi: {
+    name: '野太刀', sprite: 'look_samurai',
+    atk: 46, range: 40, arc: 1.8, atkCd: 0.6,
+    skills: { Q: 'iai', E: 'tsubame', R: 'kishin' },
+    desc: '單體爆發高：居合一閃穿過敵陣，大招強化自己。',
+  },
+  pike: {
+    name: '長槍', sprite: 'look_ashigaru_taisho',
+    atk: 34, range: 60, arc: 0.7, atkCd: 0.6,
+    skills: { Q: 'pierce', E: 'pikesweep', R: 'lancecharge' },
+    desc: '攻擊距離最長但範圍窄；直線穿刺、衝鋒破陣。',
+  },
+  musket: {
+    name: '火槍', sprite: 'look_ming_officer',
+    atk: 60, range: 300, arc: 0.3, atkCd: 1.6, ranged: { speed: 900, flat: true },
+    skills: { Q: 'buckshot', E: 'roll', R: 'snipe' },
+    desc: '遠程：一發傷害高、裝填慢；近身用散彈，大招遠距狙擊。',
+  },
+  maul: {
+    name: '戰錘', sprite: 'look_jarl',
+    atk: 54, range: 38, arc: 2.0, atkCd: 0.95,
+    skills: { Q: 'quake', E: 'ram', R: 'hammerwhirl' },
+    desc: '又慢又重：震地暈眩一圈、衝撞撞飛，大招旋錘。',
+  },
+  longbow: {
+    name: '長弓', sprite: 'look_mongol',
+    atk: 28, range: 340, arc: 0.3, atkCd: 0.85, ranged: { speed: 420 },
+    skills: { Q: 'pierceshot', E: 'arrowrain', R: 'firerain' },
+    desc: '遠程：射得遠、射得快；穿透箭、箭雨，大招火雨。',
   },
 };
 

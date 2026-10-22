@@ -5,7 +5,7 @@ WORKDIR /app
 COPY server/package.json server/package-lock.json server/
 RUN npm ci --omit=dev --prefix server
 COPY server/src/ server/src/
-COPY index.html ./
+COPY index.html sw.js ./
 COPY css/ css/
 COPY js/ js/
 COPY lib/ lib/

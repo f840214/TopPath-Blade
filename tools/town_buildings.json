@@ -1,0 +1,32 @@
+{
+  "_note": "PixelLab create_map_object, view=high top-down, detail=high detail, outline/shading default. Downloaded, cropped to alpha bbox, then uniform grade (mean sat<=0.40 then x0.92, mean value<=0.46). keep_grand: white/grey bg flood-filled out, wings widened by duplicating wall bands (x100-145, x225-270), banner copied to 4 wall spots.",
+  "template": "front view, high top-down, flat front facade facing camera, roof visible above the facade, no side walls, {subject}, door at bottom center, medieval European town, muted slightly desaturated colors, light from top-left",
+  "objects": {
+    "house_stone1": "6880b58a-965e-43e8-bed5-0585c60d750b",
+    "house_timber1": "b47013f4-730f-433b-b628-6b2f8428c4e9",
+    "house_tall1": "7efd12e1-b147-44aa-9e62-ed7885033492",
+    "house_shop1": "9fee3570-bb0c-4ed8-aadd-53391eb2f66c",
+    "house_thatch1": "aad46922-c5db-4cbd-a9b0-c6abd0f2dbdc",
+    "house_brick1": "b8d6f08c-217a-406e-99cd-1cb1dc451476",
+    "house_turret1": "d9e22660-22f8-467d-b9eb-f604dee5c04c",
+    "granary": "1a160f91-7340-4b01-a4d8-b2aefcb18b66",
+    "chapel": "3222782c-c41d-43dc-a37b-6a4a2174395d",
+    "guildhall": "19d906aa-72a3-4943-84e9-d54be033671f",
+    "keep_grand": "9d7d0d71-f635-466a-be15-67adb7dc1fbd",
+    "keep_lotr": "ae4d0209-c458-4f9d-b270-624a26aa1e9d",
+    "keep_lotr_alt1": "31a793b1-56b4-41b8-93e7-b52ec2d1a4db",
+    "keep_lotr_alt2": "63300d35-58b4-4303-870d-e3259733e94b",
+    "keep_lotr_alt3": "3253f0aa-caca-4e01-a06e-e7d061a5c4b9",
+    "keep_chambord_wing": "9347a1ea-ebf5-41a3-85ba-0cf78b452c8f",
+    "keep_chambord_donjon": "7db8aa8a-be2f-482b-a091-d6681a586424"
+  },
+  "world_objects": {
+    "_note": "assets/world/. create_map_object 144x128 (castle_white 176x160), high top-down, high detail; prompt 'world map icon, high top-down three-quarter view, {subject}, detailed stone texture, dark outlines, no ground tile, no base, muted slightly desaturated colors, light from top-left'. Cropped + same grade (sat only).",
+    "castle_stone": "90e26a16-0f39-4da9-aca4-629133686f18",
+    "castle_east": "abee854f-6bf3-4ae5-a225-f9e6c758c9ed",
+    "castle_north": "d05e7af8-0a51-4545-8490-370028dbe53f",
+    "castle_white": "79d68f85-f929-4a5a-a14d-0bd603b85170"
+  },
+  "_note_keep_lotr": "400x400 generations had grey bg: flood-filled out (border-mode color, tol 18), specks <40px removed, saturation x0.92 (value untouched).",
+  "_note_keep_chambord": "keep_chambord.png 1020x497 stitched by PIL from 2 create_map_object 400x400 pieces (same template, Chambord wording): donjon widened (dup x65-88 strips), +2 floors (dup rows 223-251), lantern lengthened, extra chimneys copied onto roof; wing piece cut into corner tower x0-62 / 2-bay unit x162-215 / pavilion x120-140 / end tower x244-296, mirrored. Back row = wings full width behind donjon, front row = 800px range with door at bottom center. Grey bg flood-filled, then gradient-map on luminance (55%) + desat x0.55 (45%) to unify the two pieces' palettes, sat x0.92. Rejected: aa25b7a3, f2b01c09 (drew sky+grass), 5390d0ba (cream, unused)."
+}

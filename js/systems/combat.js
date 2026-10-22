@@ -22,19 +22,23 @@ G.Combat = (() => {
    */
   function damage(att, def, base, o = {}) {
     if (!def || def.dead) return 0;
+    if (def.engine) return G.Siege.damage(att, def, base, o);   // 攻城器械
     let dmg = base;
     if (!att.isHero && !def.isHero && !o.noCounter) dmg *= G.counterMul(att.type, def.type);
     if (!o.fire) dmg *= sideMul(att, def);
-    if (att.squad) dmg *= att.squad.atkMul(G.Game.time) * att.squad.skillMod('vsMul', def.type, 1);   // 老兵：對特定兵種加傷
+    if (att.squad) dmg *= att.squad.atkMul(G.Battle.time) * att.squad.skillMod('vsMul', def.type, 1) * (att.squad.morale < 50 ? 0.85 : 1);   // 士氣低打得沒力   // 老兵：對特定兵種加傷
+    // 地形：躲在樹林裡的吃遠程傷害少；站在高地上射下來的傷害高
     if (o.ranged) {
+      const tDef = G.Map.terrainAt(def.x, def.y), tAtt = G.Map.terrainAt(att.x, att.y);
+      if (tDef === 'forest') dmg *= 0.6;
+      if (tAtt === 'hill' && tDef !== 'hill') dmg *= 1.2;
       if (def.squad) dmg *= def.squad.fm.rangedTakenMul || 1;
       if (def.def && def.def.frontRangedMul && isFront(att, def))
         dmg *= (def.squad.fx.shieldwall > 0 ? G.UNIT_SKILLS.shieldwall.frontRangedMul : def.def.frontRangedMul) * def.squad.mod('frontRangedMul', 1);
     } else if (def.squad && def.squad.fx.shieldwall > 0 && isFront(att, def)) dmg *= G.UNIT_SKILLS.shieldwall.meleeTakenMul;
-    if (def.isHero && def.blocking && G.U.angDiff(Math.atan2(att.y - def.y, att.x - def.x), def.face) < C().heroBlockArc) {
-      dmg *= 1 - C().heroBlockReduction;
-      G.FX.hit(def.x, def.y - 14, '#bfe3ff', 3);
-    }
+    // 武將自己的強化（鬼神）、舉盾減傷
+    if (att.isHero && att.buff && att.buff.until > G.Battle.time) dmg *= att.buff.atkMul;
+    if (def.isHero && def.guard > 0) dmg *= def.guardS.takenMul;
     dmg *= C().armorK / (C().armorK + (def.armor || 0));
     def.hp -= dmg; def.flash = 0.12;
     if (o.knock) knock(def, att.x, att.y, o.knock);
@@ -56,6 +60,14 @@ G.Combat = (() => {
 
   function kill(u, by) {
     u.hp = 0; u.dead = 0.001;
+    // 士氣：自己兵團有人倒下會掉（小兵團掉得多），擊殺的兵團加一點；武將倒下全軍士氣大跌、敵軍士氣上升
+    if (u.squad) u.squad.morale = (u.squad.morale ?? 100) - 140 / u.squad.def.count;
+    if (by && by.squad) by.squad.morale = Math.min(100, (by.squad.morale ?? 100) + 1);
+    if (u.isHero) {
+      for (const s of G.Battle.squadsOf(u.team)) s.morale = (s.morale ?? 100) - 25;
+      for (const s of G.Battle.squadsOf(1 - u.team)) s.morale = Math.min(100, (s.morale ?? 100) + 8);
+      G.Battle.notify(null, `${u.name || '武將'} 倒下了！`);
+    }
     if (by) {
       stats.kills[by.team]++;
       if (by.squad) by.squad.kills = (by.squad.kills || 0) + 1;   // 兵團經驗（G.Army.settle）
@@ -69,8 +81,9 @@ G.Combat = (() => {
   /** 箭：target 是單位就追蹤；area 是落點（範圍箭） */
   function arrow(att, target, o = {}) {
     const sx = att.x, sy = att.y - 16, tx = o.area ? o.area.x : target.x, ty = o.area ? o.area.y : target.y;
-    const d = Math.hypot(tx - sx, ty - sy), speed = att.def.ranged.speed;
-    projectiles.push({ att, target: o.area ? null : target, sx, sy, tx, ty, t: 0, dur: d / speed, arc: Math.min(60, d * 0.25), area: o.area, base: o.base ?? att.def.atk, fire: o.fire });
+    const R = o.ranged || att.def.ranged, d = Math.hypot(tx - sx, ty - sy), speed = R.speed;   // o.ranged：武將射擊時給（武將沒有 def）
+    // flat：子彈、弩箭幾乎直線飛；splash：炸彈落地爆炸
+    projectiles.push({ att, target: o.area ? null : target, sx, sy, tx, ty, t: 0, dur: d / speed, arc: R.flat ? 3 : Math.min(60, d * 0.25), area: o.area, base: o.base ?? (att.def ? att.def.atk : att.atk), fire: o.fire, splash: R.splash, kind: R.splash ? 'bomb' : R.flat ? 'bolt' : 'arrow' });
   }
 
   function updateProjectiles(dt, units) {
@@ -82,8 +95,11 @@ G.Combat = (() => {
         if (p.fire) {
           zones.push({ x: p.tx, y: p.ty, r: p.fire.radius, t: 0, dur: p.fire.dur, dps: p.fire.dps, team: p.att.team, att: p.att });
           G.FX.embers(p.tx, p.ty, 16, 20);
+        } else if (p.splash) {
+          G.Battle.forEachFoe(p.att.team, p.tx, p.ty, p.splash, o => damage(p.att, o, p.base, { ranged: true, knock: 8 }));
+          G.FX.embers(p.tx, p.ty, 8, 10); G.FX.dust(p.tx, p.ty, 4); G.FX.ring(p.tx, p.ty, p.splash, 'rgba(255,170,80,0.8)', 0.3);
         } else if (p.area) {
-          const hit = G.Game.nearestFoe(p.att.team, p.tx, p.ty, 10);
+          const hit = G.Battle.nearestFoe(p.att.team, p.tx, p.ty, 10);
           if (hit) damage(p.att, hit, p.base, { ranged: true });
         } else if (p.target && !p.target.dead && Math.hypot(p.target.x - p.tx, p.target.y - p.ty) < 12) {
           damage(p.att, p.target, p.base, { ranged: true });
@@ -112,10 +128,15 @@ G.Combat = (() => {
       const k = Math.min(1, p.t / p.dur), x = p.sx + (p.tx - p.sx) * k, y = p.sy + (p.ty - p.sy) * k - Math.sin(k * Math.PI) * p.arc;
       const k2 = Math.min(1, k + 0.04), x2 = p.sx + (p.tx - p.sx) * k2, y2 = p.sy + (p.ty - p.sy) * k2 - Math.sin(k2 * Math.PI) * p.arc;
       const a = Math.atan2(y2 - y, x2 - x);
-      ctx.strokeStyle = p.fire ? '#ff8a2a' : '#3b2a1a';
+      if (p.kind === 'bomb') { ctx.fillStyle = '#222'; ctx.fillRect(Math.round(x - 2), Math.round(y - 2), 4, 4); ctx.fillStyle = '#ffb347'; ctx.fillRect(Math.round(x + 1), Math.round(y - 3), 1, 1); continue; }
+      ctx.strokeStyle = p.fire ? '#ff8a2a' : p.kind === 'bolt' ? '#e8d8a0' : '#3b2a1a';
       ctx.beginPath(); ctx.moveTo(x - Math.cos(a) * 5, y - Math.sin(a) * 5); ctx.lineTo(x + Math.cos(a) * 3, y + Math.sin(a) * 3); ctx.stroke();
     }
   }
 
-  return { stats, reset, damage, knock, kill, arrow, isFront, updateProjectiles, drawGround, drawAir };
+  /** 同場戰鬥：瀏覽器不跑模擬，直接用伺服器送來的投射物、燃燒區來畫；advance 讓箭在兩次狀態之間繼續飛 */
+  function mirror(p, z) { projectiles = p; zones = z; }
+  function advance(dt) { for (const p of projectiles) p.t += dt; for (const z of zones) z.t += dt; }
+  return { stats, reset, damage, knock, kill, arrow, isFront, updateProjectiles, drawGround, drawAir, mirror, advance,
+    get projectiles() { return projectiles; }, get zones() { return zones; } };
 })();

@@ -21,3 +21,15 @@ CREATE TABLE IF NOT EXISTS profiles (
   data       JSONB,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- 大地圖上被玩家佔領的城池（所有玩家共用）；沒有資料的城池是空城
+CREATE TABLE IF NOT EXISTS world_cities (
+  city_id    TEXT PRIMARY KEY,
+  owner_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  city_name  TEXT NOT NULL,
+  art        TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 城池收入：上次領收入的時間（world-sim.js）
+ALTER TABLE world_cities ADD COLUMN IF NOT EXISTS collected_at TIMESTAMPTZ NOT NULL DEFAULT now();

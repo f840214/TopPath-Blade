@@ -74,3 +74,34 @@ G.VETERAN = {
   ],
 };
 G.VETERAN_RESET_COST = 50;
+
+/* 新兵種（v0.6）的老兵樹：「攻勢」強化第一個技能和攻擊，「堅守」強化第二個技能和生存；
+ * 遠程把攻擊換成射程、騎兵換成移速。之後要做專屬分支再一個一個寫。 */
+(() => {
+  const skillNode = (k, tag) => {
+    const S = G.UNIT_SKILLS[k], n = S.name;
+    return S.dur ? { name: `${tag}${n}`, desc: `${n}持續 +2 秒`, mod: { durAdd: { [k]: 2 } } }
+      : S.dmgMul ? { name: `重${n}`, desc: `${n}傷害 +30%`, mod: { dmgMul: { [k]: 1.3 } } }
+      : { name: `快${n}`, desc: `${n}冷卻 -20%`, mod: { cdMul: { [k]: 0.8 } } };
+  };
+  for (const [key, u] of Object.entries(G.UNITS)) {
+    if (G.VETERAN[key]) continue;
+    const [s1, s2] = u.skills, ranged = !!u.ranged, mounted = !!u.mounted;
+    G.VETERAN[key] = [
+      { name: '攻勢', nodes: [
+        { name: '銳鋒', desc: '攻擊 +6%', mod: { atkMul: 1.06 } },
+        skillNode(s1, '久'),
+        ranged ? { name: '遠射', desc: '射程 +12%', mod: { rangeMul: 1.12 } } : mounted ? { name: '疾馳', desc: '移速 +8%', mod: { speedMul: 1.08 } } : { name: '猛攻', desc: '攻擊 +6%', mod: { atkMul: 1.06 } },
+        { name: '老練', desc: '攻擊 +6%', mod: { atkMul: 1.06 } },
+        { name: `快${G.UNIT_SKILLS[s1].name}`, desc: `${G.UNIT_SKILLS[s1].name}冷卻 -30%`, mod: { cdMul: { [s1]: 0.7 } } },
+      ] },
+      { name: '堅守', nodes: [
+        { name: '厚甲', desc: '護甲 +2', mod: { armor: 2 } },
+        { name: '堅韌', desc: '生命 +10%', mod: { hpMul: 1.1 } },
+        skillNode(s2, '長'),
+        { name: '鐵骨', desc: '生命 +10%', mod: { hpMul: 1.1 } },
+        { name: `快${G.UNIT_SKILLS[s2].name}`, desc: `${G.UNIT_SKILLS[s2].name}冷卻 -30%`, mod: { cdMul: { [s2]: 0.7 } } },
+      ] },
+    ];
+  }
+})();

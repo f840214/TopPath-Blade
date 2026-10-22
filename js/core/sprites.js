@@ -14,9 +14,8 @@ G.Sprites = (() => {
   function load(src) {
     let rec = imgs.get(src);
     if (rec) return rec;
-    rec = { img: new Image(), ready: false };
-    rec.img.onload = () => rec.ready = true;
-    rec.img.src = src;
+    const img = G.Assets.img(src);
+    rec = { img, get ready() { return img.complete && img.naturalWidth > 0; } };
     imgs.set(src, rec);
     return rec;
   }
@@ -43,15 +42,6 @@ G.Sprites = (() => {
     return null;
   }
 
-  /** 先把所有圖排進下載，避免開打時才閃現 */
-  function preload() {
-    for (const [sprite, m] of Object.entries(G.SPRITE_META))
-      for (const a of Object.keys(m.anims)) {
-        load(`assets/units/${sprite}/${a}.png`);
-        if (m.red) load(`assets/units/${sprite}/red/${a}.png`);
-      }
-  }
-
   /** 動畫長度（秒），一次性動畫用來判斷播完沒 */
   function duration(sprite, anim) { const a = animOf(sprite, anim); return a ? a.n / a.fps : 0; }
 
@@ -66,12 +56,27 @@ G.Sprites = (() => {
     if (!rec.ready) return a;
     let f = Math.floor(t * a.fps);
     f = a.loop ? f % a.n : Math.min(f, a.n - 1);
-    const row = a.dirs === 1 ? 0 : G.U.dirRow(angle);
-    const dx = Math.round(x - a.ax), dy = Math.round(y - a.ay), alpha = o.alpha ?? 1;
-    G.Render.frame(rec.img, f * a.w, row * a.h, a.w, a.h, dx, dy, alpha);
-    if (o.flash > 0) G.Render.frame(white(rec.img), f * a.w, row * a.h, a.w, a.h, dx, dy, Math.min(1, o.flash * 6) * alpha);
+    const row = a.dirs === 1 ? 0 : G.U.dirRow(angle), k = G.CONFIG.artScale;   // 精靈圖是遊戲座標的 1.5 倍大
+    const dx = x - a.ax * k, dy = y - a.ay * k, alpha = o.alpha ?? 1;
+    G.Render.frame(rec.img, f * a.w, row * a.h, a.w, a.h, dx, dy, alpha, false, k);
+    if (o.flash > 0) G.Render.frame(white(rec.img), f * a.w, row * a.h, a.w, a.h, dx, dy, Math.min(1, o.flash * 6) * alpha, false, k);
     return a;
   }
 
-  return { preload, draw, duration, animOf };
+  /** 兵種／武將的小圖示（Idle 朝南第一格、裁掉透明邊，放大 k 倍的 data URL，選單用）；圖還沒載好回傳空字串 */
+  const icons = new Map();
+  function icon(sprite, k = 2) {
+    const id = sprite + k; if (icons.has(id)) return icons.get(id);
+    const m = G.SPRITE_META[sprite], a = m && m.anims.Idle, im = a && G.Assets.img(`assets/units/${sprite}/Idle.png`);
+    if (!im || !im.complete || !im.naturalWidth) return '';
+    const c = document.createElement('canvas'); c.width = a.w; c.height = a.h;
+    const g = c.getContext('2d'); g.drawImage(im, 0, 0, a.w, a.h, 0, 0, a.w, a.h);
+    const d = g.getImageData(0, 0, a.w, a.h).data; let x0 = a.w, y0 = a.h, x1 = 0, y1 = 0;
+    for (let y = 0; y < a.h; y++) for (let x = 0; x < a.w; x++) if (d[(y * a.w + x) * 4 + 3] > 8) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    const w = x1 - x0 + 1, h = y1 - y0 + 1, o = document.createElement('canvas'); o.width = w * k; o.height = h * k;
+    const og = o.getContext('2d'); og.imageSmoothingEnabled = false; og.drawImage(c, x0, y0, w, h, 0, 0, w * k, h * k);
+    const url = o.toDataURL(); icons.set(id, url); return url;
+  }
+
+  return { draw, duration, animOf, icon };
 })();
