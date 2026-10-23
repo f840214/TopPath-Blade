@@ -98,3 +98,21 @@ description: TopPath Blade 開發時踩過的坑與對應做法：瀏覽器測�
 - **外圍山壁、高地岩壁走得進去**：碰撞只擋錨點（馬蹄中間），要再多擋半匹馬寬；岩壁整面都要擋（以前只擋一排，從斜坡走一半往旁邊就上去了）。看起來「走進山裡」也可能是排序線（sort）比碰撞線低，人被岩壁蓋住。
 - **Windows 開發**：Python 用 python.org 的版本（winget），讀寫一律 `encoding='utf-8'`；專案檔有的是 CRLF，用 Python 做多行字串替換會對不到，改用 Edit。用 sed 插註解時小心把後面的程式也變成註解。
 - **測試多人**：兩個分頁一個 localhost、一個 127.0.0.1。背景分頁的遊戲迴圈不跑：用 `G.Net.answer()`、`G.Net.attackCity()`、`G.Net.send({ t: 'b.in', … })` 代替按鍵。開場要等頁面載完再按 Enter（太早按會變成沒登入）。
+
+## 9. 2026-10-23 新踩的坑
+
+- **Windows 上 `python`、`python3` 是 WindowsApps 的空殼**：執行後什麼都沒做、還回傳 0（或 49），看起來像成功。用 `py -3`，而且加 `PYTHONUTF8=1`（不然 `tools/town_main.py` 用 cp950 寫檔，中文全變亂碼）：`PYTHONUTF8=1 py -3 tools/town_main.py .`
+- **Git Bash 的 heredoc 會吃掉反斜線**：寫進檔案的 regex（`\s`、`\/`）會變成 `s`、`/`。含反斜線的程式碼用 Edit 改，或改完跑 `node --check` 確認。
+- **測試伺服器重啟太快，PGlite 壞掉**（`could not open file "base/5/6104"`）：舊的 node 還沒完全關掉，新的就開同一個資料夾。強制關掉後等幾秒；壞了就把暫存資料夾換一個新的。
+- **測試戰鬥要先跳過部署階段**：開戰後有 20～30 秒部署（電腦不動、不判勝負、玩家被限制在自己這一側）。無畫面測試在 `G.Battle.setup()` 之後設 `G.Battle.deployT = 0`。
+- **新帳號登入要走開場畫面**：只呼叫 `G.Menu.open()` 不會連 WebSocket（`G.Net.start` 在登入流程裡）。測試時頁面載完 2 秒後 `dispatchEvent(new KeyboardEvent('keydown', { code: 'Enter' }))`，再處理創角視窗（`#crLooks button`、`#crPortraits button`、`#crOk`）。
+- **存檔一律用 `profiles.edit(uid, fn)` 改**（server/src/profiles.js）：市集賣出、採集、名冊操作、戰後結算可能同時改同一個人的存檔，直接 load → store 會互相蓋掉。
+- **PGlite 的 UPDATE／DELETE 結果叫 `affectedRows`**：db.js 已經補成 `rowCount`（跟 pg 一樣），判斷有沒有改到用 `rowCount`。
+- **戰鬥中新的按鍵要加進 `js/net/remote.js` 的 KEYS**，不然同場戰鬥（伺服器）收不到；滑鼠右鍵當成 `Mouse2` 這個鍵送。
+- **sed 在一行中間插 `// 註解`，會把同一行後面的程式變成註解**：發生過兩次（武將完全不能移動、伺服器開不起來）。註解要放在行尾或另起一行；改完用暫存資料夾的掃描方式找「註解後面還有程式」的行（`git diff -U0` 的新增行，加上還沒進 git 的新檔案）。
+- **代理同時在改檔案時不要 `git stash`**：會把別人正在寫的檔案收走又放回來，容易衝突。
+- **士兵、mount_han_general、mount_jarl 的快取 `tools/cache/<key>.zip` 是從精靈圖重建的**（2026-10-23），PixelLab 上同一個方向有好幾個版本：這些 key 一律不要 `--refresh`。重建、修正用的腳本在 `tools/soldier-fix/`。
+- **測試伺服器要確定舊的關掉了才能動資料庫**：`taskkill` 要加 `//F`，迴圈檢查 `netstat` 的 8790 沒人在聽；舊的還開著時又開新的（或用腳本改資料庫）會讓 PGlite 壞掉，或改到的不是正在跑的那一份。
+- **測攻城回防**：攻城時段外別人的城打不了，測試伺服器加 `SIEGE_ANYTIME=1`。要讓某個測試帳號佔城：停伺服器 → 直接 INSERT world_cities → 再開。
+- **測窄視窗**：視窗最大化時 resize_window 沒用，改在頁面裡放一個 740px 寬的 iframe 載入遊戲。
+- **新的戰場地形（石牆、山脊、土路）由 `setupField` 決定**，伺服器和瀏覽器都要拿一樣的種子和避開點（`G.Battle.fieldAvoid`）；地面畫圖用 `ftrack`，不能自己再算一份不一樣的。
