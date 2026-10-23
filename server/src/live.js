@@ -7,6 +7,7 @@
  *     { t: 'p.invite', to }         邀請旁邊的玩家組隊（大地圖上、距離 150 內）
  *     { t: 'p.answer', ok }         回應組隊邀請
  *     { t: 'p.leave' }              離開隊伍（隊長離開就換下一個人當隊長）
+ *     { t: 'pm', to, text }         私訊（帳號名稱）；{ t: 'gchat', text } 家族頻道（social.js 處理）
  *   伺服器 → 瀏覽器
  *     { t: 'welcome', id }                      自己的連線 id
  *     { t: 'peer', id, name, look, flag, x, y } 同場景有人進來（或外觀換了）
@@ -16,6 +17,8 @@
  *     { t: 'cities', cities }                   城池歸屬變了（佔領、改名、換旗）
  *     { t: 'p.invite', from, name }             有人邀請你組隊（20 秒內回應）
  *     { t: 'party', leader, members: [{ id, name }] }  隊伍變了（沒有隊伍時 leader 是 0、members 是空的）
+ *     { t: 'pm', from | to, text }、{ t: 'gchat', name, tag, text }  私訊、家族頻道
+ *     { t: 'social' }                           好友、家族有變動（重新讀 /api/social）；{ t: 'profile' } 存檔被別人改了（市集賣出）
  *     { t: 'ping' }                             每 20 秒一次，瀏覽器回 { t: 'pong' }；40 秒沒回就斷開（瀏覽器會自己重連）
  * 玩家的外觀（settings.look）和旗幟（flag）從伺服器上的存檔拿，不信任瀏覽器送來的。
  */
@@ -23,7 +26,7 @@ const TICK = 100;
 const PARTY_MAX = 5, PARTY_RANGE = 150;
 
 export function createLive() {
-  let battles = null, citiesOf = async () => ({});
+  let battles = null, citiesOf = async () => ({}), social = null;
   const conns = new Set();
   let nextId = 1;
 
@@ -64,6 +67,7 @@ export function createLive() {
       } else if (m.t === 'p.invite') partyInvite(c, m.to);
       else if (m.t === 'p.answer') partyAnswer(c, !!m.ok);
       else if (m.t === 'p.leave') leaveParty(c);
+      else if ((m.t === 'pm' || m.t === 'gchat') && social) social.onMessage(c, m);   // 私訊、家族頻道（social.js）
       else if (m.t === 'chat' && typeof m.text === 'string') {
         const text = m.text.trim().slice(0, 100), now = Date.now();
         if (!text || now - c.chatT < 1000) return;
@@ -76,10 +80,11 @@ export function createLive() {
 
   /* ---------- 組隊：一起攻城時，城池歸隊長（見 battle-host.js 的 finish） ---------- */
   const notice = (c, text) => send(c, { t: 'b.msg', text });
-  function partyInvite(c, toId) {
+  /** skipRange：好友從清單邀請（不用站在旁邊） */
+  function partyInvite(c, toId, skipRange) {
     const o = [...conns].find(o => o.id === toId);
     if (!o || o === c) return;
-    if (c.scene !== 'world' || o.scene !== 'world' || Math.hypot(o.x - c.x, o.y - c.y) > PARTY_RANGE) return notice(c, '要在大地圖上靠近對方才能邀請');
+    if (!skipRange && (c.scene !== 'world' || o.scene !== 'world' || Math.hypot(o.x - c.x, o.y - c.y) > PARTY_RANGE)) return notice(c, '要在大地圖上靠近對方才能邀請');
     if (o.party) return notice(c, `${o.name} 已經有隊伍了`);
     if (c.party && c.party.leader !== c) return notice(c, '只有隊長可以邀請');
     if (c.party && c.party.members.length >= PARTY_MAX) return notice(c, `隊伍最多 ${PARTY_MAX} 人`);
@@ -142,7 +147,7 @@ export function createLive() {
   return {
     join, updateUser, broadcast,
     /** 接上同場戰鬥與城池資料（index.js 建好之後呼叫） */
-    attach(b, cities) { if (b) battles = b; if (cities) citiesOf = cities; },
+    attach(b, cities, s) { if (b) battles = b; if (cities) citiesOf = cities; if (s) social = s; },
     async broadcastCities() { broadcast({ t: 'cities', cities: await citiesOf() }); },
     connections: () => [...conns],
     send,

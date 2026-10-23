@@ -17,6 +17,9 @@ import { createLive } from './live.js';
 import { registerGameApi } from './game-api.js';
 import { createBattles } from './battle-host.js';
 import { createWorldSim } from './world-sim.js';
+import { createProfiles } from './profiles.js';
+import { createSocial } from './social.js';
+import { startBackups } from './backup.js';
 import { buildManifest } from './manifest.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -90,12 +93,30 @@ app.post('/api/logout', async (req, reply) => {
 
 app.get('/api/me', { preHandler: requireUser }, async req => ({ username: req.user.username }));
 
+/** 改密碼：要先輸入舊密碼；改完其他裝置的登入都登出，只留這一個 */
+app.post('/api/password', { preHandler: requireUser, ...authLimit }, async (req, reply) => {
+  const { old, password } = req.body || {};
+  const bad = checkCredentials(req.user.username, password);
+  if (bad) return reply.code(400).send({ error: bad });
+  const { rows: [u] } = await db.query('SELECT pass_hash FROM users WHERE id = $1', [req.user.id]);
+  if (typeof old !== 'string' || !(await verifyPassword(old, u.pass_hash))) return reply.code(401).send({ error: '舊密碼不對' });
+  await db.query('UPDATE users SET pass_hash = $1 WHERE id = $2', [await hashPassword(password), req.user.id]);
+  await db.query('DELETE FROM sessions WHERE user_id = $1', [req.user.id]);
+  reply.setCookie(SESSION_COOKIE, await createSession(db, req.user.id), cookieOpts);
+  return { ok: true };
+});
+
 /* ---------- 存檔、名冊、出戰結算、城池歸屬（由伺服器決定，見 game-api.js） ---------- */
 // 大地圖共用的事：城池收入、糧食、北境聯軍（world-sim.js）
-const world = createWorldSim({ db, game, live });
-registerGameApi(app, { db, game, live, world, requireUser });
+const profiles = createProfiles({ db, game });
+const world = createWorldSim({ db, game, live, profiles });
+// 好友、私訊、家族、市集、採集、攻城時段（social.js）
+const social = createSocial({ db, game, live, profiles });
+await social.refreshGuilds();
+social.register(app, requireUser);
+registerGameApi(app, { db, game, live, world, profiles, social, requireUser });
 // 同場戰鬥：伺服器跑戰鬥模擬（battle-host.js），訊息走同一條 WebSocket
-live.attach(await createBattles({ root: ROOT, game, live, db }));
+live.attach(await createBattles({ root: ROOT, game, live, db, profiles, social, world }), null, social);
 
 /* ---------- 即時連線（live.js）：登入的 cookie 驗證 ---------- */
 app.get('/ws', { websocket: true }, async (socket, req) => {
@@ -106,6 +127,8 @@ app.get('/ws', { websocket: true }, async (socket, req) => {
 });
 
 /* ---------- 啟動 ---------- */
-for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, async () => { live.close(); world.close(); await app.close(); await db.close(); process.exit(0); });
+// 定期備份資料庫（backup.js）
+const backups = startBackups(db, ROOT);
+for (const sig of ['SIGINT', 'SIGTERM']) process.on(sig, async () => { backups.close(); live.close(); world.close(); await app.close(); await db.close(); process.exit(0); });
 await app.listen({ port: PORT, host: '0.0.0.0' });
 app.log.info(`資料庫：${db.kind}`);
