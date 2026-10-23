@@ -1,7 +1,7 @@
 /* ============ town-main.js — 主城（城內場景）的街區 ============
  * 由 tools/town_main.py 產生（python3 tools/town_main.py .），可以手改。格式同 town.js；另外：
  *   label / role：有名牌的建築，走到門口（圖的腳底中心往下一點）按 Enter 打開對應的面板（G.Menu.openPanel）
- *     role：recruit 募兵處、smith 鐵匠鋪、hero 武將、drill 兵營演習（自選戰場）、gate 出城到大地圖
+ *     role：recruit 募兵處、smith 鐵匠鋪、hero 武將、drill 兵營演習（自選戰場）、social 會館（好友、家族）、market 市集、gate 出城到大地圖
  *   size：城內範圍（比戰場小）；wall：城牆（城門在 gateX），gate：城門口的互動點；spawn：進城時武將站的位置
  */
 G.TOWNS.main = {
@@ -11,7 +11,7 @@ G.TOWNS.main = {
   roads: [{ x: 0, y: 0, w: 1760, h: 1180 }],
   buildings: [
     { art: 'keep_chambord', x: 880, y: 510, fw: 660, fh: 133, label: '主堡', role: 'hero' },
-    { art: 'guildhall', x: 1140, y: 760, fw: 114, fh: 35 },
+    { art: 'guildhall', x: 1140, y: 760, fw: 114, fh: 35, label: '會館', role: 'social' },
     { art: 'chapel', x: 1560, y: 500, fw: 53, fh: 50 },
     { art: 'inn', x: 300, y: 1140, fw: 84, fh: 38, label: '旅店', role: 'inn' },
     { art: 'recruit', x: 620, y: 1140, fw: 117, fh: 34, label: '募兵處', role: 'recruit' },
@@ -115,7 +115,7 @@ G.TOWNS.main = {
     { art: 'statue', x: 990, y: 1070, fw: 28, fh: 34, flip: true },
     { art: 'lamp', x: 690, y: 1140 },
     { art: 'lamp', x: 1070, y: 1140 },
-    { art: 'stall', x: 710, y: 1000, fw: 45, fh: 20 },
+    { art: 'stall', x: 710, y: 1000, fw: 45, fh: 20, label: '市集', role: 'market' },
     { art: 'stall', x: 1050, y: 1000, fw: 45, fh: 20, flip: true },
     { art: 'well', x: 1640, y: 1185, fw: 33, fh: 22 },
     { art: 'barrels', x: 120, y: 1180, fw: 35, fh: 17 },

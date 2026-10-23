@@ -19,8 +19,8 @@ def put(art, x, y, block=True, flip=False, **extra):
 FRONT = 900   # 最前排（城門內那一排）
 special = [
     # 香波堡式主堡：1020×497 的圖（顯示約 680×331），只擋下方約 40%（前排城翼的牆腳，連同兩側後排角樓的腳）
-    put('keep_chambord', CX, 270, label='主堡', role='hero', fw=round(size['keep_chambord'][0] * K * 0.97), fh=round(size['keep_chambord'][1] * K * 0.4)),
-    put('guildhall', 1140, 520),
+    put('keep_chambord', CX, 270, label='主堡', role='hero', fw=round(size['keep_chambord'][0] * K * 0.97), fh=round(size['keep_chambord'][1] * K * 0.33)),   # 圖高 605（2026-10-23 加了後面的中庭）：擋路範圍維持原本下面那一段
+    put('guildhall', 1140, 520, label='會館', role='social'),
     put('chapel', 1560, 260),
     put('inn', 300, FRONT, label='旅店', role='inn'),
     put('recruit', 620, FRONT, label='募兵處', role='recruit'),
@@ -51,7 +51,7 @@ for bottom in bottoms:
 # 城門內的廣場：雕像、路燈、攤位；最前排房子門口的水井、木桶、推車
 put('statue', CX - 110, 830); put('statue', CX + 110, 830, flip=True)
 for x in (CX - 190, CX + 190): put('lamp', x, 900, block=False)
-put('stall', CX - 170, 760); put('stall', CX + 170, 760, flip=True); put('well', 1640, 945)
+put('stall', CX - 170, 760, label='市集', role='market'); put('stall', CX + 170, 760, flip=True); put('well', 1640, 945)
 put('barrels', 120, 940); put('haystack', 1560, 945, block=False); put('cart', 460, 945)
 for x in (CX - 150, CX + 150): put('banner', x, 310, block=False)
 # 橫街上的路燈
@@ -75,7 +75,7 @@ body = ',\n'.join('    ' + js(b) for b in B)
 text = f'''/* ============ town-main.js — 主城（城內場景）的街區 ============
  * 由 tools/town_main.py 產生（python3 tools/town_main.py .），可以手改。格式同 town.js；另外：
  *   label / role：有名牌的建築，走到門口（圖的腳底中心往下一點）按 Enter 打開對應的面板（G.Menu.openPanel）
- *     role：recruit 募兵處、smith 鐵匠鋪、hero 武將、drill 兵營演習（自選戰場）、gate 出城到大地圖
+ *     role：recruit 募兵處、smith 鐵匠鋪、hero 武將、drill 兵營演習（自選戰場）、social 會館（好友、家族）、market 市集、gate 出城到大地圖
  *   size：城內範圍（比戰場小）；wall：城牆（城門在 gateX），gate：城門口的互動點；spawn：進城時武將站的位置
  */
 G.TOWNS.main = {{

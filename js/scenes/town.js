@@ -12,7 +12,7 @@ G.Town = (() => {
   function enter(msg, o = {}) {
     G.World.leave();
     G.useScale('battle');
-    town = { ...G.TOWNS[o.key || 'main'], key: o.key || 'main' }; if (o.name) town.name = o.name;
+    town = { ...G.TOWNS[o.key || 'main'], key: o.key || 'main', city: o.city || null }; if (o.name) town.name = o.name;   // city：大地圖上哪座城（在自己的城募兵打折）
     if (town.size) G.CONFIG.world = { ...G.CONFIG.world, ...town.size };   // 城內比戰場小
     city = o.city || 'capital';
     const lo = G.Menu.loadout(), w = town.wall;
@@ -73,6 +73,8 @@ G.Town = (() => {
     const I = G.Input, panel = G.Menu.panelOpen();
     if (!panel && I.pressed('Tab')) toggleMenu();
     if (!panel && I.pressed('Slash')) G.Net.focusChat();
+    // 好友從清單邀請組隊：在城裡也能按 Y 接受、N 拒絕（對決要在大地圖上才能接）
+    if (!panel && G.Net.request && G.Net.request.kind === 'party' && (I.pressed('KeyY') || I.pressed('KeyN'))) G.Net.answer(I.pressed('KeyY'));
     if (!panel && I.pressed('KeyJ') && !G.Net.acceptInvite(res => enter(res ? (res.win ? '勝利！' : '戰敗') : '撤退', { key: town.key || 'main', name: town.name, city }))) G.HUD.toast('沒有可以加入的戰鬥');
     // 武將走動（面板開著時不動）
     let mx = 0, my = 0;
@@ -187,7 +189,7 @@ G.Town = (() => {
     const men = P.roster.reduce((a, s) => a + s.men, 0);
     $('thHero').innerHTML = `<img src="${G.Menu.portrait()}" alt=""><div><b>${lo.name || '主帥'}</b><small>Lv${P.hero.level}・${G.WEAPONS[lo.weapon].name}</small>
       <div class="xp"><i style="width:${P.hero.level >= G.ARMY.heroMaxLevel ? 100 : P.hero.xp / G.ARMY.heroXpToNext(P.hero.level) * 100}%"></i></div></div>`;
-    $('thRes').innerHTML = `<span>金幣 <b>${P.gold}</b></span><span>糧食 <b class="${(P.food ?? 200) < 30 ? 'bad' : ''}">${P.food ?? 200}</b></span><span>兵力 <b>${men}</b></span><span>隨身統率 <b>${A.used()}/${A.cap()}</b></span><span>配置統率 <b>${A.fieldUsed()}/${A.fieldCap()}</b></span><span>兵團 <b>${P.roster.length}/${G.ARMY.maxRoster}</b></span>`;
+    $('thRes').innerHTML = `<span>金幣 <b>${P.gold}</b></span><span>糧食 <b class="${(P.food ?? 200) < 30 ? 'bad' : ''}">${P.food ?? 200}</b></span><span>馬匹 <b>${A.horses()}</b></span><span>兵力 <b>${men}</b></span><span>隨身統率 <b>${A.used()}/${A.cap()}</b></span><span>配置統率 <b>${A.fieldUsed()}/${A.fieldCap()}</b></span><span>兵團 <b>${P.roster.length}/${G.ARMY.maxRoster}</b></span>`;
     if (town) $('thCityInfo').innerHTML = `<b>${G.U.esc(town.name)}</b><div class="clock">${clock()}</div>${near ? `<small>${near.label}門口</small>` : ''}`;
     $('thSquads').innerHTML = P.roster.map(s => `<div class="tsq ${s.deployed ? 'esc' : s.field ? 'fld' : ''} ${s.men ? '' : 'dead'}">${G.Sprites.icon(G.UNITS[s.type].sprite, 1) ? `<img class="tsqIcon" src="${G.Sprites.icon(G.UNITS[s.type].sprite, 1)}" alt="">` : ''}
       <b>${G.UNITS[s.type].name}${s.level > 1 ? ` Lv${s.level}` : ''}</b><small>${s.men}/${G.UNITS[s.type].count} 人・${s.deployed ? '隨身' : s.field ? '配置' : '待命'}</small></div>`).join('') || '<div class="tsq dead"><small>名冊是空的，到募兵處招募</small></div>';
@@ -212,5 +214,5 @@ G.Town = (() => {
     });
   }
 
-  return { enter, leave, update, draw, bindHud, renderHud, toggleMenu, clock, get active() { return !!town; }, get hero() { return hero; } };
+  return { enter, leave, update, draw, bindHud, renderHud, toggleMenu, clock, get active() { return !!town; }, get hero() { return hero; }, get cityId() { return town && town.city; } };
 })();

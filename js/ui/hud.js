@@ -6,6 +6,7 @@ G.HUD = (() => {
 
   function show(on) {
     $('hud').style.display = on ? 'block' : 'none'; $('result').style.display = 'none'; if (!on) $('hurt').style.opacity = 0;
+    $('killfeed').innerHTML = '';   // 新的一場：清掉上一場的擊殺提示
     // 左上角的武將牌：自己的名字和頭像（以前 index.html 寫死「主帥」和預設頭像，每場戰鬥都一樣）
     if (on) { $('heroPanel').querySelector('b').textContent = G.Menu.loadout().name || '主帥'; $('heroFace').src = G.Menu.portrait(); }
   }
@@ -38,7 +39,7 @@ G.HUD = (() => {
     }).join('') + `<div class="skill basic"><b>自動</b><span>${p.weapon.name}</span></div>`;
     // 兵團
     $('squads').innerHTML = s.squads.map((sq, i) => {
-      const sel = s.select === 'all' || s.select === i, a = sq.alive.length;
+      const sel = s.select === 'all' || s.select === i || (Array.isArray(s.select) && s.select.includes(sq.nid)), a = sq.alive.length;   // 陣列：Shift 框選的兵團
       const sk = sq.def.skills.map((k, j) => {
         const cd = sq.skillCd[k] || 0, on = sq.fx[k] > 0;
         return `<span class="usk ${cd > 0 ? 'cd' : ''} ${on ? 'on' : ''}">${'ZX'[j]} ${G.UNIT_SKILLS[k].name}${cd > 0 ? ' ' + Math.ceil(cd) : ''}</span>`;
@@ -46,15 +47,16 @@ G.HUD = (() => {
       return `<div class="sq pframe ${sel ? 'sel' : ''} ${a ? '' : 'dead'}">
         <div class="sqTop"><b>${sq.label}</b><span>${a}/${sq.def.count}</span></div>
         <div class="mor ${sq.rout > 0 ? 'rout' : ''}"><i style="width:${Math.round(sq.morale ?? 100)}%"></i><span>${sq.rout > 0 ? '潰散中' : '士氣 ' + Math.round(sq.morale ?? 100)}</span></div>
-        <div class="sqMid">${sq.crew ? (sq.crew.kind === 'ram' ? '推衝車' : '扛雲梯') + '（B 放下）' : `${CMD[sq.cmd]}・${sq.fm.name}${sq.waypoint ? '・迂迴中' : ''}`}</div>
+        <div class="sqMid">${sq.crew ? (sq.crew.kind === 'ladder' ? '扛' : '推') + G.SIEGE[sq.crew.kind].name + '（B 放下）' : `${sq.focus ? '集火' : CMD[sq.cmd]}・${sq.fm.name}${sq.spread ? '・散開' : ''}${sq.fx.rush > 0 ? '・衝鋒中' : ''}${sq.fx.stand > 0 ? '・固守中' : ''}${sq.weak ? '・兵力不足' : ''}${sq.waypoint ? '・迂迴中' : ''}`}</div>
         <div class="sqSk">${sk}</div></div>`;
     }).join('') + `<div class="selHint">${s.squads.length ? '' : '隨身兵團全滅，到補給點（T）換下一支・'}後備 ${s.reserve.filter(r => r.men > 0).length} 支</div>`
       + (s.field.length ? `<div class="selHint">配置兵團 ${s.field.filter(f => f.alive.length).length} 支：<b>${s.field[0].order === 'attack' ? '進攻' : '防守'}</b></div>` : '');
     // 指揮列：選指揮隨身或配置兵團；按鈕下命令；在地面上左鍵＝走到那裡進攻
     const fieldN = s.field.filter(f => f.alive.length).length, escN = s.squads.filter(q => q.alive.length).length, grp = s.group;
     const cb = $('cmdBar'), html = `<div class="cbTabs"><button data-o="group" data-g="escort" class="${grp === 'escort' ? 'on' : ''}">隨身 <small>${escN}</small></button><button data-o="group" data-g="field" class="${grp === 'field' ? 'on' : ''}" ${fieldN ? '' : 'disabled'}>配置 <small>${fieldN}</small></button></div>`
-      + `<div class="cbBtns">${grp === 'escort' ? '<button data-o="follow">跟隨</button>' : ''}<button data-o="attack">進攻</button><button data-o="hold">駐守</button></div>`
-      + `<small class="cbHint">左鍵點地面：走到那裡進攻</small>`;
+      + `<div class="cbBtns">${grp === 'escort' ? '<button data-o="follow">跟隨</button>' : ''}<button data-o="attack">進攻</button><button data-o="hold">駐守</button>`
+      + ['rush', 'stand', 'spread'].map(k => { const O = G.SQUAD_ORDERS[k], cd = Math.max(0, ...s.squads.map(q => (q.cmdCd || {})[k] || 0)); return `<button data-o="${k}" title="${O.desc}">${O.name}<small>${cd > 0 ? Math.ceil(cd) : O.key}</small></button>`; }).join('') + '</div>'
+      + `<small class="cbHint">左鍵點地面：走到那裡進攻・拖曳：排成一條線・Shift＋拖曳：框選・C 集火</small>`;
     if (cb.dataset.h !== html) { cb.innerHTML = html; cb.dataset.h = html; }
     if (!cb.dataset.bound) { cb.dataset.bound = 1; cb.addEventListener('mousedown', e => { const b = e.target.closest('button'); if (!b || b.disabled) return; e.preventDefault(); G.Input.order(b.dataset.o === 'group' ? { a: 'group', g: b.dataset.g } : { a: b.dataset.o }); }); }
     // 補給點換兵選單
@@ -77,11 +79,25 @@ G.HUD = (() => {
       obj += `<div class="respawn">${Math.ceil(p.respawnT)} 秒後${here ? '原地' : '在後方'}重生</div>`
         + `<div class="respawnPick"><span class="${here ? '' : 'on'}"><kbd>Q</kbd> 後方</span><span class="${here ? 'on' : ''}"><kbd>E</kbd> 原地（+${G.SIEGE.respawnHereExtra} 秒）</span></div>`;
     }
-    if (s.scenario.timeLimit) { const left = Math.max(0, s.scenario.timeLimit - s.time); obj += `<div>剩餘 ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}</div>`; }
+    // 部署階段：倒數、怎麼操作；之後一直顯示剩幾個器械
+    if (s.deployT > 0) obj += `<div class="respawn">部署階段 ${Math.ceil(s.deployT)} 秒</div><div class="deployHint">擺好兵團、<kbd>Y</kbd> 放器械${s.castle && s.castle.defender !== (s.player.team || 0) ? '、<kbd>←</kbd><kbd>→</kbd> 換進攻方向' : ''}、<kbd>Enter</kbd> 準備好</div>`;
+    if (s.kit && s.kitLeft > 0) obj += `<div class="deployHint">器械 <b>${G.SIEGE[s.kit[s.kitSel]].name}</b>（<kbd>U</kbd> 換、<kbd>Y</kbd> 放，剩 ${s.kitLeft}）</div>`;
+    if (s.scenario.timeLimit) { const left = Math.max(0, s.scenario.timeLimit - Math.max(0, s.time - (s.deployLen || 0))); obj += `<div>剩餘 ${Math.floor(left / 60)}:${String(Math.floor(left % 60)).padStart(2, '0')}</div>`; }
+    const wx = G.weatherOf(); if (wx.desc) obj += `<div class="deployHint">天氣：${wx.name}（${wx.desc}）</div>`;
+    if (s.scenario.flags && G.Battle.flagScore) { const me = s.player.team || 0, sc = G.Battle.flagScore; obj += `<div class="deployHint">旗點積分　<b>我方 ${Math.floor(sc[me])}</b> ： 敵方 ${Math.floor(sc[1 - me])}（先到 ${s.scenario.flagGoal}）</div>`; }
     obj += `<div>敵軍剩餘 ${s.foes}</div>`;
     $('objective').innerHTML = obj;
     $('kills').innerHTML = `擊破 <b>${s.stats.kills[0]}</b>` + (s.stats.combo > 1 ? `<div class="combo">${s.stats.combo}<small> 連擊</small></div>` : '');
     $('perf').textContent = s.perf ? `FPS ${s.perf.fps.toFixed(0)}・${s.perf.frameMs.toFixed(2)} ms・單位 ${s.perf.units}・縮放 ${s.zoom}` : '';
+  }
+
+  /** 結算的掉落：材料、裝備、壞掉的裝備 */
+  function lootText(l) {
+    if (!l) return '';
+    const mats = Object.entries(l.mats || {}).map(([k, n]) => `${G.MATERIALS[k]} +${n}`).join('、');
+    return (mats ? `<span>${mats}</span>` : '') + (l.food ? `<span>糧食 +${l.food}</span>` : '') + (l.item ? `<span class="up" style="color:${G.RARITY[l.item.rarity].color}">獲得 ${G.U.esc(l.item.name)}</span>` : '')
+      + (l.doc ? `<span class="up" style="color:${G.RARITY[l.doc.rarity].color}">獲得戰術書 ${G.U.esc(l.doc.name)}</span>` : '')
+      + (l.broke && l.broke.length ? `<span class="bad">${l.broke.map(G.U.esc).join('、')} 壞了，到鐵匠鋪修理</span>` : '');
   }
 
   /** rep：伺服器結算報告的 Promise（G.Army.finishBattle；大軍測試是 null） */
@@ -96,7 +112,7 @@ G.HUD = (() => {
       // 一塊有底的面板：上面一排獎勵標籤，下面每支兵團一列（人數、陣亡、擊殺、升級）
       box.innerHTML = `
         ${rep.tooFast ? '<div class="bad">戰鬥時間太短，伺服器不認這場勝利</div>' : ''}
-        <div class="rewards"><span>金幣 <b>+${rep.gold}</b></span><span>武將經驗 <b>+${rep.heroXp}</b></span>${rep.heroUp ? `<span class="up">武將升到 Lv${rep.heroLevel}・統率 ${G.Army.cap()}</span>` : ''}</div>
+        <div class="rewards"><span>金幣 <b>+${rep.gold}</b></span><span>武將經驗 <b>+${rep.heroXp}</b></span>${rep.heroUp ? `<span class="up">武將升到 Lv${rep.heroLevel}・統率 ${G.Army.cap()}・屬性點 +${rep.heroUp * G.HERO_ATTRS.perLevel}</span>` : ''}${rep.mastery && rep.mastery.up ? `<span class="up">${G.U.esc(rep.mastery.weapon)}專精升到 Lv${rep.mastery.level}</span>` : ''}${lootText(rep.loot)}${rep.unlocked && rep.unlocked.length ? `<span class="up">解鎖新兵種：${rep.unlocked.map(G.U.esc).join('、')}（到募兵處招募）</span>` : ''}</div>
         ${rep.squads.length ? `<table class="sqTable"><tr><th>兵團</th><th>人數</th><th>陣亡</th><th>擊殺</th></tr>
           ${rep.squads.map(s => `<tr><td>${G.U.esc(s.name)}${s.up ? ` <em>升 Lv${s.level}</em>` : ''}</td><td>${s.before} → ${s.after}</td><td class="${s.before > s.after ? 'loss' : ''}">${s.before > s.after ? s.before - s.after : '-'}</td><td>${s.kills}</td></tr>`).join('')}</table>` : ''}`;
     });

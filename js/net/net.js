@@ -20,8 +20,13 @@ G.Net = (() => {
     connect();
   }
   function stop() { stopped = true; if (ws) ws.close(); peers.clear(); }
-  async function refreshCities() { const w = await G.Api.world(); me = w.me; setCities(w.cities); }
-  function setCities(c) { cities = c || {}; for (const fn of listeners) fn(); }
+  async function refreshCities() { const w = await G.Api.world(); me = w.me; myGuild = w.guild || 0; myAllies = w.allies || []; setCities(w.cities); }
+  let myGuild = 0, myAllies = [];   // 自己的家族 id、結盟的家族 id（他們的城算自己人：可以進城、不能打）
+  function setCities(c) {
+    cities = c || {};
+    G.Army.setOwned(Object.entries(cities).filter(([, o]) => o.owner === me).map(([id]) => id));   // 佔領的城：特產兵種、當地募兵打折
+    for (const fn of listeners) fn();
+  }
 
   function connect() {
     if (stopped || (ws && ws.readyState <= 1)) return;
@@ -62,7 +67,7 @@ G.Net = (() => {
     }
     // 同場戰鬥（js/net/remote.js、server/src/battle-host.js）
     else if (m.t === 'b.s') G.Remote.onState(m);
-    else if (m.t === 'b.start') { const f = pendingExit; pendingExit = null; G.Remote.start(m, f); }
+    else if (m.t === 'b.start') { const f = pendingExit; pendingExit = null; queued = 0; G.Remote.start(m, f); }
     else if (m.t === 'b.end') G.Remote.end(m);
     else if (m.t === 'b.msg') G.HUD.toast(m.text);
     else if (m.t === 'b.err') { pendingExit = null; G.HUD.toast(m.text); }
@@ -73,7 +78,14 @@ G.Net = (() => {
     else if (m.t === 'p.invite') { request = { kind: 'party', from: m.from, until: performance.now() + 20000 }; const s = `${m.name} 邀請你組隊：Y 接受・N 拒絕`; G.HUD.toast(s); addChat('系統', s); }
     else if (m.t === 'party') party = m.leader ? m : null;
     else if (m.t === 'b.invite') { invite = { room: m.room, side: m.side, until: performance.now() + 30000 }; G.HUD.toast(m.text); addChat('系統', m.text); }
+    // 私訊、家族頻道、好友家族變動、市集賣出（server/src/social.js）、野戰配對排隊（battle-host.js）
+    else if (m.t === 'pm') addChat(m.from ? `${m.from} → 你` : `你 → ${m.to}`, m.text, 'pm');
+    else if (m.t === 'gchat') addChat(`[${m.tag}] ${m.name}`, m.text, 'guild');
+    else if (m.t === 'social') { G.Menu.refreshSocial(); refreshCities().catch(() => {}); }
+    else if (m.t === 'profile') G.Api.loadProfile().then(r => { G.Army.adopt(r.data); G.Menu.refresh(); }).catch(() => {});
+    else if (m.t === 'b.queue') { queued = m.on ? m.n : 0; G.Menu.refresh(); if (m.on) G.HUD.toast(`野戰配對排隊中（${m.n} 人）`); }
   }
+  let queued = 0;   // 野戰配對：排隊中的人數（0 是沒排）
 
   /** 換場景（城內、大地圖、戰鬥）；x, y 是出現的位置 */
   function setScene(name, x = 0, y = 0) {
@@ -116,8 +128,10 @@ G.Net = (() => {
   }
 
   /* ---------- 聊天 ---------- */
-  function addChat(name, text) {
+  /** kind：'pm' 私訊、'guild' 家族頻道（不同顏色） */
+  function addChat(name, text, kind) {
     const box = $('chatLog'), row = document.createElement('div');
+    if (kind) row.className = 'c-' + kind;
     row.innerHTML = `<b></b><span></span>`;
     row.querySelector('b').textContent = name; row.querySelector('span').textContent = text;   // textContent：玩家打的字不能變成 HTML
     box.append(row);
@@ -129,7 +143,12 @@ G.Net = (() => {
   function bind() {
     $('chatIn').addEventListener('keydown', e => {
       e.stopPropagation();
-      if (e.key === 'Enter') { const v = e.target.value.trim(); if (v) send({ t: 'chat', text: v }); e.target.value = ''; e.target.blur(); }
+      // /w 名字 內容：私訊；/g 內容：家族頻道；其他是全伺服器聊天
+      if (e.key === 'Enter') {
+        const v = e.target.value.trim(), w = v.match(/^\/w\s+(\S+)\s+(.+)$/), g = v.match(/^\/g\s+(.+)$/);
+        if (w) send({ t: 'pm', to: w[1], text: w[2] }); else if (g) send({ t: 'gchat', text: g[1] }); else if (v) send({ t: 'chat', text: v });
+        e.target.value = ''; e.target.blur();
+      }
       if (e.key === 'Escape') { e.target.value = ''; e.target.blur(); }
     });
   }
@@ -139,6 +158,8 @@ G.Net = (() => {
     send,
     /** 攻打城池（伺服器開房間跑戰鬥）；onExit(結果) 是打完或撤退後要做的事 */
     attackCity(city, onExit) { if (!ws || ws.readyState !== 1) return false; pendingExit = onExit; send({ t: 'b.attack', city }); return true; },
+    /** 單人戰鬥在伺服器打（強盜 bandit、北境軍 raid、商隊 caravan、演習 drill；design.md 34）；沒連上回傳 false */
+    solo(kind, target, onExit) { if (!ws || ws.readyState !== 1) return false; pendingExit = onExit; send({ t: 'b.solo', kind, target }); return true; },
     /** 接受邀請（J）：加入別人正在打的戰鬥 */
     acceptInvite(onExit) {
       if (!invite || performance.now() > invite.until) { invite = null; return false; }
@@ -150,6 +171,13 @@ G.Net = (() => {
     /** 對決（F）：onExit 是打完回大地圖要做的事 */
     duel(id, onExit) { if (!ws || ws.readyState !== 1) return false; pendingExit = onExit; send({ t: 'b.duel', to: id }); return true; },
     inviteParty(id) { send({ t: 'p.invite', to: id }); },
+    /** 從好友清單邀請組隊（不用站在旁邊） */
+    inviteFriend(uid) { send({ t: 'p.inviteFriend', uid }); },
+    /** 野戰配對：排隊／取消 */
+    queue(on) { send({ t: 'b.queue', on: !!on }); if (!on) queued = 0; },
+    get queued() { return queued; },
+    /** 私訊（社群面板的「私訊」按鈕會在聊天框填好 /w 名字） */
+    whisper(name) { $('chatIn').value = `/w ${name} `; $('chatIn').focus(); },
     leaveParty() { send({ t: 'p.leave' }); },
     /** 回應別人的邀請（Y／N）；接受對決時 onExit 是打完回大地圖要做的事 */
     answer(ok, onExit) {
@@ -165,6 +193,6 @@ G.Net = (() => {
     start, stop, bind, setScene, pos, update, drawables, focusChat, typing, refreshCities,
     async saveCity(id, name, art) { setCities((await G.Api.saveCity(id, name, art)).cities); },
     onCities(fn) { listeners.push(fn); },
-    get cities() { return cities; }, get me() { return me; }, get peers() { return peers; },
+    get cities() { return cities; }, get me() { return me; }, get myGuild() { return myGuild; }, get myAllies() { return myAllies; }, get peers() { return peers; },
   };
 })();

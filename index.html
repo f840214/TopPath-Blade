@@ -9,7 +9,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <meta name="theme-color" content="#0b0c0e">
-<link rel="stylesheet" href="css/game.css?v=1.3">
+<link rel="stylesheet" href="css/game.css?v=1.9">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -28,6 +28,8 @@
   <div id="squads"></div>
   <div id="skills"></div>
   <div id="kills"></div>
+  <div id="killfeed"></div>
+  <canvas id="bMini" class="pframe" width="176" height="110" title="戰場小地圖（按住 N 拉遠看整個戰場）"></canvas>
   <div id="perf"></div>
   <div id="supply" class="pframe"></div>
   <div id="cmdBar" class="pframe" title="左鍵點地面：走到那裡進攻"></div>
@@ -45,7 +47,7 @@
   <div id="thSquads"></div>
   <div id="thBar">
     <button data-tb="recruit">部隊</button><button data-tb="hero">主角</button><button data-tb="smith">裝備</button><button data-tb="codex">圖鑑</button>
-    <button data-tb="drill">演習</button><button data-tb="gate">出城</button><button data-tb="help">說明</button><button data-tb="logout">登出</button>
+    <button data-tb="drill">演習</button><button data-tb="social">社群</button><button data-tb="market">市集</button><button data-tb="gate">出城</button><button data-tb="help">說明</button><button data-tb="logout">登出</button>
   </div>
   </div>
   <div id="chat"><div id="chatLog"></div><div class="chatRow"><input id="chatIn" maxlength="100" placeholder="按 / 聊天，Enter 送出" autocomplete="off"><small id="chatStatus">離線</small></div></div>
@@ -122,16 +124,24 @@
     <div class="menuHead"><h1 id="panelTitle">TopPath Blade</h1><button class="mini" id="closePanel">離開（Esc）</button></div>
     <!-- data-p：哪些面板會顯示這一段（城內建築的 role，見 G.Menu.openPanel） -->
     <section data-p="drill"><h3 class="ribbon">演習戰場（不影響大地圖）</h3><div id="scenarios" class="row"></div>
-      <div class="row" id="fieldOrder"></div></section>
+      <div class="row" id="fieldOrder"></div><div class="row" id="matchBox"></div></section>
+    <section data-p="social"><div id="socialBox"></div></section>
+    <section data-p="market"><div id="marketBox"></div></section>
     <section data-p="smith"><h3 class="ribbon">武將職業（決定武器與技能；外觀會換成這個職業的）</h3><div id="weapons" class="row"></div></section>
     <section class="two" data-p="smith hero">
       <div><h3 class="ribbon">裝備</h3><div id="equip"></div></div>
       <div><h3 class="ribbon">武將</h3><div id="heroInfo"></div><button type="button" class="mini" id="changeLook">更換外觀・頭像</button></div>
     </section>
+    <section class="two" data-p="smith hero">
+      <div><h3 class="ribbon">屬性點</h3><div id="heroAttrs"></div></div>
+      <div><h3 class="ribbon">武器專精・技能</h3><div id="heroMastery"></div></div>
+    </section>
     <section data-p="recruit drill"><h3 class="ribbon">軍團名冊（隨身：跟在武將身邊、到補給點換；配置：開戰時擺在戰場上，可以用滑鼠指揮）</h3><div id="roster"></div><div id="recruit" data-p="recruit"></div></section>
     <section data-p="inn"><h3 class="ribbon">糧食</h3>
       <p class="note" id="foodInfo"></p>
       <div class="row" id="foodBuy"><button class="mini" data-food="50">買 50 份</button><button class="mini" data-food="100">買 100 份</button><button class="mini" data-food="500">買 500 份</button></div>
+      <h3 class="ribbon">馬匹</h3><p class="note" id="horseInfo"></p>
+      <div class="row" id="horseBuy"><button class="mini" data-horse="5">買 5 匹</button><button class="mini" data-horse="10">買 10 匹</button><button class="mini" data-horse="20">買 20 匹</button></div>
     </section>
     <section data-p="help"><h3 class="ribbon">操作</h3>
       <div class="help">
@@ -150,19 +160,29 @@
           <p><i class="keys"><kbd>Y</kbd><kbd>N</kbd></i><span>接受／拒絕對決、組隊邀請</span></p>
           <p><i class="keys"><kbd>J</kbd></i><span>加入邀請你的戰鬥</span></p>
           <p><i class="keys"><kbd>L</kbd></i><span>離開隊伍</span></p>
+          <p><i class="keys"><kbd>E</kbd></i><span>採集點旁邊：採集打造材料（每個點 20 分鐘一次）；村子旁邊：徵糧；商隊旁邊：打劫商隊</span></p>
           <p><i class="keys"><kbd>M</kbd></i><span>收起／展開小地圖</span></p>
         </div>
         <div class="hcard wide"><h4>戰鬥</h4>
           <p><i class="keys"><kbd>WASD</kbd></i><span>移動，靠近敵人自動普攻</span></p>
           <p><i class="keys"><kbd>Shift</kbd></i><span>按住跑步（耗耐力，血條下面那條）</span></p>
+          <p><i class="keys"><kbd>右鍵</kbd></i><span>按住格擋：正面傷害只剩兩成，擋一下耗耐力，耗光會破防</span></p>
+          <p><i class="keys"><kbd>空白</kbd></i><span>翻滾閃避（往移動方向，沒按方向往後），滾的時候無敵</span></p>
           <p><i class="keys"><kbd>Q</kbd><kbd>E</kbd><kbd>R</kbd></i><span>武將技能</span></p>
-          <p><i class="keys"><kbd>左鍵</kbd></i><span>點地面：兵團走到那裡進攻（左下角先選「隨身」或「配置」）</span></p>
+          <p><i class="keys"><kbd>左鍵</kbd></i><span>點地面：兵團走到那裡進攻；拖一條線：沿著線排開（線長＝陣型寬度）；<kbd>Shift</kbd>＋拖曳：框選隨身兵團（左下角先選「隨身」或「配置」）</span></p>
+          <p><i class="keys"><kbd>M</kbd></i><span>上馬／下馬（騎馬跑得快，但不能格擋、翻滾，被擊倒或長槍刺到會落馬）</span></p>
+          <p><i class="keys"><kbd>N</kbd></i><span>按住：鏡頭拉遠看整個戰場（右下角也有小地圖）</span></p>
+          <p><i class="keys"><kbd>K</kbd></i><span>屍體與血跡開關</span></p>
           <p><i class="keys"><kbd>1</kbd><kbd>2</kbd><kbd>3</kbd></i><span>跟隨／駐守／進攻</span></p>
+          <p><i class="keys"><kbd>4</kbd><kbd>5</kbd><kbd>6</kbd></i><span>衝鋒／固守（站穩不被擊退、擋騎兵）／散開・密集</span></p>
+          <p><i class="keys"><kbd>C</kbd></i><span>集火滑鼠指著的敵方兵團或敵將</span></p>
           <p><i class="keys"><kbd>Tab</kbd></i><span>切換指揮哪一支隨身兵團</span></p>
           <p><i class="keys"><kbd>F</kbd></i><span>陣型</span></p>
           <p><i class="keys"><kbd>Z</kbd><kbd>X</kbd></i><span>兵團技能</span></p>
           <p><i class="keys"><kbd>T</kbd></i><span>在補給點換兵</span></p>
-          <p><i class="keys"><kbd>B</kbd></i><span>指派攻城器械（衝車撞城門、城牆）</span></p>
+          <p><i class="keys"><kbd>B</kbd></i><span>指派攻城器械（衝車撞城門、城牆；雲梯、攻城塔靠上城牆）</span></p>
+          <p><i class="keys"><kbd>Y</kbd><kbd>U</kbd></i><span>放器械／換種類（守方拒馬、床弩；攻方攻城塔、投石車；每場 2 個）</span></p>
+          <p><i class="keys"><kbd>Enter</kbd></i><span>部署階段：準備好（大家都準備好就提早開戰）；攻方用 <kbd>←</kbd><kbd>→</kbd> 換進攻方向</span></p>
           <p><i class="keys"><kbd>G</kbd></i><span>開關城門（守城）</span></p>
           <p><i class="keys"><kbd>Q</kbd><kbd>E</kbd></i><span>武將倒下時：回後方重生／原地重生（多等 10 秒）</span></p>
           <p><i class="keys"><kbd>V</kbd></i><span>畫面震動開關</span></p>
@@ -170,7 +190,12 @@
         </div>
         <div class="hcard"><h4>其他</h4>
           <p><i class="keys"><kbd>Tab</kbd></i><span>展開選單（資源、兵團、功能）</span></p>
-          <p><i class="keys"><kbd>/</kbd></i><span>聊天，Enter 送出、Esc 取消</span></p>
+          <p><i class="keys"><kbd>/</kbd></i><span>聊天，Enter 送出、Esc 取消；<kbd>/w 名字 內容</kbd> 私訊、<kbd>/g 內容</kbd> 家族頻道</span></p>
+          <p><i class="keys"><kbd>選單</kbd></i><span>社群（好友、家族）、市集（玩家買賣）；兵營可以排多人野戰配對</span></p>
+        </div>
+        <div class="hcard"><h4>帳號：改密碼</h4>
+          <div id="pwBox"><input id="pwOld" type="password" placeholder="舊密碼" autocomplete="current-password"><input id="pwNew" type="password" placeholder="新密碼" autocomplete="new-password"><input id="pwNew2" type="password" placeholder="再輸入一次新密碼" autocomplete="new-password"><button class="mini" data-pw="1">改密碼</button></div>
+          <small class="note">改完其他裝置會登出。忘記密碼請找管理員重設。</small>
         </div>
       </div>
     </section>
@@ -181,51 +206,51 @@
 </div>
 
 <script src="lib/pixi.min.js?v=8.22.0"></script>
-<script src="js/data/config.js?v=0.8"></script>
+<script src="js/data/config.js?v=0.9"></script>
 <script src="js/core/util.js?v=0.3"></script>
 <script src="js/core/assets.js?v=0.8"></script>
-<script src="js/core/api.js?v=0.4"></script>
-<script src="js/core/input.js?v=1.0"></script>
+<script src="js/core/api.js?v=0.5"></script>
+<script src="js/core/input.js?v=1.1"></script>
 <script src="js/data/sprites-meta.js?v=1.0"></script>
 <script src="js/data/tiles.js?v=0.8"></script>
 <script src="js/data/road-tiles.js?v=0.8"></script>
-<script src="js/data/units.js?v=0.8"></script>
-<script src="js/data/counters.js?v=0.8"></script>
-<script src="js/data/formations.js?v=0.3"></script>
-<script src="js/data/skills.js?v=1.0"></script>
-<script src="js/data/heroes.js?v=1.1"></script>
-<script src="js/data/army.js?v=0.8"></script>
-<script src="js/data/veteran.js?v=0.8"></script>
-<script src="js/data/siege.js?v=1.0"></script>
+<script src="js/data/units.js?v=0.9"></script>
+<script src="js/data/counters.js?v=0.9"></script>
+<script src="js/data/formations.js?v=0.4"></script>
+<script src="js/data/skills.js?v=1.1"></script>
+<script src="js/data/heroes.js?v=1.2"></script>
+<script src="js/data/army.js?v=0.9"></script>
+<script src="js/data/veteran.js?v=0.9"></script>
+<script src="js/data/siege.js?v=1.1"></script>
 <script src="js/data/town.js?v=0.8"></script>
-<script src="js/data/town-main.js?v=0.9"></script>
+<script src="js/data/town-main.js?v=0.10"></script>
 <script src="js/data/town-small.js?v=0.9"></script>
-<script src="js/data/world.js?v=1.3"></script>
-<script src="js/core/render.js?v=1.2"></script>
-<script src="js/core/sprites.js?v=0.8"></script>
-<script src="js/entities/fx.js?v=1.2"></script>
-<script src="js/entities/unit.js?v=0.8"></script>
-<script src="js/entities/hero.js?v=1.1"></script>
+<script src="js/data/world.js?v=1.4"></script>
+<script src="js/core/render.js?v=1.3"></script>
+<script src="js/core/sprites.js?v=0.9"></script>
+<script src="js/entities/fx.js?v=1.3"></script>
+<script src="js/entities/unit.js?v=0.9"></script>
+<script src="js/entities/hero.js?v=1.2"></script>
 <script src="js/world/nav.js?v=1.2"></script>
-<script src="js/world/world-ground.js?v=1.2"></script>
-<script src="js/world/map.js?v=1.2"></script>
-<script src="js/systems/combat.js?v=0.8"></script>
-<script src="js/systems/skills.js?v=1.1"></script>
-<script src="js/systems/ai.js?v=1.0"></script>
-<script src="js/systems/army.js?v=0.8"></script>
-<script src="js/systems/siege.js?v=1.0"></script>
-<script src="js/battle/sim.js?v=1.1"></script>
-<script src="js/ui/hud.js?v=1.3"></script>
+<script src="js/world/world-ground.js?v=1.3"></script>
+<script src="js/world/map.js?v=1.3"></script>
+<script src="js/systems/combat.js?v=0.9"></script>
+<script src="js/systems/skills.js?v=1.2"></script>
+<script src="js/systems/ai.js?v=1.1"></script>
+<script src="js/systems/army.js?v=0.9"></script>
+<script src="js/systems/siege.js?v=1.1"></script>
+<script src="js/battle/sim.js?v=1.2"></script>
+<script src="js/ui/hud.js?v=1.4"></script>
 <script src="js/data/looks.js?v=0.8"></script>
-<script src="js/ui/menu.js?v=0.8"></script>
+<script src="js/ui/menu.js?v=0.9"></script>
 <script src="js/ui/create.js?v=0.8"></script>
 <script src="js/ui/heraldry.js?v=0.8"></script>
 <script src="js/ui/daylight.js?v=0.8"></script>
-<script src="js/net/net.js?v=1.0"></script>
-<script src="js/net/remote.js?v=1.1"></script>
-<script src="js/scenes/town.js?v=1.2"></script>
-<script src="js/scenes/world.js?v=1.2"></script>
-<script src="js/game.js?v=1.0"></script>
+<script src="js/net/net.js?v=1.1"></script>
+<script src="js/net/remote.js?v=1.2"></script>
+<script src="js/scenes/town.js?v=1.3"></script>
+<script src="js/scenes/world.js?v=1.3"></script>
+<script src="js/game.js?v=1.1"></script>
 <script src="js/main.js?v=0.3"></script>
 </body>
 </html>

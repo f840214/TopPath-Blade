@@ -1,6 +1,6 @@
 /* ============ world.js — 城外大地圖：城池、守軍、強盜、道路、地形 ============
  * 座標是大地圖自己的座標（G.WORLD.size），美術在大地圖上用原尺寸畫（artScale 1）。
- * cities：owner 0 我方、1 北境聯軍；garrison 是守城兵團 [兵種 key, 人數]，越遠越強；
+ * cities：owner 0 我方、1 北境聯軍；garrison 是守城兵團 [兵種 key, 人數]，越遠越強；unit 是特產兵種（佔領就解鎖，design.md 32）；
  *   hero 是守將的武器、gold 是攻下後的獎賞；town 是佔領後進城用的城內配置（G.TOWNS）。
  * camps：強盜營地，每個營地同時最多一隊在附近遊蕩；隊伍打掉後 respawnH 遊戲小時再生一隊。
  * roads：泥土路，依序連起來的點；山脈、森林依種子產生（同一個種子每次都一樣）。
@@ -21,25 +21,25 @@ G.WORLD = {
   // 王都在地圖正中間；10 座小城不規則地散在四周（有近有遠）。tier 越高守軍越強、獎賞越多（離王都遠的、北邊的比較強）
   cities: [
     { id: 'capital', name: '王都', x: 3072, y: 1950, owner: 0, art: 'capital_grand', town: 'main', capital: true },   // 王都用自己的大圖（約 470×410，castleArts 的 city_capital 是給玩家的城選的）
-    { id: 'qingshi', name: '青石鎮', x: 3700, y: 2750, owner: 1, art: 'castle_stone', town: 'small', hero: 'sword', lord: '青石守將', gold: 300,
+    { id: 'qingshi', name: '青石鎮', unit: 'swordshield', x: 3700, y: 2750, owner: 1, art: 'castle_stone', town: 'small', hero: 'sword', lord: '青石守將', gold: 300,
       garrison: [['militia', 30], ['pikeman', 20], ['archer', 16]] },
-    { id: 'liuying', name: '柳營', x: 2000, y: 2950, owner: 1, art: 'castle_north', town: 'small', hero: 'sword', lord: '柳營守將', gold: 300,
+    { id: 'liuying', name: '柳營', unit: 'greatsword', x: 2000, y: 2950, owner: 1, art: 'castle_north', town: 'small', hero: 'sword', lord: '柳營守將', gold: 300,
       garrison: [['militia', 30], ['shieldman', 16], ['javelineer', 16]] },
-    { id: 'yingzui', name: '鷹嘴堡', x: 700, y: 2600, owner: 1, art: 'castle_north', town: 'small', hero: 'sword', lord: '鷹嘴堡主', gold: 350,
+    { id: 'yingzui', name: '鷹嘴堡', unit: 'axeman', x: 700, y: 2600, owner: 1, art: 'castle_north', town: 'small', hero: 'sword', lord: '鷹嘴堡主', gold: 350,
       garrison: [['pikeman', 20], ['axeman', 14], ['archer', 16]] },
-    { id: 'baihe', name: '白河城', x: 4700, y: 3400, owner: 1, art: 'castle_east', town: 'small', hero: 'sword', lord: '白河守將', gold: 450,
+    { id: 'baihe', name: '白河城', unit: 'crossbowman', x: 4700, y: 3400, owner: 1, art: 'castle_east', town: 'small', hero: 'sword', lord: '白河守將', gold: 450,
       garrison: [['shieldman', 16], ['pikeman', 20], ['archer', 16], ['crossbowman', 16]] },
-    { id: 'donggang', name: '東崗鎮', x: 4250, y: 1350, owner: 1, art: 'castle_stone', town: 'small', hero: 'glaive', lord: '東崗守將', gold: 450,
+    { id: 'donggang', name: '東崗鎮', unit: 'halberdier', x: 4250, y: 1350, owner: 1, art: 'castle_stone', town: 'small', hero: 'longbow', lord: '東崗守將', gold: 450,
       garrison: [['swordshield', 18], ['halberdier', 18], ['longbowman', 16]] },
-    { id: 'heiyan', name: '雪原城', x: 820, y: 760, owner: 1, art: 'castle_north', town: 'small', hero: 'glaive', lord: '雪原城主', gold: 600,
+    { id: 'heiyan', name: '雪原城', unit: 'heavycav', x: 820, y: 760, owner: 1, art: 'castle_north', town: 'small', hero: 'musket', lord: '雪原城主', gold: 600,
       garrison: [['maceman', 14], ['pavise', 14], ['arquebusier', 16], ['shieldman', 16]] },
-    { id: 'fenglin', name: '楓林城', x: 2160, y: 700, owner: 1, art: 'castle_east', town: 'small', hero: 'glaive', lord: '楓林城主', gold: 550,
+    { id: 'fenglin', name: '楓林城', unit: 'longbowman', x: 2160, y: 700, owner: 1, art: 'castle_east', town: 'small', hero: 'glaive', lord: '楓林城主', gold: 550,
       garrison: [['halberdier', 18], ['swordshield', 18], ['longbowman', 16], ['cavalry', 10]] },
-    { id: 'langgu', name: '狼谷城', x: 5350, y: 2150, owner: 1, art: 'castle_north', town: 'small', hero: 'glaive', lord: '狼谷城主', gold: 700,
+    { id: 'langgu', name: '狼谷城', unit: 'horsearcher', x: 5350, y: 2150, owner: 1, art: 'castle_north', town: 'small', hero: 'glaive', lord: '狼谷城主', gold: 700,
       garrison: [['axeman', 14], ['greatsword', 14], ['horsearcher', 12], ['heavycav', 10]] },
-    { id: 'shuangfeng', name: '霜峰堡', x: 5000, y: 720, owner: 1, art: 'castle_white', town: 'small', hero: 'glaive', lord: '霜峰堡主', gold: 900,
+    { id: 'shuangfeng', name: '霜峰堡', unit: 'arquebusier', x: 5000, y: 720, owner: 1, art: 'castle_white', town: 'small', hero: 'glaive', lord: '霜峰堡主', gold: 900,
       garrison: [['modao', 14], ['pavise', 14], ['arquebusier', 16], ['grenadier', 12], ['cavalry', 10]] },
-    { id: 'beijing', name: '北境王城', x: 3600, y: 560, owner: 1, art: 'castle_white', town: 'small', hero: 'glaive', lord: '北境王', gold: 1200,
+    { id: 'beijing', name: '北境王城', unit: 'modao', x: 3600, y: 560, owner: 1, art: 'castle_white', town: 'small', hero: 'glaive', lord: '北境王', gold: 1200,
       garrison: [['modao', 14], ['greatsword', 14], ['arquebusier', 16], ['grenadier', 12], ['heavycav', 10], ['horsearcher', 12]] },
   ],
   camps: [
@@ -63,9 +63,29 @@ G.WORLD = {
     3: [[['axeman', 8], ['crossbowman', 8], ['horsearcher', 6], ['militia', 14]], [['greatsword', 8], ['javelineer', 10], ['cavalry', 6]]],
   },
   banditGold: { 1: 80, 2: 140, 3: 220 },
-  raidGold: 200,   // 攔截北境聯軍打贏的獎賞
+  // 採集點（docs/design.md 28）：走到旁邊按 E 採集，給打造用的材料（G.MATERIALS）；每個人每個點 cooldownMin 現實分鐘才能再採一次（伺服器記）
+  nodes: [
+    { id: 'mine1', kind: 'iron', name: '黑石礦坑', x: 1560, y: 1250 },
+    { id: 'mine2', kind: 'iron', name: '赤岩礦坑', x: 3560, y: 2470 },
+    { id: 'mine3', kind: 'iron', name: '東嶺礦坑', x: 5560, y: 1500 },
+    { id: 'hunt1', kind: 'leather', name: '鹿野獵場', x: 1000, y: 2050 },
+    { id: 'hunt2', kind: 'leather', name: '南林獵場', x: 3250, y: 3050 },
+    { id: 'hunt3', kind: 'leather', name: '東湖獵場', x: 4950, y: 2650 },
+    { id: 'steel1', kind: 'steel', name: '寒鐵礦脈', x: 1350, y: 520 },
+    { id: 'steel2', kind: 'steel', name: '北嶺礦脈', x: 4500, y: 470 },
+  ],
+  gather: { range: 140, cooldownMin: 20, yield: { iron: [3, 6], leather: [2, 4], steel: [1, 2] } },
+  // 攻城時段（領地戰，design.md 27）：別的玩家佔的城只有這段時間能打（伺服器時間換成 tz 時區）；空城、北境聯軍的城隨時能打。
+  //   剛被佔下的城有 shieldH 小時保護
+  siegeWindow: { tz: 8, daily: [19, 23], weekend: [13, 23], shieldH: 12 },
+  guild: { createCost: 500, max: 30, nameMax: 12, tagMax: 4 },
+  market: { tax: 0.05, maxListings: 10, maxPrice: 100000 },
+  raidGold: 200,   // 攔截北境聯軍（巡邏隊也一樣）打贏的獎賞
+  caravanGold: 250,   // 劫商隊打贏的獎賞（另外照 G.LOOT.caravan 掉材料）
   /** 佔領的城每小時的收入（金） */
   incomeOf: c => Math.round((c.gold || 300) / 5),
+  /** 佔領的城每小時產幾份糧（design.md 32） */
+  foodOf: c => 20 + Math.round((c.gold || 300) / 30),
   foodPrice: 0.5,   // 一份糧食幾金
   respawnH: 12,
   // 高地（台地）：頂面是乾草地，整圈邊緣擋路（南半圈畫成岩壁），只能從斜坡（ramps，邊緣上的角度，放在 1.1～2.1 之間：南邊比較平的地方，斜坡圖才接得平）上下；在上面行軍 ×0.85
@@ -91,12 +111,19 @@ G.WORLD = {
     [[2950, -60], [2850, 650], [2650, 1250], [2440, 1850], [2405, 2055]],   // 河的兩端伸進湖裡，看不到河的盡頭
     [[2400, 2100], [2415, 2280], [2580, 2850], [2925, 3450], [2850, 3960]],
   ],
-  // 道路：只有王都往外的幾條大路（不是每座城都有路，其他地方騎馬直接穿過去）；最後一點是終點城的城門前（城的 y + 50），那裡畫一塊城門前的空地
+  // 道路：王都往外的幾條大路，再從路的終點接到其他城；最後一點是終點城的城門前（城的 y + 50），那裡畫一塊城門前的空地
+  //   台地上的城（楓林、霜峰、狼谷、鷹嘴）：路從斜坡口直直走上去（斜坡口 = highlandPt(ramp)，坡腳約在口的下方 100px）
   roads: [
     [[3072, 2010], [3350, 2400], [3700, 2800]],
     [[3072, 1950], [3650, 1650], [4250, 1400]],
     [[3072, 2010], [2550, 2500], [2000, 3000]],
     [[3072, 1890], [3300, 1150], [3600, 610]],
+    [[3240, 1340], [2760, 1230], [2420, 1110], [2328, 1062], [2328, 930], [2210, 800], [2160, 750]],   // 楓林城：從北上的大路分出來，過河、走東邊的斜坡
+    [[2160, 750], [2040, 840], [1988, 930], [1988, 1062], [1620, 1040], [1180, 900], [820, 810]],     // 雪原城：從楓林城門前走西邊的斜坡下去，往西進雪原
+    [[4250, 1400], [4560, 1230], [4793, 1074], [4793, 945], [4900, 820], [5000, 770]],              // 霜峰堡：東崗鎮往東北，走西邊的斜坡
+    [[4250, 1400], [4720, 1720], [4770, 2220], [4960, 2570], [5184, 2560], [5184, 2400], [5290, 2260], [5350, 2200]],   // 狼谷城：東崗鎮往南（繞過湖的東邊、台地的西邊），走西邊的斜坡
+    [[3700, 2800], [4120, 3060], [4480, 3290], [4700, 3450]],                                        // 白河城：青石鎮往東南，從兩個湖中間過去
+    [[2000, 3000], [1600, 3010], [1160, 2990], [900, 2975], [832, 2925], [832, 2840], [760, 2710], [700, 2650]],   // 鷹嘴堡：柳營往西，走東邊的斜坡
   ],
 
 };
@@ -132,6 +159,8 @@ G.WORLD = {
   const cap0 = W.cities.find(c => c.capital);
   W.capitalYard = { x: cap0.x, y: cap0.y + 190, k: 3, seed: 2.2 };
   W.inYard = (x, y, m = 0) => { const Y = W.capitalYard; return ((x - Y.x) / (84 * Y.k + m)) ** 2 + ((y - Y.y + 40 * Y.k) / (46 * Y.k + m)) ** 2 < 1; };
+  /** 這個時間（ms）是不是攻城時段（siegeWindow，用 tz 時區的時鐘；週末另外一段）；伺服器檢查、大地圖顯示共用 */
+  W.siegeOpen = (ms = Date.now()) => { const S = W.siegeWindow, d = new Date(ms + S.tz * 3600e3), day = d.getUTCDay(), [a, b] = day === 0 || day === 6 ? S.weekend : S.daily, h = d.getUTCHours(); return h >= a && h < b; };
   W.CLIFF = 60;   // 高地岩壁的高度（用 assets/world/cliff_low*.png 切成直條排出來）
   /** 雪原的邊界：橢圓加上幾個不同頻率的起伏（畫圖和判斷共用） */
   W.snowR = a => 1 + 0.12 * Math.sin(3 * a + 1) + 0.07 * Math.sin(7 * a + 2) + 0.04 * Math.sin(13 * a);
@@ -152,7 +181,7 @@ G.WORLD = {
   const boxOf = (art, x, y, m = 0) => { const [w, hh] = ART[art]; return { x0: x - w / 2 - m, x1: x + w / 2 + m, y0: y - hh - m, y1: y + m }; };
   const overlapsArt = (art, x, y, skip = '') => { if (!ART[art]) return false; const a = boxOf(art, x, y, 6);
     return out.some(o => ART[o.art] && o.art !== skip && (MADE.has(art) || MADE.has(o.art)) && (({ x0, x1, y0, y1 }) => a.x0 < x1 && a.x1 > x0 && a.y0 < y1 && a.y1 > y0)(boxOf(o.art, o.x, o.y))); };
-  const clear = (x, y, r, gap = r, h = 0, art = null) => !(art && overlapsArt(art, x, y)) && !inBorder(x, y, r * 0.5) && !W.inYard(x, y - h, r) && !nearCliff(x, y, r) && !nearRamp(x, y, r) && !nearRoad(x, y, r) && !inLake(x, y, r * 0.8) && !nearRiver(x, y, r * 0.8 + 20) && [...W.cities, ...W.camps].every(c => Math.hypot(c.x - x, c.y - y) > r + 160) && !nearCapital(x, y - h, r) &&
+  const clear = (x, y, r, gap = r, h = 0, art = null) => !(art && overlapsArt(art, x, y)) && !inBorder(x, y, r * 0.5) && !W.inYard(x, y - h, r) && !nearCliff(x, y, r) && !nearRamp(x, y, r) && !nearRoad(x, y, r) && !inLake(x, y, r * 0.8) && !nearRiver(x, y, r * 0.8 + 20) && [...W.cities, ...W.camps, ...(W.nodes || [])].every(c => Math.hypot(c.x - x, c.y - y) > r + 160) && !nearCapital(x, y - h, r) &&
     out.every(o => Math.hypot(o.x - x, (o.y - (o.h || 0)) - (y - h)) > (o.r || 0) * (gap / r) + gap);
   // 地圖外圍一圈岩壁（擋路，不畫圖；岩壁畫在地面上，js/world/world-ground.js）：四邊各一條長方形
   const B = W.BORDER = 150, { w: MW, h: MH } = W.size;
@@ -266,6 +295,9 @@ G.WORLD = {
   // 城池、營地本身也擋路（只能站到城門前）
   for (const c of W.cities) out.push({ art: c.art, src: `assets/world/${c.art}.png`, x: c.x, y: c.y, fw: c.capital ? 400 : c.art === 'castle_white' ? 130 : 116, fh: c.capital ? 330 : 46, city: c.id });   // 王都的圖很大，整座城都擋（不然從後面走進城裡）
   for (const c of W.camps) out.push({ art: 'bandit_camp', src: 'assets/world/bandit_camp.png', x: c.x, y: c.y, fw: 70, fh: 26, camp: c.id });
+  // 採集點：礦坑、礦脈是石堆（鐵灰、精鋼偏藍），獵場是堆著的木頭和獸皮架（伐木場的圖）
+  for (const n of W.nodes) out.push({ art: n.kind === 'leather' ? 'logs' : 'rockpile', src: n.kind === 'leather' ? prop('logs') : prop('rocks'), x: n.x, y: n.y, fw: 60, fh: 16, r: 40, h: 22, node: n.id,
+    tint: n.kind === 'steel' ? 0x9fb8d8 : n.kind === 'iron' ? 0xb0a090 : undefined });
   // 道路在 js/world/world-ground.js 畫成平滑的泥土路，這裡不用地磚
   G.TOWNS.world = { roads: [], dirt: [], buildings: out };
 })();

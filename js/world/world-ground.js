@@ -176,6 +176,7 @@ G.WorldGround = (() => {
         const t = a / 30 * Math.PI * 2 + rnd() * 0.15;
         if (Math.sin(t) < (p.yard ? -0.55 : -0.2)) continue;   // 上緣貼著城牆，不放
         const [ex, ey] = plazaPt(p, t), [ax, ay] = plazaPt(p, t - 0.05), [bx, by] = plazaPt(p, t + 0.05), nx = by - ay, ny = -(bx - ax);   // 外法線
+        if (W().inSnow(ex, ey)) continue;   // 雪地上不放綠色草叢
         const e = edges[Math.floor(rnd() * edges.length)];
         g.save(); g.translate(ex, ey); g.rotate(Math.atan2(nx, -ny));   // 草朝外
         g.drawImage(e, -e.width / 2, -e.height * 0.55); g.restore();
@@ -185,7 +186,7 @@ G.WorldGround = (() => {
     if (edges.length) for (const pts of paths) for (let i = 2; i < pts.length - 8; i++) {
       if (rnd() < 0.45) continue;
       const [x, y] = pts[i], [ax, ay] = pts[i - 1], [bx, by] = pts[i + 1], l = Math.hypot(bx - ax, by - ay) || 1, nx = -(by - ay) / l, ny = (bx - ax) / l;
-      if (W().nearRiver(x, y, 30) || W().inYard(x, y, 30) || plazas.some(([px, py]) => Math.hypot(px - x, py - y) < 110)) continue;   // 橋、城門前的空地、王都前的泥土地不放
+      if (W().inSnow(x, y) || W().nearRiver(x, y, 30) || W().inYard(x, y, 30) || plazas.some(([px, py]) => Math.hypot(px - x, py - y) < 110)) continue;   // 橋、城門前的空地、王都前的泥土地不放
       for (const side of [-1, 1]) {
         if (rnd() < 0.3) continue;
         const e = edges[Math.floor(rnd() * edges.length)], ox = nx * side, oy = ny * side, d = 13 + rnd() * 3;
