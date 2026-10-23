@@ -62,8 +62,10 @@ G.Hero = class {
     // 自身強化中（鬼神等）：腳下一圈閃動的紅色氣焰。同場戰鬥沒有 buff 物件，用伺服器送來的 buffOn
     if (!this.dead && (this.buffOn || (this.buff && G.Battle && this.buff.until > G.Battle.time))) {
       const p = 0.55 + Math.sin(performance.now() / 120) * 0.25;
+      if (G.FX.drawFrame('aura_rage', performance.now() / 1000, this.x, this.y, { alpha })) { /* PixelLab 的紅色氣焰，畫在武將後面 */ } else {
       G.Render.under.ellipse(this.x, this.y, rx + 6, (rx + 6) * 0.4).stroke({ width: 3, color: 0xff4a30, alpha: Math.min(1, p + 0.2) * alpha });
       G.Render.zone(this.x, this.y, rx + 14, (rx + 14) * 0.45, 0xff3a20, (0.3 + p * 0.2) * alpha);
+      }
     }
     let anim = 'Idle', t = 0;
     if (this.whirl > 0) { anim = 'Whirl'; t = this.animT; }

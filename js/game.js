@@ -147,6 +147,7 @@ G.Game = (() => {
     G.Render.begin(Z, Math.round((-cam.x + sh.x) * Z), Math.round((-cam.y + sh.y) * Z));
     G.Map.drawGround();
     G.Combat.drawGround();
+    G.FX.drawGroundFx();   // 地面上的特效動畫（落地塵土、衝擊、光環）
     G.Map.drawCapture(V.time);
     G.Siege.drawGround(V.time);
     drawSupply(V);
@@ -165,6 +166,7 @@ G.Game = (() => {
     if (!demo) { const im = G.Assets.img('assets/battle/supply.png'); for (const s of V.supply) list.push({ y: s.y - 30, draw: () => { if (im.complete && im.naturalWidth) G.Render.image(im, s.x - 70, s.y - 112); } }); }
     list.sort((a, b) => a.y - b.y);
     for (const d of list) d.draw(ctx);
+    G.FX.drawAirFx();   // 單位上面的特效動畫（爆炸、火花、刀光、槍口火光）
     G.Combat.drawAir(ctx);
     G.Siege.drawAir(ctx);
     G.FX.drawWorld(ctx);

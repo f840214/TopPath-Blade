@@ -18,7 +18,7 @@ const FILES = ['js/data/config.js', 'js/core/util.js', 'js/data/sprites-meta.js'
   'js/data/town-small.js', 'js/data/world.js', 'js/core/sprites.js', 'js/entities/unit.js', 'js/entities/hero.js', 'js/world/nav.js', 'js/world/map.js',
   'js/systems/combat.js', 'js/systems/skills.js', 'js/systems/ai.js', 'js/systems/siege.js', 'js/systems/army.js', 'js/battle/sim.js'];   // army.js：敵方老兵技能（G.Army.modsOf）
 // 轉送給瀏覽器的特效（其他的例如命中停頓、慢動作只影響單機的時間，不送）
-const FX_EVENTS = ['hit', 'blood', 'dust', 'embers', 'slash', 'ring', 'number', 'addShake', 'feed', 'stuck'];   // feed：擊殺提示；stuck：插在地上的箭
+const FX_EVENTS = ['hit', 'blood', 'dust', 'embers', 'slash', 'ring', 'number', 'addShake', 'feed', 'stuck', 'impact', 'muzzle', 'shout'];   // feed：擊殺提示；stuck：插在地上的箭
 const MAX_FX = 160;   // 每一步最多送幾個特效，大混戰時才不會塞爆
 
 const r1 = v => Math.round(v * 10) / 10, r2 = v => Math.round(v * 100) / 100;

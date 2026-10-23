@@ -459,3 +459,10 @@
 | 目的地插旗 | 點地面、拉線的地方插一面小旗，4 秒淡出 |
 | 遠程武將 | 電腦的火槍、長弓武將被貼身（90 內）會往後退、用後撤裝填或翻滾；東崗鎮守將改用長弓、雪原城守將改用火槍 |
 | 美術 | 拒馬、床弩、攻城塔、投石車（架子＋擺臂）、火砲、石牆、血跡、插地的箭、商隊都是 PixelLab 的圖（2026-10-23）；衝車放大 1.3 倍、隊旗加大；血條框 assets/ui/bar.png、強調按鈕 assets/ui/button.png |
+
+## 36. 特效動畫（PixelLab）
+
+- 圖在 `assets/fx/<名稱>.png`，橫排影格條；設定（影格大小、格數、fps、循環、錨點）在 `js/data/fx-meta.js`（由 `assets/fx/fx.json` 產生）。
+- 播放：`G.FX.play(name, x, y, { rot, scale, ground, dur })` 播一次；`G.FX.drawFrame(name, t, x, y)` 畫某一刻（投射物、燃燒區、氣焰這種跟著物件走的）。
+- 語意函式：`G.FX.impact(x, y, 'rock'|'boulder'|'explosion')`、`G.FX.muzzle(x, y, a)`、`G.FX.shout(x, y, r)`；`hit`、`dust`、整圈的 `slash` 有圖時自動加上。沒有圖就退回原本程式畫的粒子，伺服器的同場戰鬥把這些事件轉送給瀏覽器（battle-host 的 FX_EVENTS）。
+- 目前 13 個：rock、rock_impact、boulder、boulder_impact、fire_arrow、fire_ground、explosion、muzzle、hit_spark、slash_spin、shout_ring、aura_rage、dust_puff。除了兩顆石頭，都是 PixelLab 的 vfx_workbench 做的（存在使用者的 My effects，名稱 TPB 開頭，可以拉滑桿再調）。

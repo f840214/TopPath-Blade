@@ -110,7 +110,7 @@ G.Skills = (() => {
       case 'warcry':
         h.doAction(S.anim, 0.6);
         for (const sq of G.Battle.squadsOf(h.team)) sq.buff = { atkMul: S.atkMul, speedMul: S.speedMul, until: G.Battle.time + S.dur };
-        G.FX.ring(h.x, h.y, 140, 'rgba(255,215,120,0.9)', 0.6);
+        G.FX.shout(h.x, h.y, 140);
         G.FX.embers(h.x, h.y - 10, 24, 18);
         G.FX.addShake(3);
         break;
@@ -153,7 +153,7 @@ G.Skills = (() => {
           sq.morale = Math.min(100, (sq.morale ?? 100) + S.morale); sq.rout = 0;
           sq.buff = { atkMul: S.atkMul, speedMul: 1, until: G.Battle.time + S.dur };
         }
-        G.FX.ring(h.x, h.y, 160, 'rgba(160,200,255,0.9)', 0.7); G.FX.addShake(3);
+        G.FX.shout(h.x, h.y, 160, 'rgba(160,200,255,0.9)'); G.FX.addShake(3);
         break;
       /* ---------- 野太刀 ---------- */
       case 'iai': case 'lancecharge': case 'ram':
@@ -197,7 +197,7 @@ G.Skills = (() => {
           Dmg(h, o, base * Math.max(0.4, k) * S.pellets / 3, { ranged: true, knock: d < S.close ? S.knock : 10, stun: d < S.close ? S.stun : 0 });
         });
         for (let k = 0; k < S.pellets; k++) { const a = f + (k / (S.pellets - 1) - 0.5) * S.arc; G.Combat.arrow(h, null, { area: { x: h.x + Math.cos(a) * S.range, y: h.y + Math.sin(a) * S.range }, ranged: { speed: 900, flat: true }, base: 0 }); }
-        G.FX.hit(h.x + Math.cos(f) * 14, h.y - 14 + Math.sin(f) * 14, '#ffd27a', 8); G.FX.addShake(2);
+        G.FX.muzzle(h.x + Math.cos(f) * 14, h.y - 14 + Math.sin(f) * 14, f); G.FX.addShake(2);
         break;
       case 'roll': {
         // 往後（背對面向）翻滾，裝好下兩發：普攻立刻能開火、傷害提高（sim.js heroAttack 用 h.loaded）

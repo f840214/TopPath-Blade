@@ -150,7 +150,7 @@ G.Siege = (() => {
       const tgt = wall ? { x: wall.x, y: c.wallY } : eng || sq;
       if (!tgt) { e.fireT = 0.6; return; }
       e.fireT = d.cd; e.swing = 0.35; e.face = Math.atan2(tgt.y - e.y, tgt.x - e.x);
-      G.FX.hit(e.x + Math.cos(e.face) * 16, e.y - 10 + Math.sin(e.face) * 16, '#ffd27a', 8); G.FX.dust(e.x, e.y, 4); G.FX.addShake(2);
+      G.FX.muzzle(e.x + Math.cos(e.face) * 16, e.y - 10 + Math.sin(e.face) * 16, e.face); G.FX.dust(e.x, e.y, 4); G.FX.addShake(2);   // 砲口火光
       if (wall) { G.Battle.hitOpening(by, wall, d.gateDmg); G.Combat.arrow(by, null, { area: { x: tgt.x, y: tgt.y }, ranged: { speed: 900, flat: true }, base: 0 }); }
       else if (eng) { damage(by, eng, d.gateDmg, { big: true }); G.Combat.arrow(by, null, { area: { x: tgt.x, y: tgt.y }, ranged: { speed: 900, flat: true }, base: 0 }); }
       else G.Combat.arrow(by, null, { area: { x: tgt.x, y: tgt.y }, ranged: { speed: 700, splash: d.blast }, base: d.dmg });   // 會爆炸的砲彈（鈍擊）
@@ -262,7 +262,7 @@ G.Siege = (() => {
       const by = { team: h.team, x: h.x, y: h.y - 1 }, big = h.kind === 'boulder';
       G.Battle.forEachFoe(h.team, h.x, h.y, h.r, u => G.Combat.damage(by, u, h.dmg, { noCounter: true, knock: big ? 16 : 10, big: true, color: '#d8d2c4' }));
       if (big) forEachFoeEngine(h.team, h.x, h.y, h.r, e => damage(by, e, h.dmg * 2, { big: true }));
-      for (let i = 0; i < (big ? 8 : 4); i++) G.FX.dust(h.x + G.U.rand(-h.r / 2, h.r / 2), h.y + G.U.rand(-h.r / 4, h.r / 4), 4);
+      G.FX.impact(h.x, h.y, big ? 'boulder' : 'rock');   // 落石、投石落地（PixelLab 的圖，沒有就是一片塵土）
       G.FX.ring(h.x, h.y, h.r, 'rgba(220,210,190,0.8)', 0.3);
       G.FX.addShake(big ? 3 : 1);
     }
@@ -284,10 +284,10 @@ G.Siege = (() => {
     for (const h of hazards) {
       if (h.kind === 'rock') {
         const k = (h.t - (h.warn - 0.45)) / 0.45; if (k < 0) continue;
-        ctx.fillStyle = '#8a8378'; ctx.fillRect(Math.round(h.x - 3), Math.round(h.y - 90 * (1 - k) - 6), 6, 6);
+        if (!G.FX.drawFrame('rock', 0, h.x, h.y - 90 * (1 - k) - 3)) { ctx.fillStyle = '#8a8378'; ctx.fillRect(Math.round(h.x - 3), Math.round(h.y - 90 * (1 - k) - 6), 6, 6); }   // PixelLab 的石頭，沒有就是方塊
       } else {
         const k = h.t / h.warn, x = h.sx + (h.x - h.sx) * k, y = h.sy + (h.y - h.sy) * k - Math.sin(k * Math.PI) * 220;
-        ctx.fillStyle = '#5f594f'; ctx.beginPath(); ctx.arc(x, y - 6, 5 + k * 2, 0, Math.PI * 2); ctx.fill();
+        if (!G.FX.drawFrame('boulder', h.t, x, y - 6, { scale: 1 + k * 0.4 })) { ctx.fillStyle = '#5f594f'; ctx.beginPath(); ctx.arc(x, y - 6, 5 + k * 2, 0, Math.PI * 2); ctx.fill(); }   // 越飛越近畫大一點
       }
     }
   }

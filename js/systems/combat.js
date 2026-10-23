@@ -127,7 +127,7 @@ G.Combat = (() => {
           G.FX.embers(p.tx, p.ty, 16, 20);
         } else if (p.splash) {
           G.Battle.forEachFoe(p.att.team, p.tx, p.ty, p.splash, o => damage(p.att, o, p.base, { ranged: true, knock: 8, dtype: 'blunt' }));   // 炸彈、砲彈：鈍擊
-          G.FX.embers(p.tx, p.ty, 8, 10); G.FX.dust(p.tx, p.ty, 4); G.FX.ring(p.tx, p.ty, p.splash, 'rgba(255,170,80,0.8)', 0.3);
+          G.FX.impact(p.tx, p.ty, 'explosion'); G.FX.ring(p.tx, p.ty, p.splash, 'rgba(255,170,80,0.8)', 0.3);   // 爆炸（PixelLab 的圖，沒有就是火星和塵土）
         } else if (p.area) {
           const hit = G.Battle.nearestFoe(p.att.team, p.tx, p.ty, 10);
           if (hit && p.base) damage(p.att, hit, p.base, { ranged: true });
@@ -151,7 +151,18 @@ G.Combat = (() => {
   }
 
   function drawGround() {
-    for (const z of zones) G.Render.zone(z.x, z.y, z.r, z.r * 0.6, 0xffa028, 0.45 * (1 - z.t / z.dur));
+    const now = performance.now() / 1000, art = G.FX.has('fire_ground');
+    for (const z of zones) {
+      const left = 1 - z.t / z.dur;
+      G.Render.zone(z.x, z.y, z.r, z.r * 0.6, 0xffa028, (art ? 0.2 : 0.45) * left);
+      if (!art) continue;
+      // 燃燒區：一團團 PixelLab 的火（fire_ground）撒在圈裡（位置照黃金角固定排，同一區每幀一樣），快熄的時候變淡
+      const n = Math.max(3, Math.round(z.r / 9));
+      for (let i = 0; i < n; i++) {
+        const a = i * 2.39996, d = Math.sqrt((i + 0.5) / n) * z.r * 0.85;
+        G.FX.drawFrame('fire_ground', now + i * 0.17, z.x + Math.cos(a) * d, z.y + Math.sin(a) * d * 0.6, { alpha: Math.min(1, left * 2), scale: 0.8 + (i % 3) * 0.15 });
+      }
+    }
   }
   function drawAir(ctx) {
     ctx.strokeStyle = '#3b2a1a'; ctx.lineWidth = 1;
@@ -159,6 +170,7 @@ G.Combat = (() => {
       const k = Math.min(1, p.t / p.dur), x = p.sx + (p.tx - p.sx) * k, y = p.sy + (p.ty - p.sy) * k - Math.sin(k * Math.PI) * p.arc;
       const k2 = Math.min(1, k + 0.04), x2 = p.sx + (p.tx - p.sx) * k2, y2 = p.sy + (p.ty - p.sy) * k2 - Math.sin(k2 * Math.PI) * p.arc;
       const a = Math.atan2(y2 - y, x2 - x);
+      if (p.fire && G.FX.drawFrame('fire_arrow', p.t, x, y, { rot: a })) continue;   // 火箭：PixelLab 的帶火箭矢（圖的箭頭朝右）
       if (p.kind === 'bomb') { ctx.fillStyle = '#222'; ctx.fillRect(Math.round(x - 2), Math.round(y - 2), 4, 4); ctx.fillStyle = '#ffb347'; ctx.fillRect(Math.round(x + 1), Math.round(y - 3), 1, 1); continue; }
       ctx.strokeStyle = p.fire ? '#ff8a2a' : p.kind === 'bolt' ? '#e8d8a0' : '#3b2a1a';
       ctx.beginPath(); ctx.moveTo(x - Math.cos(a) * 5, y - Math.sin(a) * 5); ctx.lineTo(x + Math.cos(a) * 3, y + Math.sin(a) * 3); ctx.stroke();

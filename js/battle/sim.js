@@ -639,7 +639,7 @@ G.Battle = (() => {
     if (w.ranged) {
       // 火槍「後撤裝填」裝好的子彈：傷害提高、下一發馬上能開
       const loaded = h.loaded > 0 && t && !t.gate; if (loaded) { h.loaded--; if (h.loaded) h.cd = Math.min(h.cd || 0, 0.25); }
-      if (t && !t.gate && t.team !== undefined) G.Combat.arrow(h, t, { ranged: w.ranged, knock: w.knock, base: h.atk * G.U.rand(0.9, 1.1) * (loaded ? G.HERO_SKILLS.roll.loadMul : 1) }); if (w.ranged.flat) G.FX.hit(h.x + Math.cos(h.face) * 14, h.y - 14 + Math.sin(h.face) * 14, '#ffd27a', 4); return; }
+      if (t && !t.gate && t.team !== undefined) G.Combat.arrow(h, t, { ranged: w.ranged, knock: w.knock, base: h.atk * G.U.rand(0.9, 1.1) * (loaded ? G.HERO_SKILLS.roll.loadMul : 1) }); if (w.ranged.flat) G.FX.muzzle(h.x + Math.cos(h.face) * 14, h.y - 14 + Math.sin(h.face) * 14, h.face); return; }
     G.FX.slash(h.x, h.y - 12, h.face, w.range - 8, w.arc, { life: 0.18, width: 4 });
     forEachFoe(h.team, h.x, h.y, w.range, o => {
       if (G.U.angDiff(Math.atan2(o.y - h.y, o.x - h.x), h.face) < w.arc / 2 + 0.2) G.Combat.damage(h, o, h.atk * G.U.rand(0.9, 1.1), { knock: 7 });

@@ -7,10 +7,11 @@ G.FX = (() => {
   let shake = 0, hitStop = 0, slow = null;   // slow：慢動作 { left, scale }
   const S = { shake: false };   // 設定：畫面震動開關（預設關，V 鍵可開）
 
-  function reset() { parts = []; arcs = []; rings = []; texts = []; cutin = null; shake = 0; hitStop = 0; slow = null; stuckArr = []; }
+  function reset() { parts = []; arcs = []; rings = []; texts = []; cutin = null; shake = 0; hitStop = 0; slow = null; stuckArr = []; anims = []; }
 
   /** 受擊火花＋塵土 */
   function hit(x, y, color = '#fff2b0', n = 6) {
+    if (n >= 4 && play('hit_spark', x, y)) n = Math.ceil(n / 2);   // 重的命中加一個 PixelLab 的火花，粒子少一點
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2, s = G.U.rand(40, 110);
       parts.push({ x, y, z: 12, vx: Math.cos(a) * s, vy: Math.sin(a) * s * 0.6, vz: G.U.rand(20, 80), life: G.U.rand(0.2, 0.4), t: 0, color, size: 2 });
@@ -18,6 +19,7 @@ G.FX = (() => {
   }
   function blood(x, y, n = 4) { hit(x, y, '#8c1d1d', n); }
   function dust(x, y, n = 5) {
+    if (play('dust_puff', x, y, { ground: true })) n = Math.ceil(n / 3);   // 有 PixelLab 的塵土圖就少撒一點粒子
     for (let i = 0; i < n; i++)
       parts.push({ x: x + G.U.rand(-6, 6), y, z: 2, vx: G.U.rand(-30, 30), vy: G.U.rand(-10, 10), vz: G.U.rand(10, 30), life: G.U.rand(0.4, 0.7), t: 0, color: 'rgba(160,140,110,0.7)', size: 3, grow: true });
   }
@@ -29,6 +31,7 @@ G.FX = (() => {
 
   /** 刀光：以 (x,y) 為中心、朝 a 方向、張角 arc 的弧形，fire 為火焰色 */
   function slash(x, y, a, r, arc, o = {}) {
+    if (arc >= 6.2 && play('slash_spin', x, y, { scale: r / 40 })) { if (o.fire) embers(x, y, 8, r * 0.7); return; }   // 一整圈的刀光（迴旋斬、燕返）用 PixelLab 的圖
     arcs.push({ x, y, a, r, arc, t: 0, life: o.life || 0.22, fire: !!o.fire, width: o.width || 4, spin: o.spin || 0 });
     if (o.fire) for (let i = 0; i < 8; i++) {
       const aa = a + G.U.rand(-arc / 2, arc / 2);
@@ -74,10 +77,51 @@ G.FX = (() => {
     for (const t of texts) t.t += dt;
     texts = texts.filter(t => t.t < t.life);
     if (cutin) { cutin.t += dt; if (cutin.t > cutin.life) cutin = null; }
+    updateAnims(dt);
     return false;
   }
 
   function shakeOffset() { return shake > 0 ? { x: G.U.rand(-shake, shake), y: G.U.rand(-shake, shake) } : { x: 0, y: 0 }; }
+
+  /* ---------- PixelLab 的特效動畫（design.md 36）----------
+   * assets/fx/<名稱>.png 是橫排的影格條，設定（影格大小、格數、fps、循環、錨點）在 js/data/fx-meta.js 的 G.FX_META。
+   * 圖還沒載好或沒有這個特效時，下面的 impact、muzzle、shout… 會退回原本程式畫的粒子和圈圈。
+   * ground：畫在單位底下（落地的塵土、地上的火），其他畫在單位上面。大小照美術比例（artScale）。
+   */
+  let anims = [];
+  const fxArt = n => { const m = G.FX_META && G.FX_META[n]; if (!m) return null; const im = G.Assets.img(`assets/fx/${n}.png`); return im.complete && im.naturalWidth ? { im, m } : null; };
+  const has = n => !!fxArt(n);
+  /** 播一次（loop 的特效播 dur 秒）；o：{ rot, scale, flip, dur, ground, alpha, t0 } */
+  function play(name, x, y, o = {}) { if (!has(name)) return false; anims.push({ name, x, y, t: o.t0 || 0, ...o }); if (anims.length > 300) anims.shift(); return true; }
+  /** 某個特效在時間 t 是第幾格（loop 的一直循環；不循環的停在最後一格） */
+  const frameAt = (m, t) => { const f = Math.floor(t * m.fps); return m.loop ? f % m.frames : Math.min(f, m.frames - 1); };
+  /** 用精靈層畫一格（跟單位一起，依呼叫順序疊）；k 是縮放 */
+  function drawFrame(name, t, x, y, o = {}) {
+    const A = fxArt(name); if (!A) return false;
+    const { im, m } = A, f = frameAt(m, t), k = G.CONFIG.artScale * (o.scale || 1);
+    G.Render.frame(im, f * m.w, 0, m.w, m.h, x - m.ax * k, y - m.ay * k, o.alpha ?? 1, !!o.flip, k, 0xffffff, o.rot || 0, m.ax, m.ay);
+    return true;
+  }
+  function updateAnims(dt) {
+    for (const a of anims) a.t += dt;
+    anims = anims.filter(a => { const m = G.FX_META[a.name]; return m && (m.loop ? a.t < (a.dur || 1) : a.t < m.frames / m.fps); });
+  }
+  /** 地面上的特效（js/game.js 在畫單位之前呼叫） */
+  function drawGroundFx() { for (const a of anims) if (a.ground) drawFrame(a.name, a.t, a.x, a.y, a); }
+  function drawAirFx() { for (const a of anims) if (!a.ground) drawFrame(a.name, a.t, a.x, a.y, a); }
+
+  /** 落地衝擊：kind 'rock' 落石、'boulder' 投石、'explosion' 炸彈／砲彈 */
+  function impact(x, y, kind = 'rock') {
+    const name = kind === 'explosion' ? 'explosion' : `${kind}_impact`;
+    if (play(name, x, y, { ground: kind !== 'explosion' })) return;
+    const big = kind !== 'rock';
+    for (let i = 0; i < (big ? 8 : 4); i++) dust(x + G.U.rand(-12, 12), y + G.U.rand(-6, 6), 4);
+    if (kind === 'explosion') embers(x, y, 8, 10);
+  }
+  /** 槍口火光：a 是開火的方向 */
+  function muzzle(x, y, a) { if (!play('muzzle', x, y, { rot: a })) hit(x, y, '#ffd27a', 4); }
+  /** 戰吼、號令、鬼神：腳下往外擴散的光環 */
+  function shout(x, y, r = 140, color = 'rgba(255,215,120,0.9)') { if (!play('shout_ring', x, y, { ground: true, scale: r / 65, alpha: 0.85 })) ring(x, y, r, color, 0.6); }
 
   /** 在世界座標系中畫 */
   /** 插在地上的箭（落空的箭、齊射）：留 8 秒，最多 200 支；a 是箭飛來的方向 */
@@ -169,5 +213,5 @@ G.FX = (() => {
     while (box.children.length > 6) box.lastChild.remove();
     setTimeout(() => row.classList.add('out'), 5000); setTimeout(() => row.remove(), 6000);
   }
-  return { S, reset, hit, blood, dust, embers, slash, ring, number, feed, stuck, addShake, addHitStop, slowMo, timeScale, showCutin, portrait, update, shakeOffset, drawWorld, drawScreen };
+  return { S, reset, hit, blood, dust, embers, slash, ring, number, feed, stuck, impact, muzzle, shout, play, has, drawFrame, drawGroundFx, drawAirFx, addShake, addHitStop, slowMo, timeScale, showCutin, portrait, update, shakeOffset, drawWorld, drawScreen };
 })();
