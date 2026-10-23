@@ -466,3 +466,5 @@
 - 播放：`G.FX.play(name, x, y, { rot, scale, ground, dur })` 播一次；`G.FX.drawFrame(name, t, x, y)` 畫某一刻（投射物、燃燒區、氣焰這種跟著物件走的）。
 - 語意函式：`G.FX.impact(x, y, 'rock'|'boulder'|'explosion')`、`G.FX.muzzle(x, y, a)`、`G.FX.shout(x, y, r)`；`hit`、`dust`、整圈的 `slash` 有圖時自動加上。沒有圖就退回原本程式畫的粒子，伺服器的同場戰鬥把這些事件轉送給瀏覽器（battle-host 的 FX_EVENTS）。
 - 目前 13 個：rock、rock_impact、boulder、boulder_impact、fire_arrow、fire_ground、explosion、muzzle、hit_spark、slash_spin、shout_ring、aura_rage、dust_puff。除了兩顆石頭，都是 PixelLab 的 vfx_workbench 做的（存在使用者的 My effects，名稱 TPB 開頭，可以拉滑桿再調）。
+
+- 器械的影子（2026-10-23）：跟騎馬一樣要對準著地的範圍。`js/systems/siege.js` 的 `FOOT` 記每張器械圖量出來的著地中心與大小，換圖時要重量。

@@ -366,6 +366,19 @@ G.Siege = (() => {
   /** 放置型器械的圖：有 PixelLab 的圖（assets/battle/<種類>.png）就用，沒有就用上面程式畫的 */
   function placedArt(e) { const im = art(e.kind); return im ? { im, k: 1, art: true } : { im: PLACED[e.kind](e.team), k: 1 }; }   // PixelLab 的圖跟衝車一樣原尺寸畫
 
+  /** 器械的影子（跟騎馬一樣，design.md 36 後記）：對準輪子、腳架著地的範圍，不然看起來浮在半空。
+   * FOOT：在 PixelLab 原圖上量的 [著地中心離圖中心的 x, 離圖底邊的 y, 半寬, 半高]（px）。
+   * 一層蓋住整個底座的淡影，加一層貼地的深色（輪子、腳底下最暗）。k：圖的縮放（0 = 程式畫的圖，用舊的小影子） */
+  const FOOT = { ram: [0, 7, 30, 8], stakes: [-1, 7, 25, 6], ballista: [3, 6, 14, 5], tower: [-1, 8, 29, 9], trebuchet: [-5, 7, 27, 8], cannon: [-6, 5, 18, 5] };
+  function footShadow(kind, x, bottom, k, alpha, flip = false) {
+    const f = FOOT[kind];
+    if (!f || !k) { R0().shadow(x, bottom - 2, 16, 5, 0.3 * alpha); return; }
+    const cx = x + (flip ? -f[0] : f[0]) * k, cy = bottom - f[1] * k, rx = f[2] * k, ry = f[3] * k;
+    R0().shadow(cx, cy, rx + 4, ry + 3, 0.32 * alpha);
+    R0().shadow(cx, cy, rx * 0.8, ry * 0.7, 0.38 * alpha);
+  }
+  const R0 = () => G.Render;
+
   /** 器械跟單位一起依 y 排序；搭好的雲梯畫在城牆前面（排序用牆腳的 y） */
   function drawables(view, player) {
     const c = G.Map.castle, out = [];
@@ -376,7 +389,7 @@ G.Siege = (() => {
       if (PLACED[e.kind] && !(e.kind === 'tower' && e.state === 'up' && c)) {   // 放置型器械（攻城塔還沒靠上城牆時也在這裡畫）
         out.push({ y: e.y, draw: ctx => {
           const P = placedArt(e), im = P.im, k = P.k, iw = (im.naturalWidth || im.width) * k, ih = (im.naturalHeight || im.height) * k;
-          R.shadow(e.x, e.y + 2, e.radius + 2, 5, 0.3 * alpha);
+          footShadow(e.kind, e.x, e.y + 4, P.art ? 1 : 0, alpha, e.kind === 'cannon' && Math.cos(e.face) < 0);
           R.image(im, Math.round(e.x - iw / 2), Math.round(e.y - ih + 4), alpha, e.kind === 'cannon' && Math.cos(e.face) < 0, k);   // 火砲砲口朝右的圖，往左打就翻過來
           if (P.art) { ctx.fillStyle = '#3a2c1e'; ctx.fillRect(Math.round(e.x + iw / 2 - 7), Math.round(e.y - ih + 2), 1, 10); ctx.fillStyle = flagOf(e.team); ctx.fillRect(Math.round(e.x + iw / 2 - 6), Math.round(e.y - ih + 2), 6, 4); }   // PixelLab 的圖沒有隊色：插一面小旗
           if (e.kind === 'trebuchet') {   // 擺臂：發射時往前甩（有 PixelLab 的擺臂圖就轉那張圖）
@@ -415,7 +428,8 @@ G.Siege = (() => {
         continue;
       }
       out.push({ y: e.y, draw: ctx => {
-        R.shadow(e.x, e.y + 6, e.radius + 2, 5, 0.3 * alpha);
+        if (e.kind === 'ram' && art('ram')) footShadow('ram', e.x, e.y + 6 * 1.3, 1.3, alpha);   // 衝車圖（放大 1.3）的底邊在 e.y + 6×1.3
+        else R.shadow(e.x, e.y + 2, e.radius + 2, 5, 0.35 * alpha);
         const mine = e.team === (G.viewTeam || 0), body = art(mine ? 'ram' : 'ram_red'), log = art('ram_log'), carry = art('ladder_carry');
         if (e.kind === 'ram') {
           const off = e.swing > 0 ? -6 * Math.sin((1 - e.swing / 0.25) * Math.PI) : 0;   // 撞木往前撞再收回
