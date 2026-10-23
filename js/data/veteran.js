@@ -105,3 +105,24 @@ G.VETERAN_RESET_COST = 50;
     ];
   }
 })();
+
+/* ---------- 戰術書（兵團詞綴，docs/design.md 24）----------
+ * 掉落取得，插在兵團的欄位上（Lv1 兩格、Lv6 三格），效果跟老兵技能一樣是 mod（G.Army.modsOf 一起合併）。
+ * allCdMul：所有兵團技能的冷卻。rarity 跟裝備同一套（G.RARITY）。
+ */
+G.DOCTRINES = {
+  d_atk:    { name: '銳兵書', rarity: 0, desc: '攻擊 +5%',             mod: { atkMul: 1.05 } },
+  d_hp:     { name: '堅守書', rarity: 0, desc: '生命 +6%',             mod: { hpMul: 1.06 } },
+  d_spd:    { name: '疾行書', rarity: 0, desc: '移速 +6%',             mod: { speedMul: 1.06 } },
+  d_armor:  { name: '鐵甲書', rarity: 0, desc: '護甲 +1',              mod: { armor: 1 } },
+  d_vcav:   { name: '破騎書', rarity: 1, desc: '對騎兵傷害 +12%',      mod: { vsMul: { cav: 1.12 } } },
+  d_vinf:   { name: '破陣書', rarity: 1, desc: '對長槍、盾兵傷害 +10%', mod: { vsMul: { pike: 1.1, shield: 1.1 } } },
+  d_varch:  { name: '衝陣書', rarity: 1, desc: '對遠程傷害 +12%',      mod: { vsMul: { archer: 1.12 } } },
+  d_range:  { name: '遠射書', rarity: 1, desc: '射程 +8%（遠程兵）',   mod: { rangeMul: 1.08 } },
+  d_charge: { name: '鐵騎書', rarity: 1, desc: '衝鋒傷害 +15%（騎兵）', mod: { chargeMul: 1.15 } },
+  d_cd:     { name: '精練書', rarity: 2, desc: '兵團技能冷卻 -15%',    mod: { allCdMul: 0.85 } },
+  d_elite:  { name: '精銳書', rarity: 2, desc: '攻擊 +8%、生命 +8%',   mod: { atkMul: 1.08, hpMul: 1.08 } },
+  d_iron:   { name: '不動書', rarity: 2, desc: '護甲 +2、生命 +5%',    mod: { armor: 2, hpMul: 1.05 } },
+};
+G.DOCTRINE_SLOTS = lv => lv >= 6 ? 3 : 2;
+G.DOCTRINE_MAX = 30;   // 書庫最多幾本

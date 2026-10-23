@@ -46,3 +46,11 @@ G.HERO_SKILLS = {
   arrowrain:  { name: '箭雨',   cd: 12, range: 340, radius: 70, waves: 4, interval: 0.4, dmgMul: 0.8, anim: 'Attack', desc: '對最近的敵群連射四輪箭雨。' },
   firerain:   { name: '火雨',   cd: 26, range: 340, radius: 90, dur: 6, dps: 14, anim: 'Attack', desc: '對最近的敵群射出火箭，大範圍持續燃燒。' },
 };
+
+/* 通用兵團指令（每種兵都能下，鍵盤 4／5／6、C，指揮列按鈕；效果在 js/battle/sim.js 的 SQUAD_CMDS、js/systems/ai.js、combat.js） */
+G.SQUAD_ORDERS = {
+  rush:   { name: '衝鋒', key: '4', cd: 12, dur: 4, speedMul: 1.3, hitMul: 1.5, knock: 14, desc: '全速衝向敵人，第一下打得重、把人撞開。' },
+  stand:  { name: '固守', key: '5', cd: 15, dur: 6, chargeTakenMul: 0.5, desc: '原地站穩 6 秒：幾乎不會被擊退、正面近戰減傷、騎兵衝鋒傷害減半；不能移動。' },
+  spread: { name: '散開', key: '6', desc: '切換散開／密集：散開時遠程傷害 ×0.65、近戰 ×1.1。' },
+  focus:  { name: '集火', key: 'C', desc: '滑鼠指著敵方兵團或敵將按 C：全隊追著它打。' },
+};

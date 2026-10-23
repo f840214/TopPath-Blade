@@ -35,6 +35,30 @@ G.ARMY = {
   heroXpPerKill: 1, heroXpWin: 100, heroXpLose: 30,
 
   maxRoster: 8,
+  // 馬匹（design.md 32）：騎兵類兵種招募、補員每個人要一匹馬（旅店買，每匹 horsePrice 金）；新帳號有 startHorses 匹
+  horsePrice: 6, startHorses: 30,
+  localDiscount: 0.8,   // 在自己佔領的城裡招募、補員的價格倍率
+  // 兵力過低：活著的人少於編制的 weakAt，攻擊 ×weakMul
+  weakAt: 0.4, weakMul: 0.8,
   // 新存檔：金幣與初始名冊（men 是目前人數，滿編人數看 G.UNITS[type].count）
   start: { gold: 300, roster: ['pikeman', 'archer', 'shieldman'] },
+};
+
+/* 兵種解鎖樹（docs/design.md 25）：start 一開始就能招；其他兵種要先把 from 兵種的某一支兵團練到 lv 級才解鎖（解鎖後永久，profile.unlocked）。
+ * 舊存檔名冊上已經有的兵種直接算解鎖。 */
+G.UNIT_TREE = {
+  start: ['militia', 'pikeman', 'shieldman', 'archer', 'javelineer', 'engineer', 'cavalry'],
+  halberdier:  { from: 'pikeman', lv: 3 },
+  swordshield: { from: 'shieldman', lv: 3 },
+  axeman:      { from: 'militia', lv: 3 },
+  longbowman:  { from: 'archer', lv: 3 },
+  crossbowman: { from: 'archer', lv: 3 },
+  horsearcher: { from: 'cavalry', lv: 3 },
+  greatsword:  { from: 'swordshield', lv: 4 },
+  maceman:     { from: 'swordshield', lv: 4 },
+  modao:       { from: 'halberdier', lv: 5 },
+  pavise:      { from: 'crossbowman', lv: 4 },
+  arquebusier: { from: 'crossbowman', lv: 4 },
+  grenadier:   { from: 'javelineer', lv: 4 },
+  heavycav:    { from: 'cavalry', lv: 5 },
 };

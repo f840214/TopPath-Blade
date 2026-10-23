@@ -8,11 +8,11 @@
  */
 G.Remote = (() => {
   const units = new Map(), heroes = new Map(), squads = new Map();
-  let me = null, info = null, time = 0, kills = [0, 0], lastSend = 0, exitTo = null;
+  let me = null, info = null, time = 0, kills = [0, 0], lastSend = 0, exitTo = null, deployT = 0, deployLen = 0;
   const hits = new Set();
   // 戰鬥會用到的按鍵（移動、技能、指揮、補給、器械、城門）
   const KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight', 'KeyQ', 'KeyE', 'KeyR', 'Tab', 'KeyT', 'KeyH', 'KeyF', 'KeyZ', 'KeyX', 'KeyB', 'KeyG',
-    'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'];
+    'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Space', 'Mouse2', 'KeyY', 'KeyU', 'Enter', 'ArrowLeft', 'ArrowRight', 'KeyM'];   // M 上下馬   // Space 翻滾、Mouse2 右鍵格擋、Y／U 器械、Enter 部署完成、←→ 換進攻方向
 
   /** 伺服器說開戰了 */
   function start(m, onExit) {
@@ -27,7 +27,8 @@ G.Remote = (() => {
   const ANIM = ['Idle', 'Walk', 'Attack'];
   function onState(m) {
     if (!info) return;
-    time = m.tm; kills = m.K;
+    time = m.tm; kills = m.K; deployT = m.dp || 0; deployLen = m.dl || 0; G.Battle.weather = m.wx || 'clear';   // 天氣（畫雨、霧用）
+    G.Battle.flags = (info.scenario.flags || []).map((f, i) => ({ ...f, owner: (m.FL[i] || [-1])[0], progress: (m.FL[i] || [0, 0])[1] })); G.Battle.flagScore = m.FS || [0, 0];   // 搶旗
     // 兵團
     const seenS = new Set();
     for (const [nid, team, type, label, ownerId, ai, field, order, alive, morale, rout] of m.S) {
@@ -43,21 +44,21 @@ G.Remote = (() => {
     for (const k of squads.keys()) if (!seenS.has(k)) squads.delete(k);
     // 士兵
     const seenU = new Set();
-    for (const [nid, sq, x, y, z, face, code, dead, flash] of m.U) {
+    for (const [nid, sq, x, y, z, face, code, dead, flash, down] of m.U) {
       let u = units.get(nid);
       const s = squads.get(sq);
       if (!s) continue;
       if (!u) { u = Object.create(G.Unit.prototype); Object.assign(u, { nid, squad: s, team: s.team, def: s.def, radius: s.def.radius, x, y, animT: Math.random(), anim: 'Idle' }); units.set(nid, u); }
       const anim = ANIM[code];
       if (anim !== (u.moving ? 'Walk' : u.anim)) u.animT = 0;
-      Object.assign(u, { tx: x, ty: y, z, face, moving: code === 1, anim: code === 2 ? 'Attack' : 'Idle', dead, flash: flash ? 0.1 : 0 });
+      Object.assign(u, { tx: x, ty: y, z, face, moving: code === 1, anim: code === 2 ? 'Attack' : 'Idle', dead, flash: flash ? 0.1 : 0, down: Math.abs(down || 0), downDir: Math.sign(down || 0) });
       s.units.push(u);
       seenU.add(nid);
     }
     for (const k of units.keys()) if (!seenU.has(k)) units.delete(k);
     // 武將
     const seenH = new Set();
-    for (const [nid, team, x, y, z, face, anim, hp, maxHp, dead, respawnT, cmdrId, weapon, look, name, flash, here, stamina, buffOn] of m.H) {
+    for (const [nid, team, x, y, z, face, anim, hp, maxHp, dead, respawnT, cmdrId, weapon, look, name, flash, here, stamina, buffOn, st, down] of m.H) {
       let h = heroes.get(nid);
       if (!h) {
         h = Object.create(G.Hero.prototype);
@@ -67,14 +68,14 @@ G.Remote = (() => {
       const prev = h.whirl > 0 ? 'Whirl' : h.action ? h.action.anim : h.moving ? 'Walk' : 'Idle';
       if (prev !== anim) h.animT = 0;
       Object.assign(h, { tx: x, ty: y, z, face, hp, maxHp, dead, flash: flash ? 0.1 : 0, cmdrId, look: look || null, name,
-        respawnT: respawnT >= 0 ? respawnT : undefined, respawnAt: here ? 'here' : 'rally', stamina: stamina ?? 100, staminaMax: G.SPRINT.stamina, buffOn: !!buffOn, moving: anim === 'Walk', whirl: anim === 'Whirl' ? 1 : 0, action: anim === 'Idle' || anim === 'Walk' || anim === 'Whirl' ? null : { anim } });
+        respawnT: respawnT >= 0 ? respawnT : undefined, respawnAt: here ? 'here' : 'rally', stamina: stamina ?? 100, staminaMax: G.SPRINT.stamina, buffOn: !!buffOn, blocking: !!(st & 1), iframes: st & 2 ? 0.1 : 0, horse: !!(st & 4), down: Math.abs(down || 0), downDir: Math.sign(down || 0), moving: anim === 'Walk', whirl: anim === 'Whirl' ? 1 : 0, action: anim === 'Idle' || anim === 'Walk' || anim === 'Whirl' ? null : { anim } });
       if (cmdrId === me.id) me.hero = h;
       seenH.add(nid);
     }
     for (const k of heroes.keys()) if (!seenH.has(k)) heroes.delete(k);
     // 投射物、燃燒區、器械、落石
     G.Combat.mirror(m.P.map(([sx, sy, tx, ty, t, dur, arc, kind, fire]) => ({ sx, sy, tx, ty, t, dur, arc, kind, fire })), m.Z.map(([x, y, r, t, dur]) => ({ x, y, r, t, dur })));
-    G.Siege.mirror(m.E.map(([kind, team, x, y, state, hp, maxHp, dead, swing, crew, radius]) => ({ kind, team, x, y, state, hp, maxHp, dead, swing, crew, radius })),
+    G.Siege.mirror(m.E.map(([kind, team, x, y, state, hp, maxHp, dead, swing, crew, radius, buildT]) => ({ kind, team, x, y, state, hp, maxHp, dead, swing, crew, radius, buildT })),
       m.HZ.map(([kind, x, y, t, warn, r, sx, sy]) => ({ kind, x, y, t, warn, r, sx, sy })));
     // 城門、城牆、雲梯、據點
     const c = G.Map.castle;
@@ -90,11 +91,13 @@ G.Remote = (() => {
     for (const [name, ...args] of m.F) if (G.FX[name]) G.FX[name](...args);
     // 自己的
     const e = m.me;
+    if (me.hero && e.sk) me.hero.skillSet = e.sk;   // 自己的技能組（換過技能時跟武器預設的不一樣）
+    me.kit = e.kit; me.kitSel = e.ks; me.kitLeft = e.kl;
     me.select = e.sel; me.supplyOpen = !!e.so; me.supplyCd = e.cd; me.group = e.grp || 'escort';
     me.reserve = e.res; me.supply = e.sup.map(([x, y]) => ({ x, y })); me.near = e.near && { x: e.near[0], y: e.near[1] };
-    for (const [nid, cmd, formation, crew, skillCd, fx, waypoint] of e.sq) {
+    for (const [nid, cmd, formation, crew, skillCd, fx, waypoint, spread, focus, cmdCd] of e.sq) {
       const s = squads.get(nid); if (!s) continue;
-      Object.assign(s, { cmd, formation, crew: crew ? { kind: crew } : null, skillCd, fx, waypoint: !!waypoint, mine: true });
+      Object.assign(s, { cmd, formation, crew: crew ? { kind: crew } : null, skillCd, fx, waypoint: !!waypoint, spread: !!spread, focus: !!focus, cmdCd: cmdCd || {}, mine: true });
     }
     for (const text of e.msg) G.HUD.toast(text);
   }
@@ -106,7 +109,7 @@ G.Remote = (() => {
     if (h && h.tx !== undefined && !h.dead && (!h.action || h.action.anim === 'Attack')) {
       const mx = (I.down('KeyD') ? 1 : 0) - (I.down('KeyA') ? 1 : 0), my = (I.down('KeyS') ? 1 : 0) - (I.down('KeyW') ? 1 : 0);
       if (mx || my) {
-        const l = Math.hypot(mx, my), sp = G.HERO_BASE.speed * G.Map.terrainSpeed(h);
+        const l = Math.hypot(mx, my), sp = G.HERO_BASE.speed * G.Map.terrainSpeed(h) * (I.down('Mouse2') && !h.horse ? G.BLOCK.speedMul : 1) * (h.horse ? 1.5 : 1);
         h.x += mx / l * sp * dt; h.y += my / l * sp * dt; h.face = Math.atan2(my, mx); h.moving = true;
         G.Map.resolve(h);
       }
@@ -134,7 +137,7 @@ G.Remote = (() => {
   function view() {
     const sq = [...squads.values()];
     const mine = sq.filter(s => s.mine && s.ownerId === me.id && !s.ai);
-    return { units: [...units.values(), ...heroes.values()], squads: sq, time, me, mine, supply: me.supply || [], near: me.near, stats: { kills, combo: 0 } };
+    return { units: [...units.values(), ...heroes.values()], squads: sq, time, deployT, deployLen, me, mine, supply: me.supply || [], near: me.near, stats: { kills, combo: 0 } };
   }
   function leave() { G.Net.send({ t: 'b.leave' }); }
   function end(m) { const f = exitTo; exitTo = null; info = null; G.Game.remoteEnd(m, f); }

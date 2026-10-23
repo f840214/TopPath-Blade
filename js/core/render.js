@@ -128,11 +128,16 @@ G.Render = (() => {
   }
 
   /** 依 y 排序層：畫圖片的一塊（精靈圖的一格）；flip 左右翻轉；k 是縮放（PixelLab 美術用 G.CONFIG.artScale） */
-  function frame(img, sx, sy, w, h, dx, dy, alpha = 1, flip = false, k = 1, tint = 0xffffff) {
+  /** rot：繞著圖上 (px, py)（預設底部中央）轉幾度（弧度），擊倒時躺平用；精靈池共用，每次都要設回 0 */
+  function frame(img, sx, sy, w, h, dx, dy, alpha = 1, flip = false, k = 1, tint = 0xffffff, rot = 0, px = w / 2, py = h) {
     const s = take(pools.sorted);
     s.texture = texOf(img, sx, sy, w, h); s.alpha = alpha; s.tint = tint;
-    s.scale.x = flip ? -k : k; s.scale.y = k;
+    s.scale.x = flip ? -k : k; s.scale.y = k; s.rotation = rot;
     s.x = flip ? dx + w * k : dx; s.y = dy;
+    if (rot) {   // 錨點在左上角：先算腳底的位置，再把左上角轉回去
+      const fx = dx + px * k, fy = dy + py * k, c = Math.cos(rot), sn = Math.sin(rot), lx = -px * k, ly = -py * k;
+      s.x = fx + lx * c - ly * sn; s.y = fy + lx * sn + ly * c;
+    }
   }
   /** 依 y 排序層：畫整張圖 */
   function image(img, dx, dy, alpha = 1, flip = false, k = 1) { frame(img, 0, 0, img.width, img.height, dx, dy, alpha, flip, k); }

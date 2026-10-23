@@ -32,3 +32,11 @@ G.CONFIG = {
   squadLeash: 160,
   enemyAggro: 320,
 };
+
+// 天氣效果（docs/design.md 30）：rangeMul 遠程射程、bulletMul 子彈傷害、fire 火會不會燒起來
+G.WEATHER = {
+  clear: { name: '晴', rangeMul: 1, bulletMul: 1, fire: true },
+  rain:  { name: '雨', rangeMul: 1, bulletMul: 0.8, fire: false, desc: '火箭、火雨點不著，火槍受潮' },
+  fog:   { name: '霧', rangeMul: 0.75, bulletMul: 1, fire: true, desc: '遠程射程 ×0.75' },
+};
+G.weatherOf = () => G.WEATHER[(G.Battle && G.Battle.weather) || 'clear'] || G.WEATHER.clear;

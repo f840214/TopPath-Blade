@@ -7,7 +7,7 @@ G.FX = (() => {
   let shake = 0, hitStop = 0, slow = null;   // slow：慢動作 { left, scale }
   const S = { shake: false };   // 設定：畫面震動開關（預設關，V 鍵可開）
 
-  function reset() { parts = []; arcs = []; rings = []; texts = []; cutin = null; shake = 0; hitStop = 0; slow = null; }
+  function reset() { parts = []; arcs = []; rings = []; texts = []; cutin = null; shake = 0; hitStop = 0; slow = null; stuckArr = []; }
 
   /** 受擊火花＋塵土 */
   function hit(x, y, color = '#fff2b0', n = 6) {
@@ -37,7 +37,7 @@ G.FX = (() => {
   }
   function ring(x, y, r, color = 'rgba(255,220,150,0.9)', life = 0.35) { rings.push({ x, y, r, color, t: 0, life }); }
   function number(x, y, v, color = '#fff') {
-    texts.push({ x: x + G.U.rand(-4, 4), y, v: Math.round(v), color, t: 0, life: 0.7 });
+    texts.push({ x: x + G.U.rand(-4, 4), y, v: typeof v === 'number' ? Math.round(v) : v, color, t: 0, life: 0.7 });   // v 也可以是字（「閃」「破防」）
   }
   function addShake(v) { if (S.shake) shake = Math.max(shake, v); }
   function addHitStop(v) { hitStop = Math.max(hitStop, v); }
@@ -80,7 +80,21 @@ G.FX = (() => {
   function shakeOffset() { return shake > 0 ? { x: G.U.rand(-shake, shake), y: G.U.rand(-shake, shake) } : { x: 0, y: 0 }; }
 
   /** 在世界座標系中畫 */
+  /** 插在地上的箭（落空的箭、齊射）：留 8 秒，最多 200 支；a 是箭飛來的方向 */
+  let stuckArr = [];
+  function stuck(x, y, a) { stuckArr.push({ x, y, a, t: performance.now() }); if (stuckArr.length > 200) stuckArr.shift(); }
+  function drawStuck(ctx) {
+    const now = performance.now(), im = G.Assets.img('assets/battle/arrow_stuck.png'), ok = im.complete && im.naturalWidth;
+    stuckArr = stuckArr.filter(s => now - s.t < 8000);
+    for (const s of stuckArr) {
+      ctx.globalAlpha = Math.min(1, (8000 - (now - s.t)) / 1000);
+      if (ok) { ctx.save(); ctx.translate(s.x, s.y); if (Math.cos(s.a) < 0) ctx.scale(-1, 1); ctx.drawImage(im, -1, -im.naturalHeight); ctx.restore(); }   // 圖的錨點在左下角（箭插進土裡的地方）
+      else { ctx.strokeStyle = '#3b2a1a'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x - Math.cos(s.a) * 4, s.y - 6); ctx.stroke(); ctx.fillStyle = '#d8d0b8'; ctx.fillRect(Math.round(s.x - Math.cos(s.a) * 4) - 1, s.y - 7, 2, 2); }
+    }
+    ctx.globalAlpha = 1;
+  }
   function drawWorld(ctx) {
+    drawStuck(ctx);
     for (const r of rings) {
       const k = r.t / r.life;
       ctx.strokeStyle = r.color; ctx.globalAlpha = 1 - k; ctx.lineWidth = 3 * (1 - k) + 1;
@@ -147,5 +161,13 @@ G.FX = (() => {
   }
 
 
-  return { S, reset, hit, blood, dust, embers, slash, ring, number, addShake, addHitStop, slowMo, timeScale, showCutin, portrait, update, shakeOffset, drawWorld, drawScreen };
+  /** 擊殺提示：右上角一行字（DOM #killfeed），6 秒後淡出；hero：武將級的擊殺（加圖示、金色）；team：被打倒的是哪一方（看我方／敵方決定顏色） */
+  function feed(text, hero, team) {
+    const box = document.getElementById('killfeed'); if (!box) return;
+    const row = document.createElement('div'); row.className = 'kf' + (hero ? ' hero' : '') + (team === (G.viewTeam || 0) ? ' ours' : ' foe');
+    row.textContent = (hero ? '⚔ ' : '') + text; box.prepend(row);
+    while (box.children.length > 6) box.lastChild.remove();
+    setTimeout(() => row.classList.add('out'), 5000); setTimeout(() => row.remove(), 6000);
+  }
+  return { S, reset, hit, blood, dust, embers, slash, ring, number, feed, stuck, addShake, addHitStop, slowMo, timeScale, showCutin, portrait, update, shakeOffset, drawWorld, drawScreen };
 })();

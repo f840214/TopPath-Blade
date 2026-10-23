@@ -11,3 +11,19 @@ G.COUNTERS = {
 G.TYPE_NAMES = { pike: '長槍', shield: '盾', shock: '衝擊步兵', archer: '遠程', cav: '騎兵' };
 
 G.counterMul = (att, def) => (G.COUNTERS[att] && G.COUNTERS[att][def]) || 1;
+
+/* ---------- 傷害類型 × 護甲等級（docs/design.md 21）----------
+ * 傷害類型：pierce 穿刺（槍、箭）、slash 劈砍（刀劍斧）、blunt 鈍擊（錘、盾擊、爆炸）、bullet 子彈（火槍）。
+ * 護甲等級看護甲值：兵 ≤3 輕、≤7 中、≥8 重；武將 ≤10 輕、≤16 中、其他重。
+ * pen：破甲，計算減傷時無視這個比例的護甲。跟兵種克制表一起乘，所以倍率都壓在 0.75～1.3 之間，不要讓兩邊疊太重。
+ */
+G.DAMAGE_TYPES = {
+  pierce: { name: '穿刺', light: 1.1, medium: 1.0, heavy: 0.85 },
+  slash:  { name: '劈砍', light: 1.2, medium: 1.0, heavy: 0.75 },
+  blunt:  { name: '鈍擊', light: 0.9, medium: 1.05, heavy: 1.3 },
+  bullet: { name: '子彈', light: 1.0, medium: 1.1, heavy: 1.25, pen: 0.5 },
+};
+G.ARMOR_CLASS_NAMES = { light: '輕甲', medium: '中甲', heavy: '重甲' };
+/** 兵種的傷害類型：有寫 dtype 就用；沒寫的長槍、遠程是穿刺，其他是劈砍 */
+G.dtypeOf = def => def.dtype || (def.type === 'pike' || def.ranged ? 'pierce' : 'slash');
+G.armorClass = (armor, hero) => hero ? (armor <= 10 ? 'light' : armor <= 16 ? 'medium' : 'heavy') : (armor <= 3 ? 'light' : armor <= 7 ? 'medium' : 'heavy');

@@ -10,7 +10,7 @@ G.Skills = (() => {
     const S = G.UNIT_SKILLS[key], foe = G.Battle.nearestFoeSquad(sq);
     // 老兵技能樹：冷卻、持續、傷害、暈眩、輪數、範圍（G.VETERAN）
     const M = (k, d) => sq.skillMod(k, key, d), dur = S.dur + M('durAdd', 0), dmgMul = (S.dmgMul || 1) * M('dmgMul', 1);
-    sq.skillCd[key] = S.cd * M('cdMul', 1);
+    sq.skillCd[key] = S.cd * M('cdMul', 1) * sq.mod('allCdMul', 1);   // allCdMul：戰術書（所有兵團技能）
     switch (key) {
       case 'brace':
       case 'shieldwall':
@@ -32,7 +32,7 @@ G.Skills = (() => {
         for (const u of sq.alive) {
           u.play('Attack');
           G.Battle.forEachFoe(u.team, u.x, u.y, 24, o => {
-            if (G.U.angDiff(Math.atan2(o.y - u.y, o.x - u.x), u.face) < 0.8) Dmg(u, o, u.def.atk * dmgMul, { knock: S.knock, stun: S.stun + M('stunAdd', 0) });
+            if (G.U.angDiff(Math.atan2(o.y - u.y, o.x - u.x), u.face) < 0.8) Dmg(u, o, u.def.atk * dmgMul, { knock: S.knock, stun: S.stun + M('stunAdd', 0), dtype: 'blunt' });
           });
         }
         break;
@@ -42,11 +42,12 @@ G.Skills = (() => {
         if (!tgt) { sq.skillCd[key] = 1; return false; }   // 範圍內沒有敵人，不扣冷卻
         if (key === 'volley') {
           for (let w = 0; w < S.waves + M('wavesAdd', 0); w++) G.Battle.later(w * S.interval, () => {
-            for (const u of sq.alive) {
+            for (const u of sq.alive) G.Battle.later(Math.random() * 0.3, () => {   // 每個人隨機晚 0～0.3 秒放箭，齊射不會整齊得像一個人
+              if (u.dead) return;
               const a = Math.random() * Math.PI * 2, r = Math.random() * S.radius;
               G.Combat.arrow(u, null, { area: { x: tgt.x + Math.cos(a) * r, y: tgt.y + Math.sin(a) * r * 0.6 } });
               u.play('Attack');
-            }
+            });
           });
         } else {
           const shooter = sq.alive[0], F = { radius: S.radius * M('radiusMul', 1), dur, dps: S.dps * dmgMul };
@@ -139,7 +140,7 @@ G.Skills = (() => {
       case 'bash':
         h.doAction(S.anim);
         G.FX.slash(h.x, h.y - 12, f, S.radius - 4, S.arc, { life: 0.25, width: 6 });
-        forCone(h, S.radius, S.arc, o => Dmg(h, o, base, { knock: S.knock, stun: S.stun, color: '#d8d2c4' }));
+        forCone(h, S.radius, S.arc, o => Dmg(h, o, base, { knock: S.knock, stun: S.stun, color: '#d8d2c4', dtype: 'blunt' }));
         G.FX.addShake(3);
         break;
       case 'guard':
@@ -157,7 +158,7 @@ G.Skills = (() => {
       /* ---------- 野太刀 ---------- */
       case 'iai': case 'lancecharge': case 'ram':
         h.doAction('Attack');
-        h.dash = { vx: Math.cos(f) * S.dist / 0.2, vy: Math.sin(f) * S.dist / 0.2, t: 0.2, hit: new Set(), S, base, opt: key === 'iai' ? { knock: 6, color: '#ffe8b0' } : key === 'ram' ? { knock: 30, launch: 60 } : { stun: S.stun, launch: 90, knock: 14 } };
+        h.dash = { vx: Math.cos(f) * S.dist / 0.2, vy: Math.sin(f) * S.dist / 0.2, t: 0.2, hit: new Set(), S, base, opt: key === 'iai' ? { knock: 6, color: '#ffe8b0' } : key === 'ram' ? { knock: 30, launch: 60, down: 0.9 } : { down: S.stun, launch: 90, knock: 14 } };
         G.FX.slash(h.x + Math.cos(f) * S.dist / 2, h.y - 12 + Math.sin(f) * S.dist / 2, f + Math.PI / 2, 18, Math.PI, { life: 0.3, width: 5 });
         break;
       case 'tsubame':
@@ -230,7 +231,7 @@ G.Skills = (() => {
           if (h.dead) return;
           G.FX.ring(h.x, h.y, S.radius * 1.3, 'rgba(200,170,120,0.9)', 0.5);
           for (let k = 0; k < 10; k++) G.FX.dust(h.x + G.U.rand(-S.radius, S.radius), h.y + G.U.rand(-S.radius, S.radius) * 0.6, 4);
-          G.Battle.forEachFoe(h.team, h.x, h.y, S.radius, o => Dmg(h, o, base, { stun: S.stun, launch: 50, knock: 8 }));
+          G.Battle.forEachFoe(h.team, h.x, h.y, S.radius, o => Dmg(h, o, base, { down: S.stun, launch: 50, knock: 8 }));
           G.FX.addShake(7);
         });
         break;

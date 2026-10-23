@@ -14,6 +14,7 @@
     return out;
   };
 
+  G.formationGrid = grid;   // 拉線排陣型用（G.Squad.slots）
   G.FORMATIONS = {
     block:  { name: '方陣', slots: n => grid(n, Math.ceil(Math.sqrt(n * 1.4)), 15) },
     line:   { name: '橫隊', slots: n => grid(n, Math.ceil(n / 2), 15), flankTakenMul: 1.2 },

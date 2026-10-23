@@ -89,9 +89,15 @@ G.Battle = (() => {
   const SIEGE_SLOTS = [[1050, 555], [1510, 555], [1280, 545], [1280, 470], [1280, 330], [1800, 420], [760, 470], [2050, 470], [520, 470]];
   function cityScenario(cityId, name) {
     const c = G.WORLD.cities.find(c => c.id === cityId);
-    return { ...SCENARIOS.siege, base: 'siege', name: `攻打${name || c.name}`, desc: c.lord, city: c.id,
+    return { ...SCENARIOS.siege, base: 'siege', name: `攻打${name || c.name}`, desc: c.lord, city: c.id, enemyLevel: Math.min(9, 1 + Math.round(c.gold / 150)),   // 守軍老兵等級：越遠、越難打的城越高
       enemyHero: { weapon: c.hero, x: 1280, y: 360, name: c.lord },
       enemies: c.garrison.map(([type, men], i) => ({ type, men, x: SIEGE_SLOTS[i % SIEGE_SLOTS.length][0], y: SIEGE_SLOTS[i % SIEGE_SLOTS.length][1] })) };
+  }
+  /** 大地圖上的野戰（強盜、北境軍、商隊）：野戰地圖，敵方兵團照 members [[兵種, 人數]] 排在固定位置；hero 是敵將（null 沒有） */
+  const FIELD_SLOTS = [[1170, 490], [1170, 630], [1305, 560], [1340, 365], [1340, 755], [1065, 560]];
+  function fieldScenario(name, hero, members, enemyLevel) {
+    return { ...SCENARIOS.field, base: 'field', name, enemyHero: hero, enemyLevel,
+      enemies: members.map(([type, men], i) => ({ type, men, x: FIELD_SLOTS[i % FIELD_SLOTS.length][0], y: FIELD_SLOTS[i % FIELD_SLOTS.length][1] })) };
   }
   /** 大地圖上兩個玩家對決：野戰地圖，兩邊都是玩家（沒有電腦兵團），各有一個補給點 */
   function duelScenario(a, b) {
@@ -102,7 +108,7 @@ G.Battle = (() => {
   /** 場景有自己的大小（野戰較小）就換掉戰場大小；要在 G.useScale('battle') 之後呼叫 */
   const applySize = sc => { if (sc.size) G.CONFIG.world = { ...G.CONFIG.world, ...sc.size }; };
   /** 出生點、器械、據點附近不放石頭（瀏覽器畫地圖時也用同一份） */
-  const fieldAvoid = sc => [sc.player, sc.enemyHero, ...sc.enemies, ...(sc.siege || []), ...(sc.supply || []), ...(sc.deploy || []), ...(sc.castle ? sc.castle.points : [])].filter(Boolean);
+  const fieldAvoid = sc => [sc.player, sc.enemyHero, ...sc.enemies, ...(sc.siege || []), ...(sc.supply || []), ...(sc.enemySupply || []), ...(sc.deploy || []), ...(sc.flags || []), ...(sc.castle ? sc.castle.points : [])].filter(Boolean);   // 旗點、補給點旁邊不放石牆、山脊
 
   const notify = (c, text) => api.onNotify(c, text);
   /** 通知某一方的所有玩家指揮官 */
@@ -111,10 +117,16 @@ G.Battle = (() => {
   /**
    * 開戰。o：{ scenario: 場景物件, demo, commanders: [{ id, team, name, weapon, equip, look, heroLevel, squads, field, fieldOrder, input }] }
    *   squads：隨身兵團 [{ id, type, men, level, mods }]（開場對戰給兵種字串，全部上場）；field：配置兵團
+   *   attrs、mastery、skills：武將屬性點、這把武器的專精經驗、選的技能（G.Army.heroSpec）
    */
   function setup(o) {
     scenario = o.scenario; demo = !!o.demo;
     heroes = []; squads = []; timers = []; cmdrs = []; unitCache = null; result = null; api.time = 0; thinkT = 0; nid = 1; api.capturedBy = null;
+    // 部署階段（design.md 26）：攻城、守城、野戰開打前幾秒，電腦不動、玩家只能在自己這一側擺兵和放器械
+    api.deployT = api.deployLen = demo || scenario.test ? 0 : scenario.castle ? G.SIEGE.deploy.time : G.SIEGE.deploy.fieldTime;
+    // 天氣（design.md 30）：晴 60%、雨 25%（火箭、火雨點不著，火槍受潮）、霧 15%（遠程射程 ×0.75）；開場畫面、大軍測試固定晴天
+    api.flags = (scenario.flags || []).map(f => ({ ...f, owner: -1, progress: 0 })); api.flagScore = [0, 0];   // 搶旗模式的旗點
+    api.weather = scenario.weather || (demo || scenario.test ? 'clear' : (r => r < 0.6 ? 'clear' : r < 0.85 ? 'rain' : 'fog')(Math.random()));
     G.Combat.reset();
     applySize(scenario);
     G.Map.setupCastle(scenario.castle || null);
@@ -127,9 +139,12 @@ G.Battle = (() => {
     if (eh && !byTeam[1] && !scenario.duel) {   // 對決兩邊都是玩家，不放電腦武將
       const h = new G.Hero(1, eh.weapon, {}, eh.x, eh.y); h.face = Math.PI - (p.face || 0); h.name = eh.name || '敵將'; tag(h); heroes.push(h); }
     const enemies = demo ? [...scenario.enemies, ...scenario.enemies.slice(0, 2).map(e => ({ ...e, x: e.x + (p.x < e.x ? 140 : -140) }))] : scenario.enemies;
+    // 電腦兵團依難度帶老兵等級和技能（scenario.enemyLevel；演習 2 級）：老兵點兩條分支輪流點
+    const elv = demo || scenario.test ? 1 : scenario.enemyLevel || 2;
     for (const e of enemies) {
-      const face = Math.atan2(p.y - e.y, p.x - e.x);
-      addSquad(new G.Squad(1, e.type, e.x, e.y, face, { cmd: 'hold', count: e.men }));
+      const face = Math.atan2(p.y - e.y, p.x - e.x), pts = elv - 1, vet = [Math.ceil(pts / 2), Math.floor(pts / 2)];
+      const mods = elv > 1 && G.Army ? G.Army.modsOf(e.type, vet) : {};
+      addSquad(new G.Squad(1, e.type, e.x, e.y, face, { cmd: 'hold', count: e.men, level: elv, mods, label: elv > 1 ? `${G.UNITS[e.type].name} Lv${elv}` : undefined }));
     }
     if (scenario.army) spawnArmy(scenario.army);
     if (demo) for (const s of squads) s.cmd = 'attack';
@@ -148,12 +163,24 @@ G.Battle = (() => {
   }
   function addCommander(spec, k) {
     const team = spec.team || 0, p = spawnOf(team, k);
-    const h = tag(new G.Hero(team, spec.weapon, spec.equip || {}, p.x, p.y, spec.heroLevel || 1));
+    const h = tag(new G.Hero(team, spec.weapon, spec.equip || {}, p.x, p.y, spec.heroLevel || 1, { attrs: spec.attrs, mastery: spec.mastery, skills: spec.skills }));
     h.face = p.face; h.look = G.SPRITE_META && G.SPRITE_META[spec.look] ? spec.look : null; h.name = spec.name || '主帥';
     const c = { id: spec.id, uid: spec.uid, local: !!spec.local, team, name: h.name, hero: h, input: spec.input || NO_INPUT, select: 'all', reserve: [], supplyCd: 0, supplyOpen: false, group: 'escort',
-      bonus: { atk: h.stats.squadAtk, speed: h.stats.squadSpeed, armor: h.stats.squadArmor }, kills0: 0 };
+      bonus: { atk: h.stats.squadAtk, speed: h.stats.squadSpeed, armor: h.stats.squadArmor }, kills0: 0,
+      kit: G.SIEGE.deploy.kits[scenario.castle && scenario.castle.defender !== team ? 'attack' : 'defend'], kitSel: 0, kitLeft: G.SIEGE.deploy.perPlayer, lane: 0, ready: false };   // 可放置的器械（Y 放、U 換）
     h.cmdr = c;
     heroes.push(h); cmdrs.push(c);
+    // 糧草、疲勞（design.md 32）：糧草充足（≥100 份）攻擊 +5%；斷糧攻擊 -10%、兵團開場士氣 60；
+    //   疲勞（0～100，大地圖上一直行軍會累積）每點攻擊 -0.15%、移速 -0.1%、開場士氣 -0.3、武將耐力 -0.3%
+    if (spec.food !== undefined) {
+      const starve = spec.food <= 0, fat = G.U.clamp(spec.fatigue || 0, 0, 100);
+      c.bonus.atk += (starve ? -10 : spec.food >= 100 ? 5 : 0) - Math.round(fat * 0.15);
+      c.bonus.speed -= Math.round(fat * 0.1);
+      c.startMorale = Math.round((starve ? 60 : 100) - fat * 0.3);
+      h.staminaMax = Math.round(h.staminaMax * (1 - fat * 0.003)); h.stamina = h.staminaMax;
+      const tips = [starve ? '斷糧：攻擊 -10%、士氣低落' : spec.food >= 100 ? '糧草充足：攻擊 +5%' : '', fat >= 20 ? `行軍疲勞 ${Math.round(fat)}%：攻擊、移速、士氣下降` : ''].filter(Boolean);
+      if (tips.length) later(1.5, () => notify(c, tips.join('；')));
+    }
     // 隨身兵團：開場對戰全部上場，其他只上場第一支，其餘進後備
     const escort = (spec.squads || []).map(s => typeof s === 'string' ? { type: s } : s);
     c.reserve = demo ? [] : escort.slice(1).map(s => ({ ...s, kills: 0 }));
@@ -168,6 +195,7 @@ G.Battle = (() => {
       const at = deploy[(i + k * 2) % deploy.length], lv = s.level || 1;
       const sq = new G.Squad(team, s.type, at.x + (team ? 40 : 0), at.y, p.face, { cmd: 'hold', bonus: c.bonus, count: s.men, level: lv, mods: s.mods, label: `配置・${G.UNITS[s.type].name}${lv > 1 ? ` Lv${lv}` : ''}` });
       Object.assign(sq, { ai: true, field: true, order: spec.fieldOrder === 'attack' ? 'attack' : 'defend', rosterId: s.id, owner: c, leader: h });
+      if (c.startMorale !== undefined) sq.morale = c.startMorale;
       addSquad(sq);
     });
     return c;
@@ -191,6 +219,7 @@ G.Battle = (() => {
     const sq = new G.Squad(c.team, s.type, x, y, face, { cmd: 'follow', bonus: c.bonus, count: s.men, level: lv, mods: s.mods, label: `隨身・${G.UNITS[s.type].name}${lv > 1 ? ` Lv${lv}` : ''}` });
     sq.followSide = 46 * side; sq.followOffset = 20 + row * 70; sq.rosterId = s.id; sq.kills = s.kills || 0;
     sq.owner = c; sq.leader = c.hero;
+    if (c.startMorale !== undefined) sq.morale = c.startMorale;   // 斷糧、疲勞：開場士氣比較低
     return addSquad(sq);
   }
   /** 這個指揮官能下指令的兵團（隨身兵團；配置兵團由電腦指揮） */
@@ -308,8 +337,10 @@ G.Battle = (() => {
   function handleInput(c) {
     const I = c.input, h = c.hero;
     const mine = squadsOfCmdr(c);
-    if (I.pressed('Tab')) c.select = c.select === 'all' ? 0 : c.select + 1 < mine.length ? c.select + 1 : 'all';   // 全軍 → 第 1 隊 → … → 全軍
-    const sel = c.select === 'all' ? mine : [mine[c.select]].filter(Boolean);
+    if (I.pressed('Tab')) c.select = c.select === 'all' || Array.isArray(c.select) ? 0 : c.select + 1 < mine.length ? c.select + 1 : 'all';   // 全軍 → 第 1 隊 → … → 全軍（框選過的也從第 1 隊開始）
+    // select：'all' 全部、數字是第幾隊、陣列是框選到的兵團 nid（框到的都死光了就回到全部）
+    const boxed = Array.isArray(c.select) ? mine.filter(s => c.select.includes(s.nid)) : null;
+    const sel = c.select === 'all' ? mine : boxed ? (boxed.length ? boxed : mine) : [mine[c.select]].filter(Boolean);
     // 補給點：T 開關換兵選單，開著的時候數字鍵選要換上的兵團
     if (I.pressed('KeyT')) {
       if (c.supplyOpen) c.supplyOpen = false;
@@ -329,14 +360,25 @@ G.Battle = (() => {
     // 鍵盤：1 跟隨、2 駐守、3 進攻（隨身兵團）
     const cmd = c.supplyOpen ? null : I.pressed('Digit3') ? 'attack' : I.pressed('Digit1') ? 'follow' : I.pressed('Digit2') ? 'hold' : null;
     if (cmd) for (const sq of sel) {
-      sq.cmd = cmd; sq.waypoint = null; sq.goTo = false;
+      sq.cmd = cmd; sq.waypoint = null; sq.goTo = false; sq.lineFace = sq.lineCols = undefined;
       if (cmd === 'hold') sq.cmdPoint = { x: h.x, y: h.y };
       if (cmd === 'attack') { const f = nearestFoe(c.team, h.x, h.y, 99999); sq.cmdPoint = f ? { x: f.x, y: f.y } : { x: h.x, y: h.y }; }
     }
+    // 4 衝鋒、5 固守、6 散開／密集（跟指揮列的按鈕一樣，作用在「隨身」或「配置」）
+    for (const [code, a] of [['Digit4', 'rush'], ['Digit5', 'stand'], ['Digit6', 'spread']]) if (!c.supplyOpen && I.pressed(code)) mouseOrder(c, { a }, sel);
     if (I.pressed('KeyF')) for (const sq of sel) sq.cycleFormation();
     if (I.pressed('KeyZ')) for (const sq of sel) G.Skills.useUnit(sq, sq.def.skills[0]);
     if (I.pressed('KeyX')) for (const sq of sel) G.Skills.useUnit(sq, sq.def.skills[1]);
     if (I.pressed('KeyB')) assignEngine(c, sel);
+    // 器械：U 換種類、Y 放在武將前面
+    if (I.pressed('KeyU')) { c.kitSel = (c.kitSel + 1) % c.kit.length; notify(c, `器械：${G.SIEGE[c.kit[c.kitSel]].name}（剩 ${c.kitLeft} 個）`); }
+    if (I.pressed('KeyY')) placeEngine(c);
+    // 部署階段：Enter 準備好（所有玩家都準備好就提早開戰）；攻城的攻方用 ← → 換進攻方向
+    if (api.deployT > 0) {
+      if (I.pressed('Enter') && !c.ready) { c.ready = true; notifyTeam(c.team, `${c.name} 準備好了`); if (cmdrs.every(o => o.ready)) api.deployT = Math.min(api.deployT, 0.01); }
+      const castle0 = G.Map.castle;
+      if (castle0 && castle0.defender !== c.team) for (const [code, d] of [['ArrowLeft', -1], ['ArrowRight', 1]]) if (I.pressed(code)) shiftLane(c, d);
+    }
     const castle = G.Map.castle;
     if (I.pressed('KeyG') && castle && castle.defender === c.team) {
       const g = castle.gate;
@@ -351,12 +393,23 @@ G.Battle = (() => {
   function mouseOrder(c, o, sel) {
     if (!o || typeof o.a !== 'string') return;
     if (o.a === 'group') { c.group = o.g === 'field' ? 'field' : 'escort'; return; }
+    if (o.a === 'select') {   // Shift＋拖曳框選：框裡（兵團中心）的隨身兵團
+      const box = [o.x, o.y, o.x2, o.y2].every(Number.isFinite) && o;
+      const got = box ? squadsOfCmdr(c).filter(s => s.alive.length && (p => p.x >= box.x && p.x <= box.x2 && p.y >= box.y && p.y <= box.y2)(s.center)) : [];
+      if (!got.length) return notify(c, '沒有框到自己的隨身兵團');
+      c.select = got.map(s => s.nid); c.group = 'escort';
+      return notify(c, `選了 ${got.length} 支兵團`);
+    }
     const W = G.CONFIG.world, pt = Number.isFinite(o.x) && Number.isFinite(o.y) ? { x: G.U.clamp(o.x, 20, W.w - 20), y: G.U.clamp(o.y, 20, W.h - 20) } : null;
     const list = c.group === 'field' ? squads.filter(s => s.field && s.owner === c && s.alive.length) : sel.filter(sq => sq.alive.length && !sq.crew);
     if (!list.length) return notify(c, c.group === 'field' ? '沒有配置兵團' : '沒有隨身兵團');
+    if (SQUAD_CMDS[o.a]) return SQUAD_CMDS[o.a](c, list, pt);
+    const pt2 = Number.isFinite(o.x2) && Number.isFinite(o.y2) ? { x: G.U.clamp(o.x2, 20, W.w - 20), y: G.U.clamp(o.y2, 20, W.h - 20) } : null;
+    if (o.a === 'line' && pt && pt2) return lineOrder(c, list, pt, pt2);
     // 好幾支一起走到同一點時左右排開，不疊在一起
     const spot = i => pt && { x: pt.x + (i - (list.length - 1) / 2) * 70, y: pt.y };
     list.forEach((sq, i) => {
+      sq.focus = null; sq.lineFace = sq.lineCols = undefined;   // 其他指令都會取消集火、拉線排的陣型
       if (c.group === 'field') {
         if (o.a === 'move' || o.a === 'hold') { sq.order = 'defend'; sq.home = o.a === 'move' && pt ? spot(i) : { ...sq.center }; sq.waypoint = o.a === 'move' ? sq.home : null; sq.cmd = 'hold'; sq.cmdPoint = sq.home; }
         else if (o.a === 'attack' && pt) { sq.order = 'attack'; sq.waypoint = null; sq.cmd = 'attack'; sq.cmdPoint = spot(i); sq.goTo = true; }
@@ -372,6 +425,106 @@ G.Battle = (() => {
     });
     if (c.group === 'field' && !pt) notify(c, `配置兵團：${o.a === 'attack' ? '進攻' : '原地防守'}`);
   }
+  /**
+   * 通用兵團指令（docs/design.md 21），每種兵都能下；冷卻記在 sq.cmdCd，效果秒數記在 sq.fx（伺服器會送給瀏覽器顯示）
+   *   rush 衝鋒：全速衝向最近的敵人（有點地面就往那裡），第一下打得重、把人撞開
+   *   stand 固守：原地站穩，擊退 ×0.3、正面近戰 ×0.85、騎兵衝鋒傷害減半；不能移動
+   *   spread 散開／密集：間距拉大，吃遠程 ×0.65、近戰 ×1.1（combat.js）
+   *   focus 集火：打滑鼠指著的那支敵方兵團（或敵將），追著打直到打光
+   */
+  const ready = (sq, k) => !((sq.cmdCd || {})[k] > 0);
+  const setCd = (sq, k) => { (sq.cmdCd = sq.cmdCd || {})[k] = G.SQUAD_ORDERS[k].cd; };
+  const SQUAD_CMDS = {
+    rush(c, list, pt) {
+      const ok = list.filter(sq => !sq.crew && ready(sq, 'rush'));
+      if (!ok.length) return notify(c, '衝鋒冷卻中');
+      for (const sq of ok) {
+        const from = pt || sq.center, f = nearestFoe(c.team, from.x, from.y, pt ? 300 : 99999);
+        sq.fx.stand = 0; sq.fx.brace = 0; sq.fx.shieldwall = 0; sq.focus = null; sq.waypoint = null; sq.goTo = !!pt; sq.lineFace = sq.lineCols = undefined;
+        sq.cmd = 'attack'; sq.cmdPoint = f ? { x: f.x, y: f.y } : pt || { ...sq.center };
+        sq.fx.rush = G.SQUAD_ORDERS.rush.dur; setCd(sq, 'rush');
+        for (const u of sq.units) u.rushed = false;
+      }
+      notify(c, '衝鋒！');
+    },
+    stand(c, list) {
+      const ok = list.filter(sq => !sq.crew && ready(sq, 'stand'));
+      if (!ok.length) return notify(c, '固守冷卻中');
+      for (const sq of ok) { sq.fx.stand = G.SQUAD_ORDERS.stand.dur; sq.fx.rush = 0; setCd(sq, 'stand'); if (!sq.prevCmd) sq.prevCmd = sq.cmd; sq.cmd = 'hold'; sq.cmdPoint = { ...sq.center }; }
+      notify(c, '固守陣地');
+    },
+    spread(c, list) {
+      const on = !list.some(sq => sq.spread);
+      for (const sq of list) sq.spread = on;
+      notify(c, on ? '散開' : '密集');
+    },
+    focus(c, list, pt) {
+      if (!pt) return;
+      let best = null, bd = 140;
+      for (const s of squads) if (s.team !== c.team && s.alive.length) { const d = G.U.dist(s.center, pt); if (d < bd) { bd = d; best = s; } }
+      for (const h of heroes) if (h.team !== c.team && !h.dead && G.U.dist(h, pt) < Math.min(bd, 60)) { best = h; bd = G.U.dist(h, pt); }
+      if (!best) return notify(c, '滑鼠要指著敵軍');
+      for (const sq of list) { sq.focus = best; sq.cmd = 'attack'; sq.waypoint = null; sq.goTo = false; sq.lineFace = sq.lineCols = undefined; const p = best.isHero ? best : best.center; sq.cmdPoint = { x: p.x, y: p.y }; }
+      G.FX.ring(pt.x, pt.y, 30, 'rgba(255,90,70,0.9)', 0.5);
+      notify(c, `集火：${best.isHero ? best.name || '敵將' : best.def.name}`);
+    },
+  };
+
+  /**
+   * 拖曳一條線：兵團沿著線平均排開，每支走到自己那一段的中點；陣型寬度 = 那一段的長度（lineCols 欄）、
+   * 面向線的垂直方向（朝敵人那一邊）。到了之後駐守，敵人靠近才轉過去打
+   */
+  function lineOrder(c, list, a, b) {
+    const L = Math.hypot(b.x - a.x, b.y - a.y), n = list.length;
+    if (L < 30) return mouseOrder(c, { a: 'attack', x: b.x, y: b.y }, list);
+    const ux = (b.x - a.x) / L, uy = (b.y - a.y) / L, mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    let nx = -uy, ny = ux;   // 線的法線：選朝向最近敵人的那一邊（沒有敵人就朝地圖另一側）
+    const f = nearestFoe(c.team, mid.x, mid.y, 99999);
+    if (f ? (f.x - mid.x) * nx + (f.y - mid.y) * ny < 0 : c.team === 0 ? ny > 0 : ny < 0) { nx = -nx; ny = -ny; }
+    const face = Math.atan2(ny, nx), seg = L / n;
+    list.forEach((sq, i) => {
+      const spot = { x: a.x + ux * seg * (i + 0.5), y: a.y + uy * seg * (i + 0.5) };
+      Object.assign(sq, { cmd: 'hold', cmdPoint: spot, waypoint: spot, goTo: false, focus: null, lineFace: face, lineCols: Math.max(2, Math.round(seg / 15)) });
+      if (sq.field) { sq.order = 'defend'; sq.home = spot; }
+    });
+    notify(c, `排成一條線（${n} 支）`);
+  }
+
+  /* ---------- 部署階段、可放置的器械（design.md 26）---------- */
+  /** 部署階段這一方可以站的範圍：攻城的攻方在城外遠處、守方在城內；野戰各佔自己那一側 */
+  function deployZone(team) {
+    const c = G.Map.castle, W = G.CONFIG.world;
+    if (c) return team === c.defender ? { y1: c.wallY - c.thick / 2 - 12 } : { y0: c.wallY + 300 };
+    return team === 0 ? { x1: W.w * 0.42 } : { x0: W.w * 0.58 };
+  }
+  function clampZone(u, z) {
+    if (z.x0 !== undefined) u.x = Math.max(u.x, z.x0); if (z.x1 !== undefined) u.x = Math.min(u.x, z.x1);
+    if (z.y0 !== undefined) u.y = Math.max(u.y, z.y0); if (z.y1 !== undefined) u.y = Math.min(u.y, z.y1);
+  }
+  /** 攻方換進攻方向：武將和隨身兵團整個往左或往右移一條（左、中、右三條） */
+  function shiftLane(c, d) {
+    const lane = G.U.clamp(c.lane + d, -1, 1); if (lane === c.lane) return;
+    const dx = (lane - c.lane) * 520; c.lane = lane;
+    for (const u of [c.hero, ...squads.filter(s => s.owner === c).flatMap(s => s.units)]) u.x = G.U.clamp(u.x + dx, 40, G.CONFIG.world.w - 40);
+    for (const s of squads) if (s.owner === c) { s.cmdPoint = { x: s.cmdPoint.x + dx, y: s.cmdPoint.y }; if (s.home) s.home = { x: s.home.x + dx, y: s.home.y }; }
+    notify(c, `進攻方向：${['左翼', '正面', '右翼'][lane + 1]}`);
+  }
+  /** Y：在武將前面放一個器械（每場 perPlayer 個）；部署階段馬上蓋好，開戰後要蓋 buildTime 秒 */
+  function placeEngine(c) {
+    const h = c.hero, D = G.SIEGE.deploy, kind = c.kit[c.kitSel], d = G.SIEGE[kind], castle = G.Map.castle;
+    if (h.dead) return;
+    if (c.kitLeft <= 0) return notify(c, '這場的器械已經放完了');
+    const x = h.x + Math.cos(h.face) * 36, y = h.y + Math.sin(h.face) * 36;
+    if (x < 40 || y < 40 || x > G.CONFIG.world.w - 40 || y > G.CONFIG.world.h - 40) return notify(c, '這裡不能放');
+    if (castle && Math.abs(y - castle.wallY) < castle.thick / 2 + d.radius + 10) return notify(c, '不能放在城牆上');
+    if (castle && kind === 'tower' && y < castle.wallY) return notify(c, '攻城塔要放在城外');
+    if (nearestFoe(c.team, x, y, D.minFoeDist)) return notify(c, '離敵人太近了');
+    if (G.Map.blocked && G.Map.building(x, y)) return notify(c, '這裡有東西擋著');
+    G.Siege.place(kind, c.team, x, y, api.deployT > 0 ? 0 : D.buildTime);
+    c.kitLeft--;
+    notify(c, `放下${d.name}${api.deployT > 0 ? '' : `，${D.buildTime} 秒後完成`}（剩 ${c.kitLeft} 個）`);
+  }
+
   /** B：選中的兵團已經在操作器械就放手；否則把離武將最近、沒人操作的我方器械交給選中的步兵兵團 */
   function assignEngine(c, sel) {
     const busy = sel.filter(sq => sq.crew);
@@ -381,7 +534,7 @@ G.Battle = (() => {
     const ok = sel.filter(sq => sq.alive.length && !sq.def.mounted && !sq.def.ranged);
     if (!ok.length) return notify(c, '騎兵和弓兵不能操作攻城器械');
     const sq = ok.reduce((a, b) => G.U.dist(a.center, e) < G.U.dist(b.center, e) ? a : b);
-    if (G.Siege.assign(sq, e, c.hero.x)) notify(c, `${sq.label.replace(/^(隨身|配置)・/, '')} 開始${e.kind === 'ram' ? '推衝車' : '扛雲梯'}`);
+    if (G.Siege.assign(sq, e, c.hero.x)) notify(c, `${sq.label.replace(/^(隨身|配置)・/, '')} 開始${e.kind === 'ladder' ? '扛' : '推'}${G.SIEGE[e.kind].name}`);
   }
 
   /* ---------- 武將 ---------- */
@@ -401,35 +554,57 @@ G.Battle = (() => {
       if ((h.respawnT -= dt) <= 0) revive(h);
       return;
     }
-    if (h.stun > 0) { h.stun -= dt; h.vx = h.vy = 0; h.moving = false; return; }
+    for (const k of ['down', 'iframes', 'dodgeCd', 'blockBroken', 'blockT']) if (h[k] > 0) h[k] -= dt;
+    if (h.stun > 0) { h.stun -= dt; h.vx = h.vy = 0; h.moving = false; h.blocking = false; return; }
+    // 翻滾（空白鍵；電腦武將血少時偶爾滾開）：往移動方向，沒按方向就往後；前段無敵（combat.js）
+    const I0 = h.cmdr && !demo ? h.cmdr.input : null;
+    if (!h.dash && !h.horse && h.whirl <= 0 && (h.dodgeCd || 0) <= 0 && h.stamina >= G.DODGE.cost && (I0 ? I0.pressed('Space') : h.wantDodge)) {
+      const D = G.DODGE, ix = I0 ? (I0.down('KeyD') ? 1 : 0) - (I0.down('KeyA') ? 1 : 0) : 0, iy = I0 ? (I0.down('KeyS') ? 1 : 0) - (I0.down('KeyW') ? 1 : 0) : 0;
+      const a = ix || iy ? Math.atan2(iy, ix) : h.wantDodge ? h.wantDodge.a : h.face + Math.PI;
+      h.dash = { vx: Math.cos(a) * D.dist / D.dur, vy: Math.sin(a) * D.dist / D.dur, t: D.dur, hit: new Set(), noHit: true, S: { width: 0 } };
+      h.iframes = D.iframes; h.dodgeCd = D.cd; h.stamina -= D.cost; h.restT = G.SPRINT.delay; h.blocking = false; h.action = null;
+      G.FX.dust(h.x, h.y, 3);
+    }
+    h.wantDodge = null;
+    // 上馬／下馬（M，design.md 35）：附近 140 內有敵人不能上馬；騎馬移動 ×1.5、不能格擋翻滾，被擊倒、挑飛、長槍刺到會落馬
+    if (I0 && I0.pressed('KeyM')) {
+      if (h.horse) { h.horse = false; notify(h.cmdr, '下馬'); }
+      else if (nearestFoe(h.team, h.x, h.y, 140)) notify(h.cmdr, '附近有敵人，不能上馬');
+      else { h.horse = true; G.FX.dust(h.x, h.y, 5); notify(h.cmdr, '上馬（M 下馬）'); }
+    }
+    if (h.horse) h.blocking = false;
     G.Skills.updateHero(h, dt);
-    if (h.dash) return;
+    if (h.dash) { h.blocking = false; return; }
     let mx = 0, my = 0;
     if (h.cmdr && !demo) {
       const I = h.cmdr.input;
       mx = (I.down('KeyD') ? 1 : 0) - (I.down('KeyA') ? 1 : 0);
       my = (I.down('KeyS') ? 1 : 0) - (I.down('KeyW') ? 1 : 0);
       for (const [code, slot] of [['KeyQ', 'Q'], ['KeyE', 'E'], ['KeyR', 'R']]) if (I.pressed(code)) G.Skills.useHero(h, slot);
-    } else ({ mx, my } = enemyHeroBrain(h));
+      // 格擋：按住右鍵（耐力耗光、剛破防時不能擋）
+      h.blocking = I.down('Mouse2') && !h.horse && !h.tired && !(h.blockBroken > 0) && h.whirl <= 0;
+    } else { ({ mx, my } = enemyHeroBrain(h)); h.blocking = h.blockT > 0 && !h.tired && !(h.blockBroken > 0) && h.whirl <= 0; }
     // 普攻放技能時移動變慢；自動普攻不減速，邊走邊打
-    const slow = h.action && h.action.anim !== 'Attack' ? 0.35 : 1;
+    const slow = (h.action && h.action.anim !== 'Attack' ? 0.35 : 1) * (h.blocking ? G.BLOCK.speedMul : 1);
     // 跑步：按住 Shift 移動就跑，耗耐力；耗光要回到 resume 才能再跑；停下來一下才開始回
     const R = G.SPRINT, shift = h.cmdr && !demo && (h.cmdr.input.down('ShiftLeft') || h.cmdr.input.down('ShiftRight'));
     h.running = !!(shift && (mx || my) && !h.tired && slow === 1);
+    if (h.blocking) h.restT = Math.max(h.restT, 0.3);   // 舉著擋的時候耐力不回
     if (h.running) { h.stamina -= R.drain * dt; h.restT = R.delay; if (h.stamina <= 0) { h.stamina = 0; h.tired = true; } h.animT += dt * (R.mul - 1); }
     else if ((h.restT -= dt) <= 0) { h.stamina = Math.min(h.staminaMax, h.stamina + R.regen * dt); if (h.tired && h.stamina >= R.resume) h.tired = false; }
     if (mx || my) {
       const buff = h.buff && h.buff.until > api.time ? h.buff.speedMul : 1, guard = h.guard > 0 ? h.guardS.speedMul : 1;
-      const l = Math.hypot(mx, my), sp = h.speed * slow * G.Map.terrainSpeed(h) * buff * guard * (h.running ? R.mul : 1); h.vx = mx / l * sp; h.vy = my / l * sp; h.moving = true;
-      if (!h.action) h.face = Math.atan2(my, mx);
+      const l = Math.hypot(mx, my), sp = h.speed * slow * G.Map.terrainSpeed(h) * buff * guard * (h.running ? R.mul : 1) * (h.horse ? 1.5 : 1);   // 騎馬 ×1.5
+      h.vx = mx / l * sp; h.vy = my / l * sp; h.moving = true;
+      if (!h.action && !h.blocking) h.face = Math.atan2(my, mx);   // 格擋時面向不變（邊擋邊退）
     } else { h.vx = h.vy = 0; h.moving = false; }
-    // 自動普攻：武器範圍內有目標就面向它出手
-    if (h.cd <= 0 && h.whirl <= 0) { const t = autoTarget(h); if (t && !(h.weapon.ranged && !t.team && t.team !== 0)) { h.face = Math.atan2(t.y - h.y, t.x - h.x); heroAttack(h, t); } }
+    // 自動普攻：武器範圍內有目標就面向它出手（格擋中不打）
+    if (h.cd <= 0 && h.whirl <= 0 && !h.blocking) { const t = autoTarget(h); if (t && !(h.weapon.ranged && !t.team && t.team !== 0)) { h.face = Math.atan2(t.y - h.y, t.x - h.x); heroAttack(h, t); } }
   }
 
   /** 普攻目標：最近的敵人 → 敵方攻城器械 → （攻方）還沒打破的城門或城牆段；都沒有就是 null */
   function autoTarget(h) {
-    const r = h.weapon.range;
+    const r = h.weapon.range * (h.weapon.ranged ? G.weatherOf().rangeMul : 1);   // 霧天遠程武將也射不遠
     const u = nearestFoe(h.team, h.x, h.y, r + 4);
     if (u) return u;
     const e = G.Siege.nearestFoeEngine(h.team, h.x, h.y, r);
@@ -451,7 +626,7 @@ G.Battle = (() => {
   }
   function revive(h) {
     const p = rallyOf(h), here = h.respawnAt === 'here';
-    Object.assign(h, { hp: h.maxHp, stamina: h.staminaMax, tired: false, dead: 0, stun: 0, z: 0, vz: 0, kx: 0, ky: 0, dash: null, whirl: 0, action: null, respawnT: undefined, respawnAt: undefined });
+    Object.assign(h, { hp: h.maxHp, stamina: h.staminaMax, tired: false, dead: 0, stun: 0, down: 0, blocking: false, horse: false, iframes: 0, z: 0, vz: 0, kx: 0, ky: 0, dash: null, whirl: 0, action: null, respawnT: undefined, respawnAt: undefined });
     if (!here) { h.x = p.x; h.y = p.y + 24; }
     G.FX.ring(h.x, h.y, 40, 'rgba(255,220,150,0.9)', 0.6);
     if (h.cmdr) notify(h.cmdr, here ? '原地重生' : `在${p.name}重生`);
@@ -459,12 +634,12 @@ G.Battle = (() => {
 
   function heroAttack(h, t) {
     const w = h.weapon;
-    h.cd = w.atkCd; h.doAction('Attack', 0.2);
+    h.cd = w.atkCd * (h.atkCdMul || 1); h.doAction('Attack', 0.2);
     // 遠程武將（火槍、長弓）：射一發投射物；打不到城門城牆
     if (w.ranged) {
       // 火槍「後撤裝填」裝好的子彈：傷害提高、下一發馬上能開
       const loaded = h.loaded > 0 && t && !t.gate; if (loaded) { h.loaded--; if (h.loaded) h.cd = Math.min(h.cd || 0, 0.25); }
-      if (t && !t.gate && t.team !== undefined) G.Combat.arrow(h, t, { ranged: w.ranged, base: h.atk * G.U.rand(0.9, 1.1) * (loaded ? G.HERO_SKILLS.roll.loadMul : 1) }); if (w.ranged.flat) G.FX.hit(h.x + Math.cos(h.face) * 14, h.y - 14 + Math.sin(h.face) * 14, '#ffd27a', 4); return; }
+      if (t && !t.gate && t.team !== undefined) G.Combat.arrow(h, t, { ranged: w.ranged, knock: w.knock, base: h.atk * G.U.rand(0.9, 1.1) * (loaded ? G.HERO_SKILLS.roll.loadMul : 1) }); if (w.ranged.flat) G.FX.hit(h.x + Math.cos(h.face) * 14, h.y - 14 + Math.sin(h.face) * 14, '#ffd27a', 4); return; }
     G.FX.slash(h.x, h.y - 12, h.face, w.range - 8, w.arc, { life: 0.18, width: 4 });
     forEachFoe(h.team, h.x, h.y, w.range, o => {
       if (G.U.angDiff(Math.atan2(o.y - h.y, o.x - h.x), h.face) < w.arc / 2 + 0.2) G.Combat.damage(h, o, h.atk * G.U.rand(0.9, 1.1), { knock: 7 });
@@ -479,6 +654,7 @@ G.Battle = (() => {
 
   /** 電腦武將：找最近的目標接近、攻擊，偶爾放技能 */
   function enemyHeroBrain(h) {
+    if (api.deployT > 0) return { mx: 0, my: 0 };   // 部署階段不動
     const t = nearestFoe(h.team, h.x, h.y, 360);
     const home = h.team === 1 ? scenario.enemyHero : scenario.player;
     let tx = home.x, ty = home.y;
@@ -487,6 +663,18 @@ G.Battle = (() => {
     if (t) {
       h.face = Math.atan2(ty - h.y, tx - h.x);
       if (d < 60) for (const slot of ['Q', 'E', 'R']) if (h.skillCd[slot] <= 0 && Math.random() < 0.01) G.Skills.useHero(h, slot);
+      // 對上武將：對方出手時偶爾舉起來擋；血少被貼身時偶爾滾開
+      if (t.isHero && d < 90 && t.action && !(h.blockT > 0) && Math.random() < 0.04) h.blockT = G.U.rand(0.5, 1.1);
+      if (h.hp < h.maxHp * 0.35 && d < 50 && Math.random() < 0.015) h.wantDodge = { a: Math.atan2(h.y - ty, h.x - tx) };
+    }
+    // 遠程武將（火槍、長弓）被貼身：往反方向退，有後撤技能（後撤裝填）就用，沒有就偶爾翻滾
+    if (t && h.weapon.ranged && d < 90) {
+      const away = Math.atan2(h.y - ty, h.x - tx);
+      const back = h.skillKey('E') === 'roll' ? 'E' : null;
+      if (back && h.skillCd[back] <= 0 && Math.random() < 0.05) { h.face = Math.atan2(ty - h.y, tx - h.x); G.Skills.useHero(h, back); }
+      else if (Math.random() < 0.02) h.wantDodge = { a: away };
+      const r = G.Map.route(h, h.x + Math.cos(away) * 80, h.y + Math.sin(away) * 80);
+      return { mx: r.x - h.x, my: r.y - h.y };
     }
     const reach = h.weapon.range - 6;
     const r = G.Map.route(h, tx, ty);
@@ -505,6 +693,7 @@ G.Battle = (() => {
         if (u.z <= 0) { if (u.vz < -120) G.FX.dust(u.x, u.y, 3); u.z = 0; u.vz = 0; }
       }
       if (u.flash > 0) u.flash -= dt;
+      if (u.down > 0 && !u.isHero) u.down -= dt;   // 擊倒（武將的在 updateHero 扣）
       if (u.animT !== undefined) u.animT += dt;
       if (!u.isHero && u.anim === 'Attack' && u.animT > (G.Sprites.duration(u.def.sprite, 'Attack') || 0.3)) u.play('Idle');
     }
@@ -522,7 +711,7 @@ G.Battle = (() => {
     }
     for (const u of all) {
       u.x = G.U.clamp(u.x, 8, W().w - 8); u.y = G.U.clamp(u.y, 8, W().h - 8);
-      if (!u.dead) G.Map.resolve(u);
+      if (!u.dead) { G.Map.resolve(u); G.Siege.collide(u); }   // collide：拒馬擋路
     }
     for (const s of squads) s.units = s.units.filter(u => !u.dead || u.dead < 1.2);
     unitCache = null;
@@ -561,19 +750,34 @@ G.Battle = (() => {
           // 佔下主堡：在圈裡最久（人最多）的指揮官
           let best = null; for (const [c, v] of cp.by || []) if (!best || v > best[1]) best = [c, v];
           api.capturedBy = best ? best[0] : null;
+          G.FX.slowMo(0.9, 0.3);   // 最後一個據點翻轉：慢動作
           return end(att, '主堡已佔領！');
         }
         notifyTeam(att, `佔領${cp.name}！下一個目標：${castle.capture.name}`);
         notifyTeam(1 - att, `${cp.name}失守！退守${castle.capture.name}`);
       }
     }
+    // 搶旗（野戰配對的搶旗模式，design.md 29）：旗點 70px 內只有一方的人就慢慢翻成那一方（8 秒）；
+    //   每支旗每秒給擁有的一方 1 分，先到 scenario.flagGoal 分的贏
+    if (scenario.flags) {
+      api.flagScore = api.flagScore || [0, 0];
+      for (const f of api.flags) {
+        const n = [0, 0];
+        forNear(f.x, f.y, 70, u => { if (!u.dead && Math.hypot(u.x - f.x, u.y - f.y) < 70) n[u.team] += u.isHero ? 5 : 1; });
+        if (n[0] && !n[1]) f.progress = Math.max(-1, f.progress - dt / 8); else if (n[1] && !n[0]) f.progress = Math.min(1, f.progress + dt / 8);
+        if (f.progress <= -1 && f.owner !== 0) { f.owner = 0; notify(null, `${f.name}被藍方佔領`); }
+        if (f.progress >= 1 && f.owner !== 1) { f.owner = 1; notify(null, `${f.name}被紅方佔領`); }
+        if (f.owner >= 0) api.flagScore[f.owner] += dt;
+      }
+      for (const team of [0, 1]) if (api.flagScore[team] >= scenario.flagGoal) return end(team, '旗點積分勝利');
+    }
     // 一方全滅（也沒有等著重生的武將）：另一方贏
     for (const team of [0, 1]) if (!allUnits().some(u => u.team === 1 - team && (!u.dead || u.respawnT !== undefined))) return end(team, '敵軍全滅！');
-    if (scenario.timeLimit && api.time > scenario.timeLimit) return end(castle ? castle.defender : 1, '時間到');
+    if (scenario.timeLimit && api.time - api.deployLen > scenario.timeLimit) return end(castle ? castle.defender : 1, '時間到');
   }
   /** winTeam 那一方贏；msg 是贏的一方看的說明（輸的一方另外換字） */
   function end(winTeam, msg) {
-    result = { winTeam, msg, loseMsg: { '主堡已佔領！': '主堡失守', '敵軍全滅！': '全軍覆沒', '武將陣亡': '武將陣亡', '時間到': '時間到' }[msg] || msg };
+    result = { winTeam, msg, loseMsg: { '主堡已佔領！': '主堡失守', '敵軍全滅！': '全軍覆沒', '武將陣亡': '武將陣亡', '時間到': '時間到', '旗點積分勝利': '旗點積分落後' }[msg] || msg };
     api.onEnd(result);
   }
   /** 某個指揮官的戰報（給伺服器結算）：戰場上的隨身、配置兵團，加上後備 */
@@ -591,17 +795,23 @@ G.Battle = (() => {
     unitCache = null; rebuildGrid();
     if (!result && !demo) for (const c of cmdrs) handleInput(c);
     for (const h of heroes) updateHero(h, dt);
-    if ((thinkT -= dt) <= 0) { thinkT = 0.5; for (const s of squads) if (!s.owner || s.ai || demo) G.AI.think(s); }
+    const deploying = api.deployT > 0;
+    if ((thinkT -= dt) <= 0) { thinkT = 0.5; if (!deploying) for (const s of squads) if (!s.owner || s.ai || demo) G.AI.think(s); }   // 部署階段電腦不動
     for (const s of squads) G.AI.updateSquad(s, dt);
-    G.Siege.update(dt);
+    G.Siege.update(dt, deploying);
     G.Combat.updateProjectiles(dt, allUnits());
     physics(dt);
     const c = G.Map.castle; if (c) for (const o of c.openings) if (o.flash > 0) o.flash -= dt;
+    if (deploying) {   // 部署階段：玩家的武將和兵團留在自己這一側；時間到就開戰
+      for (const cm of cmdrs) { const z = deployZone(cm.team); clampZone(cm.hero, z); for (const s of squads) if (s.owner === cm) for (const u of s.units) clampZone(u, z); }
+      if ((api.deployT -= dt) <= 0) { api.deployT = 0; api.deployLen = api.time; notify(null, '開戰！'); }   // deployLen：提早開戰時時間限制從這裡開始算
+      return;
+    }
     checkResult(dt);
   }
 
   Object.assign(api, {
-    SCENARIOS, setup, update, report, join, leave, cityScenario, duelScenario, applySize, fieldAvoid, NO_INPUT, supplyPoints, nearSupply, squadsOfCmdr, allUnits, notify, notifyTeam,
+    SCENARIOS, setup, update, report, join, leave, cityScenario, duelScenario, fieldScenario, applySize, fieldAvoid, NO_INPUT, supplyPoints, nearSupply, squadsOfCmdr, allUnits, notify, notifyTeam,
     forEachFoe, nearestFoe, nearestFoeSquad, squadsOf, heroOf, later, gateTarget, hitGate, hitOpening,
   });
   for (const [k, get] of Object.entries({ heroes: () => heroes, squads: () => squads, commanders: () => cmdrs, result: () => result, scenario: () => scenario, demo: () => demo }))

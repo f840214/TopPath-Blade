@@ -58,8 +58,8 @@ G.Sprites = (() => {
     f = a.loop ? f % a.n : Math.min(f, a.n - 1);
     const row = a.dirs === 1 ? 0 : G.U.dirRow(angle), k = G.CONFIG.artScale;   // 精靈圖是遊戲座標的 1.5 倍大
     const dx = x - a.ax * k, dy = y - a.ay * k, alpha = o.alpha ?? 1;
-    G.Render.frame(rec.img, f * a.w, row * a.h, a.w, a.h, dx, dy, alpha, false, k);
-    if (o.flash > 0) G.Render.frame(white(rec.img), f * a.w, row * a.h, a.w, a.h, dx, dy, Math.min(1, o.flash * 6) * alpha, false, k);
+    G.Render.frame(rec.img, f * a.w, row * a.h, a.w, a.h, dx, dy, alpha, false, k, 0xffffff, o.rot || 0, a.ax, a.ay);   // o.rot：擊倒時躺平
+    if (o.flash > 0) G.Render.frame(white(rec.img), f * a.w, row * a.h, a.w, a.h, dx, dy, Math.min(1, o.flash * 6) * alpha, false, k, 0xffffff, o.rot || 0, a.ax, a.ay);
     return a;
   }
 

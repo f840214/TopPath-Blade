@@ -4,6 +4,7 @@
  * formations 第一個是預設陣型；skills 對應 G.UNIT_SKILLS 的 key（Z / X）。
  * 遠程 ranged：{ speed 飛行速度, minRange 太近就後撤, flat 直線飛（子彈）, splash 落點爆炸半徑 }
  * engineer：操作攻城器械時一人算兩人；frontRangedMul：正面受遠程傷害倍率（盾）
+ * dtype：傷害類型（沒寫照 G.dtypeOf）；pen：破甲比例（counters.js 的 G.DAMAGE_TYPES）
  * 兵種名稱是 TopPath Blade 自己取的，參考 docs/conquerors-blade-units.md 的兵種定位，不照搬原作兵團。
  */
 G.UNITS = {
@@ -66,7 +67,7 @@ G.UNITS = {
   },
   maceman: {
     name: '錘兵', short: '錘', type: 'shock', sprite: 'maceman', base: 'shieldman', count: 14,
-    hp: 110, atk: 14, armor: 9, speed: 60, range: 18, atkCd: 1.3, radius: 6,
+    hp: 110, atk: 14, armor: 9, speed: 60, range: 18, atkCd: 1.3, radius: 6, dtype: 'blunt',
     formations: ['block', 'line', 'column'], skills: ['shieldbash', 'cleave'],
     desc: '重甲鈍擊兵，耐打又能暈人，適合頂在最前面撞開敵陣。',
   },
@@ -99,21 +100,21 @@ G.UNITS = {
   },
   crossbowman: {
     name: '弩兵', short: '弩', type: 'archer', sprite: 'crossbowman', base: 'archer', count: 16,
-    hp: 50, atk: 14, armor: 3, speed: 66, range: 160, atkCd: 2.6, radius: 6,
+    hp: 50, atk: 14, armor: 3, speed: 66, range: 160, atkCd: 2.6, radius: 6, pen: 0.3,
     ranged: { speed: 340, minRange: 50, flat: true },
     formations: ['line', 'block', 'loose'], skills: ['volley', 'firearrow'],
     desc: '射程短、裝填慢，但一發很痛，打重甲也有效。',
   },
   pavise: {
     name: '大盾弩手', short: '牌', type: 'archer', sprite: 'pavise', base: 'archer', count: 14,
-    hp: 70, atk: 14, armor: 6, speed: 56, range: 160, atkCd: 2.8, radius: 6, frontRangedMul: 0.5,
+    hp: 70, atk: 14, armor: 6, speed: 56, range: 160, atkCd: 2.8, radius: 6, frontRangedMul: 0.5, pen: 0.3,
     ranged: { speed: 340, minRange: 40, flat: true },
     formations: ['line', 'block', 'loose'], skills: ['shieldwall', 'volley'],
     desc: '背著大盾的弩手，正面擋箭，適合守陣地、守城牆。',
   },
   arquebusier: {
     name: '火槍兵', short: '銃', type: 'archer', sprite: 'arquebusier', base: 'archer', count: 16,
-    hp: 50, atk: 20, armor: 2, speed: 66, range: 170, atkCd: 3.4, radius: 6,
+    hp: 50, atk: 22, armor: 2, speed: 66, range: 170, atkCd: 3.2, radius: 6, dtype: 'bullet',
     ranged: { speed: 620, minRange: 50, flat: true },
     formations: ['line', 'block', 'loose'], skills: ['volley', 'firearrow'],
     desc: '齊射爆發最高、裝填最慢，近戰很脆。',
@@ -127,7 +128,7 @@ G.UNITS = {
   },
   grenadier: {
     name: '擲彈兵', short: '彈', type: 'archer', sprite: 'grenadier', base: 'archer', count: 12,
-    hp: 55, atk: 10, armor: 2, speed: 68, range: 110, atkCd: 3.0, radius: 6,
+    hp: 55, atk: 10, armor: 2, speed: 68, range: 110, atkCd: 3.0, radius: 6, dtype: 'blunt',
     ranged: { speed: 200, minRange: 40, splash: 28 },
     formations: ['loose', 'block', 'line'], skills: ['firearrow', 'volley'],
     desc: '丟炸彈，落點小範圍爆炸，專打擠在一起的敵人。',

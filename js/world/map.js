@@ -63,6 +63,7 @@ G.Map = (() => {
     const clear = (px, py, r) => ok(px, py) && avoid.every(a => Math.hypot(px - a.x, py - a.y) > r) &&
       !(castle && Math.abs(py - castle.wallY) < 90) && !(castle && Math.abs(px - castle.gate.x) < 120) &&
       !(town && castle && py < castle.wallY) &&   // 城內鋪石板，不放野外的樹石草叢
+      !zones.some(z => z.ridge && Math.hypot(z.x - px, (z.y - py) / 0.62) < z.r + 40) && !rocks.some(r => r.wall && Math.hypot(r.x - px, r.y - py) < 50) &&   // 山脊上、石牆旁不放樹
       !(town && town.buildings.some(b => px > b.x - b.fw / 2 - 40 && px < b.x + b.fw / 2 + 40 && py > b.y - b.fh - 40 && py < b.y + 40));
     decos = []; const tufts = [], patches = [];
     for (let i = 0; i < decoN; i++) {
@@ -73,7 +74,7 @@ G.Map = (() => {
       // 圓形灌木（bush）不放了（太突兀）；野戰地面改成泥巴地、水窪、踩出來的土路（下面 paint 的 mud）
     }
     // 戰場地形：擋路的石堆、樹林裡的樹（位置由 setupField 決定，伺服器和瀏覽器一樣）
-    for (const r of rocks) decos.push({ n: 'rocks', x: r.x, y: r.y, flip: r.flip });
+    for (const r of rocks) if (r.wall) decos.push({ n: 'stonewall', x: r.x, y: r.y, horiz: r.horiz }); else if (!r.ridge) decos.push({ n: 'rocks', x: r.x, y: r.y, flip: r.flip });   // 山脊的崖邊畫在地面上
     for (const z of zones) if (z.kind === 'forest') {
       let zs = z.x * 7 + z.y * 13; const zr = () => (zs = (zs * 16807) % 2147483647) / 2147483647;
       for (let i = 0; i < z.r / 9; i++) { const a = zr() * Math.PI * 2, d = Math.sqrt(zr()) * z.r * 0.92; decos.push({ n: zr() < 0.55 ? 'pine' : 'oak', x: z.x + Math.cos(a) * d, y: z.y + Math.sin(a) * d * 0.62, flip: zr() < 0.5 }); }
@@ -82,16 +83,16 @@ G.Map = (() => {
     for (let i = 0; i < 70; i++) patches.push({ x: rnd() * w, y: rnd() * h, r: 30 + rnd() * 90, dark: rnd() < 0.6 });
     // 野戰（不是城內、不是大地圖）：一條橫過戰場、兩軍踩出來的土路，和幾塊泥巴地（有的積水）
     const field = !paintExtra && !town;
-    const track = field ? Array.from({ length: 41 }, (_, i) => { const x = (i / 40) * (w + 200) - 100; return [x, h * 0.52 + Math.sin(i * 0.35 + seed) * h * 0.08 + Math.sin(i * 0.9) * 14]; }) : [];
+    const track = field ? (ftrack.length ? ftrack : trackOf(seed)) : [];   // 跟 setupField 的土路同一條（開場畫面的種子不一樣就自己算）
     const muds = [];
     if (field) for (let i = 0; i < 40 && muds.length < 11; i++) {
       const x = 120 + rnd() * (w - 240), y = 120 + rnd() * (h - 240), r = 40 + rnd() * 60;
-      if (avoid.some(a => Math.hypot(a.x - x, a.y - y) < r + 60) || muds.some(m => Math.hypot(m.x - x, m.y - y) < m.r + r + 40)) continue;
+      if (avoid.some(a => Math.hypot(a.x - x, a.y - y) < r + 60) || muds.some(m => Math.hypot(m.x - x, m.y - y) < m.r + r + 40) || zones.some(z => z.ridge && Math.hypot(z.x - x, (z.y - y) / 0.62) < z.r + r + 20)) continue;   // 泥巴地不放在山脊上
       muds.push({ x, y, r, seed: rnd() * 10, pond: rnd() < 0.6 });
     }
     // 土路、泥巴地上不長草叢、不放零星的樹
     const onMud = (x, y) => muds.some(m => Math.hypot(x - m.x, (y - m.y) / 0.62) < m.r * 1.15) || track.some(([tx, ty]) => Math.abs(tx - x) < 32 && Math.abs(ty - y) < 30);
-    if (field) { for (let i = tufts.length - 1; i >= 0; i--) if (onMud(tufts[i].x, tufts[i].y)) tufts.splice(i, 1); decos = decos.filter(d => d.n === 'rocks' || !onMud(d.x, d.y)); }
+    if (field) { for (let i = tufts.length - 1; i >= 0; i--) if (onMud(tufts[i].x, tufts[i].y)) tufts.splice(i, 1); decos = decos.filter(d => d.n === 'rocks' || d.n === 'stonewall' || !onMud(d.x, d.y)); }
     // 泥巴地的邊上長一圈草叢，邊緣才不會像剪下來的一塊
     for (const m of muds) for (let a = 0; a < 14; a++) { if (rnd() < 0.35) continue; const t = a / 14 * Math.PI * 2 + rnd() * 0.3; tufts.push({ x: m.x + Math.cos(t) * m.r * 1.02, y: m.y + Math.sin(t) * m.r * 0.62 * 1.02 + 6, flip: rnd() < 0.5 }); }
 
@@ -174,6 +175,7 @@ G.Map = (() => {
         };
         blob(z.x, z.y + ry * 0.35, z.r * 1.25, [[0, 'rgba(16,26,10,0.16)'], [0.7, 'rgba(16,26,10,0.08)'], [1, 'rgba(16,26,10,0)']]);   // 南邊坡面的陰影
         blob(z.x, z.y - ry * 0.12, z.r * 1.05, [[0, 'rgba(225,220,160,0.26)'], [0.55, 'rgba(225,220,160,0.14)'], [1, 'rgba(225,220,160,0)']]);   // 頂面照到光
+        if (z.ridge) paintRidge(g, z);   // 山脊：一圈崖邊、東西兩端的坡道
       }
       g.restore();
       const drawTufts = () => { for (const t of tufts) blit(g, art.grass, t.x / K(), t.y / K(), t.flip); groundVer++; };
@@ -247,7 +249,7 @@ G.Map = (() => {
    */
   function setupCastle(o) {
     town = o && o.town ? G.TOWNS[o.town] : null;
-    rocks = []; zones = [];
+    rocks = []; zones = []; ftrack = [];
     G.Nav.reset();
     if (!o) { castle = null; return; }
     const gate = { kind: 'gate', x: o.gateX, w: 50, hp: o.gateHp, maxHp: o.gateHp, open: false, flash: 0 };
@@ -300,13 +302,50 @@ G.Map = (() => {
   /* ---------- 戰場地形（js/battle/sim.js 開戰時呼叫，伺服器和瀏覽器結果一樣） ----------
    * rocks：擋路的石堆（橢圓障礙）；zones：樹林 forest（移動 ×0.75、遠程傷害 ×0.6）、高地 hill（遠程傷害 ×1.2）
    */
-  let rocks = [], zones = [];
+  let rocks = [], zones = [], ftrack = [];   // ftrack：野戰土路（地面畫圖、土路加速共用）
+  /** 野戰橫過戰場的土路（兩軍踩出來的）：x 均分 41 個點；地面畫圖和土路加速共用 */
+  function trackOf(seed) { const { w, h } = G.CONFIG.world; return Array.from({ length: 41 }, (_, i) => { const x = (i / 40) * (w + 200) - 100; return [x, h * 0.52 + Math.sin(i * 0.35 + seed) * h * 0.08 + Math.sin(i * 0.9) * 14]; }); }
+  /** 在土路上嗎（路面半寬約 20px） */
+  function onTrack(x, y) {
+    if (!ftrack.length) return false;
+    const { w } = G.CONFIG.world, f = (x + 100) / (w + 200) * 40, i = Math.max(0, Math.min(39, Math.floor(f))), k = f - i;
+    return Math.abs(y - (ftrack[i][1] + (ftrack[i + 1][1] - ftrack[i][1]) * k)) < 20;
+  }
+  /**
+   * rocks：擋路的障礙。石堆（橢圓）、石牆（wall：一段 40px 的矩形，排成一條、中間留一個缺口）、
+   *   山脊的崖邊（ridge：沿著高地邊緣一圈小橢圓，東西兩端各留一個坡道口）
+   * zones：樹林 forest（移動 ×0.75、遠程傷害 ×0.6）、高地 hill（遠程傷害 ×1.2；ridge 是有崖邊的山脊，只能從坡道上下）
+   * track：野戰的土路（移動 ×1.15）。全部由場景種子決定，伺服器和瀏覽器一樣（design.md 31）
+   */
   function setupField(seed, avoid = [], terrain = []) {
     zones = terrain.map(z => ({ ...z }));
     rocks = [];
     const { w, h } = G.CONFIG.world;
     let s = seed * 9301 + 49297; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
-    for (let i = 0; i < 60 && rocks.length < 12; i++) {
+    ftrack = castle || town ? [] : trackOf(seed);
+    const far = (x, y, r) => !avoid.some(a => Math.hypot(a.x - x, a.y - y) < r) && !zones.some(z => Math.hypot(z.x - x, (z.y - y) / 0.62) < z.r + 60) && !(castle && y < castle.wallY + 200);
+    // 山脊（野戰才有）：場景沒有給高地時，在兩軍中間偏一邊放一條；邊緣擋路，東、西兩端是坡道
+    if (!castle && !town) for (let i = 0; i < 40; i++) {
+      const x = w * (0.32 + rnd() * 0.36), y = h * (0.18 + rnd() * 0.64), r = 140 + rnd() * 40;
+      if (avoid.some(a => Math.hypot(a.x - x, a.y - y) < r + 90) || zones.some(o => Math.hypot(o.x - x, (o.y - y) / 0.62) < o.r + r + 30)) continue;
+      const z = { kind: 'hill', ridge: true, x: Math.round(x), y: Math.round(y), r: Math.round(r) };
+      zones.push(z);
+      for (let t = 0; t < Math.PI * 2; t += 0.09) {
+        if (Math.abs(Math.cos(t)) > 0.94) continue;   // 東、西兩端的坡道口
+        rocks.push({ x: Math.round(z.x + Math.cos(t) * z.r), y: Math.round(z.y + Math.sin(t) * z.r * 0.62 + 6), fw: 26, fh: 12, ellipse: true, ridge: true });
+      }
+      break;
+    }
+    // 石牆：2 道（攻城圖在城外放 1 道），4～6 段、中間缺一段當通道；橫的或直的
+    for (let i = 0, n = 0; i < 120 && n < (castle ? 1 : 2); i++) {
+      const horiz = rnd() < 0.5, segs = 4 + Math.floor(rnd() * 3), L = segs * 40, gap = 1 + Math.floor(rnd() * (segs - 2));
+      const x = 140 + rnd() * (w - 280 - (horiz ? L : 0)), y = 160 + rnd() * (h - 300 - (horiz ? 0 : L));
+      const cx = x + (horiz ? L / 2 : 0), cy = y + (horiz ? 0 : L / 2);
+      if (!far(cx, cy, 120 + L / 2) || rocks.some(r => Math.hypot(r.x - cx, r.y - cy) < 90 + L / 2) || (ftrack.length && (horiz ? onTrack(cx, y) : [0, 1, 2, 3, 4, 5].some(k => onTrack(x, y + k * 40))))) continue;
+      for (let k = 0; k < segs; k++) if (k !== gap) rocks.push(horiz ? { x: Math.round(x + k * 40 + 20), y: Math.round(y), fw: 40, fh: 12, wall: true, horiz } : { x: Math.round(x), y: Math.round(y + k * 40 + 40), fw: 14, fh: 40, wall: true, horiz });
+      n++;
+    }
+    for (let i = 0; i < 60 && rocks.filter(r => !r.wall && !r.ridge).length < 10; i++) {
       const x = 120 + rnd() * (w - 240), y = 120 + rnd() * (h - 240);
       if (castle && y < castle.wallY + 120) continue;   // 城內和城牆附近不放
       if (avoid.some(a => Math.hypot(a.x - x, a.y - y) < 170) || zones.some(z => Math.hypot(z.x - x, (z.y - y) / 0.62) < z.r + 40) || rocks.some(r => Math.hypot(r.x - x, r.y - y) < 220)) continue;
@@ -316,16 +355,16 @@ G.Map = (() => {
   }
   /** 這個點在哪種地形上（沒有就是 null） */
   function terrainAt(x, y) { for (const z of zones) if (Math.hypot(z.x - x, (z.y - y) / 0.62) < z.r) return z.kind; return null; }
-  const terrainSpeed = u => terrainAt(u.x, u.y) === 'forest' ? 0.75 : 1;
+  const terrainSpeed = u => terrainAt(u.x, u.y) === 'forest' ? 0.75 : onTrack(u.x, u.y) ? 1.15 : 1;   // 土路走得快
 
   /** 這個點是不是在牆裡或建築裡（不能站） */
   function blocked(x, y) { return (!!castle && inBand(y) && !openingAt(x, y)) || !!building(x, y); }
   function gatePassable() { return castle && passable(castle.gate); }
   function anyPassable() { return !!castle && castle.openings.some(passable); }
   /** 爬雲梯時移動變慢 */
-  function climbMul(u) { const o = openingAt(u.x, u.y); return o && o.kind === 'ladder' ? G.SIEGE.ladder.climbMul : 1; }
-  /** 雲梯搭好：在牆上加一個窄入口（之後一直都在） */
-  function addLadder(x) { const o = { kind: 'ladder', x, w: G.SIEGE.ladder.width, up: true }; castle.openings.push(o); return o; }
+  function climbMul(u) { const o = openingAt(u.x, u.y); return o && o.kind === 'ladder' ? o.climb || G.SIEGE.ladder.climbMul : 1; }
+  /** 雲梯（或攻城塔，w、climb 另外給）搭好：在牆上加一個入口（之後一直都在） */
+  function addLadder(x, w = G.SIEGE.ladder.width, climb) { const o = { kind: 'ladder', x, w, up: true, climb }; castle.openings.push(o); return o; }
 
   /** 把單位推出牆外、建築外，並回傳是否有被擋住 */
   function resolve(u) {
@@ -396,7 +435,15 @@ G.Map = (() => {
    * 近的目標直線走、擋路的建築從角繞過去；流場走不到（牆上沒有入口）時先到城門前等。
    */
   function route(u, tx, ty) {
-    if (!castle && !town) return { x: tx, y: ty };
+    if (!castle && !town) {
+      // 野戰：直線上沒有障礙就直走；被石牆、石堆、山脊崖邊擋住就走流場（G.Nav），會繞到缺口、坡道
+      // 山脊不逐段檢查（崖邊有幾十段）：起點、終點一個在山脊上一個不在，就算要過崖邊
+      if (Math.abs(tx - u.x) + Math.abs(ty - u.y) < 48) return { x: tx, y: ty };   // 很近的（陣型裡站位）直接走，撞到再被 resolve 推開
+      const m = (u.radius || 6) + 2, inR = (z, x, y) => Math.hypot(z.x - x, (z.y - y) / 0.62) < z.r;
+      const cross = zones.some(z => z.ridge && inR(z, u.x, u.y) !== inR(z, tx, ty));
+      if (!cross && !rocks.some(b => !b.ridge && segHits(foot(b, m), u.x, u.y, tx, ty))) return { x: tx, y: ty };
+      return G.Nav.step(u.x, u.y, tx, ty) || { x: tx, y: ty };
+    }
     const across = castle && !openingAt(u.x, u.y) && (u.y < castle.wallY) !== (ty < castle.wallY);
     if (across || Math.hypot(tx - u.x, ty - u.y) > 80) { const s = G.Nav.step(u.x, u.y, tx, ty); if (s) return s; }
     const r = wallRoute(u, tx, ty);
@@ -452,7 +499,7 @@ G.Map = (() => {
   /** 建築的圖：b.src 有給就用它（大地圖），否則是 assets/map/town/<art>.png */
   function artFor(b) { const src = b.src || `assets/map/town/${b.art}.png`; return load(src, src); }
   /** 大地圖：只有地形（G.TOWNS[key] 的 buildings 當障礙物），沒有城牆 */
-  function setupTerrain(key) { castle = null; town = key ? G.TOWNS[key] : null; rocks = []; zones = []; G.Nav.reset(); }
+  function setupTerrain(key) { castle = null; town = key ? G.TOWNS[key] : null; rocks = []; zones = []; ftrack = []; G.Nav.reset(); }
 
   /** 以腳底中心為錨點放一張美術圖到依 y 排序層 */
   function put(im, x, y, flip, tint) {
@@ -460,10 +507,58 @@ G.Map = (() => {
   }
 
   /** 樹石、城牆要跟單位一起依 y 排序，回傳可繪製物件（draw 收到的 ctx 是上層 canvas） */
+  /**
+   * 山脊（setupField 的 ridge）畫在地面上：頂面亮一點的台地；南半圈是一道往下 18px 的岩壁（直紋、碎石），
+   * 北半圈一道深色崖邊；東、西兩端（擋路的崖邊留缺口的地方）是土色的坡道
+   */
+  function paintRidge(g, z) {
+    const ry = z.r * 0.62, D = 26, pt = (t, k = 1) => [z.x + Math.cos(t) * z.r * k, z.y + Math.sin(t) * ry * k];
+    const rim = (k = 1) => { g.beginPath(); for (let a = 0; a <= 72; a++) { const [x, y] = pt(a / 72 * Math.PI * 2, k); a ? g.lineTo(x, y) : g.moveTo(x, y); } g.closePath(); };
+    const ramp = t => Math.abs(Math.cos(t)) > 0.94;
+    // 岩壁：南半圈頂邊和往下 D 的邊之間（坡道口不畫）
+    for (let a = 0; a < 60; a++) {
+      const t0 = a / 60 * Math.PI, t1 = (a + 1) / 60 * Math.PI; if (ramp(t0) || ramp(t1)) continue;
+      const [x0, y0] = pt(t0), [x1, y1] = pt(t1);
+      const gr = g.createLinearGradient(0, y0, 0, y0 + D); gr.addColorStop(0, '#8a7f6c'); gr.addColorStop(0.5, '#5e5546'); gr.addColorStop(1, '#3b352b');
+      g.fillStyle = gr; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.lineTo(x1, y1 + D); g.lineTo(x0, y0 + D); g.closePath(); g.fill();
+      g.fillStyle = 'rgba(30,26,20,0.35)'; g.fillRect(Math.round(x0), y0 + 3, 1, D - 4);   // 直紋
+    }
+    g.fillStyle = 'rgba(20,24,12,0.25)'; for (let a = 0; a < 40; a++) { const t = a / 40 * Math.PI; if (ramp(t)) continue; const [x, y] = pt(t); g.fillRect(Math.round(x), Math.round(y + D + 2), 3, 2); }   // 崖腳的碎石
+    rim(); g.fillStyle = 'rgba(225,215,160,0.10)'; g.fill();
+    g.strokeStyle = 'rgba(40,36,24,0.7)'; g.lineWidth = 2; rim(); g.stroke();
+    // 坡道：東西兩端往外一塊土色的斜坡
+    for (const side of [-1, 1]) {
+      const [x, y] = pt(side < 0 ? Math.PI : 0), dirt = g.createLinearGradient(x, y, x + side * 60, y);
+      dirt.addColorStop(0, 'rgba(120,95,62,0.85)'); dirt.addColorStop(1, 'rgba(120,95,62,0)');
+      g.fillStyle = dirt; g.beginPath(); g.moveTo(x - side * 10, y - 26); g.lineTo(x + side * 60, y - 12); g.lineTo(x + side * 60, y + 16); g.lineTo(x - side * 10, y + 28); g.closePath(); g.fill();
+    }
+  }
+
+  /** 戰場上的矮石牆一段（橫的 40px、直的 40px 高）：有 PixelLab 的圖（assets/battle/stonewall.png）就用，沒有用程式畫的石塊 */
+  function drawStoneWall(d) {
+    const R = G.Render, im = G.Assets.img('assets/battle/stonewall.png');
+    G.Render.shadow(d.x, d.y - 1, d.horiz ? 22 : 9, 4, 0.25);
+    if (d.horiz && im.complete && im.naturalWidth) { const k = 40 / im.naturalWidth; R.image(im, Math.round(d.x - 20), Math.round(d.y - im.naturalHeight * k + 4), 1, false, k); return; }
+    const end = G.Assets.img('assets/battle/stonewall_end.png');   // 直的一段：牆端的圖往上疊兩塊（先畫上面那塊，下面的蓋在前面）
+    if (!d.horiz && end.complete && end.naturalWidth) { for (const dy of [-20, 0]) R.image(end, Math.round(d.x - end.naturalWidth / 2), Math.round(d.y + dy - end.naturalHeight + 4)); return; }
+    const key = d.horiz ? 'stonewall:h' : 'stonewall:v', w = d.horiz ? 42 : 16, h = d.horiz ? 22 : 52;
+    const c = R.canvasTex(key, w, h, g => {
+      let s = d.horiz ? 7 : 11; const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
+      g.fillStyle = '#4a4740'; g.fillRect(1, h - 8, w - 2, 7);   // 牆腳的陰影面
+      for (let y = h - 9; y > 1; y -= 5) for (let x = 1 + (y % 2) * 3; x < w - 2; x += 6 + Math.floor(r() * 3)) {
+        const sw = Math.min(w - 1 - x, 5 + Math.floor(r() * 3));
+        g.fillStyle = ['#8a857a', '#7a756a', '#958f82', '#6f6a60'][Math.floor(r() * 4)]; g.fillRect(x, y - 4, sw, 4);
+        g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(x, y, sw, 1);
+      }
+    });
+    R.image(c, Math.round(d.x - w / 2), Math.round(d.y - h + 3));
+  }
+
   function wallDrawables(view) {
     const out = [];
     for (const d of decos) {
       if (view && (d.x < view.x - 100 || d.x > view.x + view.w + 100 || d.y < view.y - 20 || d.y > view.y + view.h + 140)) continue;
+      if (d.n === 'stonewall') { out.push({ y: d.y, draw: () => drawStoneWall(d) }); continue; }
       out.push({ y: d.y, draw: () => {
         const r = d.n === 'oak' ? 22 : d.n === 'pine' ? 14 : 12;
         G.Render.shadow(d.x, d.y - 2, r, r * 0.35, 0.22);
@@ -585,7 +680,7 @@ G.Map = (() => {
   }
 
   return {
-    buildGround, prebuildGround, setupCastle, setupTerrain, setupField, terrainAt, terrainSpeed, get zones() { return zones; }, artFor, blocked, blockedGrid, building, resolve, route, sameSide, gatePassable, anyPassable, passable, openingAt, climbMul, addLadder,
+    buildGround, prebuildGround, setupCastle, setupTerrain, setupField, terrainAt, terrainSpeed, get zones() { return zones; }, get rocks() { return rocks; }, artFor, blocked, blockedGrid, building, resolve, route, sameSide, gatePassable, anyPassable, passable, openingAt, climbMul, addLadder,
     get castle() { return castle; },
     get town() { return town; },
 

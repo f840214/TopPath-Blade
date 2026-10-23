@@ -35,6 +35,13 @@ G.AI = (() => {
   function updateSquad(sq, dt) {
     for (const k in sq.fx) if (sq.fx[k] > 0) sq.fx[k] -= dt;
     for (const k in sq.skillCd) if (sq.skillCd[k] > 0) sq.skillCd[k] -= dt;
+    if (sq.cmdCd) for (const k in sq.cmdCd) if (sq.cmdCd[k] > 0) sq.cmdCd[k] -= dt;
+    // 集火：目標打光（或敵將倒下）就取消；還在就一直追著它
+    if (sq.focus) {
+      const f = sq.focus, gone = f.isHero ? f.dead : !f.alive.length;
+      if (gone) sq.focus = null;
+      else { const p = f.isHero ? f : f.center; sq.cmd = 'attack'; sq.cmdPoint = { x: p.x, y: p.y }; sq.goTo = false; }
+    }
     const alive = sq.alive;
     if (!alive.length) return;
     if (sq.crew) return crewUpdate(sq, alive, dt);
@@ -71,6 +78,8 @@ G.AI = (() => {
       anchor = sq.cmdPoint;
       const c = sq.center, foe = G.Battle.nearestFoe(sq.team, c.x, c.y, 400);
       face = sq.rooted ? sq.face : foe ? Math.atan2(foe.y - c.y, foe.x - c.x) : sq.face;
+      // 拉線排好的兵團：維持線的朝向，敵人貼近（130 內）才轉過去
+      if (sq.lineFace !== undefined && sq.cmd === 'hold' && !sq.rooted && !(foe && Math.hypot(foe.x - c.x, foe.y - c.y) < 130)) face = sq.lineFace;
       if (sq.cmd === 'attack' && Math.hypot(anchor.x - c.x, anchor.y - c.y) > 40) face = Math.atan2(anchor.y - c.y, anchor.x - c.x);
     }
     if (!sq.rooted) sq.face = face;
@@ -84,19 +93,21 @@ G.AI = (() => {
       u.cd -= dt; if (u.chargeCd > 0) u.chargeCd -= dt;
       if (u.stun > 0) { u.stun -= dt; u.vx = u.vy = 0; u.moving = false; continue; }
       const sw = sq.slotWorld(slots[u.slot], anchor.x, anchor.y, sq.face), slot = G.Map.sameSide(sw.x, sw.y, anchor.x, anchor.y);
-      if (sq.rooted) { u.vx = u.vy = 0; u.moving = false; u.face = sq.face; meleeInPlace(u); continue; }
+      if (sq.rooted) { u.vx = u.vy = 0; u.moving = false; u.face = sq.face; if (u.def.ranged) shootInPlace(u, sq); else meleeInPlace(u); continue; }
 
       // 找目標：離自己近、而且沒跑離陣地太遠的敵人
       let t = u.target && !u.target.dead && !u.target.gate && !(u.target.engine && u.target.state === 'up') ? u.target : null;
       // 沒有目標時每 0.2～0.35 秒才重找一次（人多時找目標是最花時間的地方）
-      if (!t && engage && (u.seekT -= dt) <= 0) { u.seekT = G.U.rand(0.2, 0.35); t = G.Battle.nearestFoe(u.team, u.x, u.y, engage + (u.def.ranged ? sq.range * 0.5 : 0)); }
-      if (t && Math.hypot(t.x - anchor.x, t.y - anchor.y) > engage + C().squadLeash) t = null;
+      const F = sq.focus;
+      if (F && !(t && (F.isHero ? t === F : t.squad === F)) && (u.seekT -= dt) <= 0) { u.seekT = G.U.rand(0.15, 0.3); t = F.isHero ? F : nearestIn(F, u); }   // 集火：只打那一支
+      else if (!t && engage && (u.seekT -= dt) <= 0) { u.seekT = G.U.rand(0.2, 0.35); t = G.Battle.nearestFoe(u.team, u.x, u.y, engage + (u.def.ranged ? sq.range * 0.5 : 0)); }
+      if (t && !F && Math.hypot(t.x - anchor.x, t.y - anchor.y) > engage + C().squadLeash) t = null;
       const castle = G.Map.castle;
       if (castle) {
         // 攻城器械：守方遠程三分之二的人優先集火，其他人附近沒敵人時才打
         if (u.def.ranged && sq.team === castle.defender && u.slot % 3 !== 2) { if (!t || !t.engine) t = G.Siege.nearestFoeEngine(u.team, u.x, u.y, sq.range) || t; }
         else if (!t && engage) t = G.Siege.nearestFoeEngine(u.team, u.x, u.y, engage);
-      }
+      } else if (!t && engage) t = G.Siege.nearestFoeEngine(u.team, u.x, u.y, engage + (u.def.ranged ? sq.range * 0.5 : 0));   // 野戰：附近沒敵人就打敵方的拒馬、床弩
       // 攻城：目標在牆的另一邊、牆上沒有任何入口 → 打城門
       if (castle && !G.Map.anyPassable() && !u.def.ranged && sq.team !== castle.defender) {
         const goal = t || sq.cmdPoint;
@@ -109,6 +120,13 @@ G.AI = (() => {
       else move(u, slot.x, slot.y, sq, 2);
       if (!u.moving && !t) u.face = sq.face;
     }
+  }
+
+  /** 集火目標兵團裡離 u 最近的活人 */
+  function nearestIn(sq, u) {
+    let best = null, bd = Infinity;
+    for (const o of sq.units) if (!o.dead) { const d = (o.x - u.x) ** 2 + (o.y - u.y) ** 2; if (d < bd) { bd = d; best = o; } }
+    return best;
   }
 
   function move(u, tx, ty, sq, stop) {
@@ -130,7 +148,10 @@ G.AI = (() => {
     if (u.cd <= 0) {
       u.cd = u.def.atkCd * G.U.rand(0.85, 1.15); u.play('Attack');
       if (t.gate) G.Battle.hitGate(u, u.def.atk * G.SIEGE.meleeGateMul);
-      else G.Combat.damage(u, t, u.def.atk * G.U.rand(0.8, 1.2), { knock: u.def.mounted ? 6 : 3 });
+      else if (sq.fx.rush > 0 && !u.rushed) {   // 衝鋒指令：第一下打得重、把人撞開
+        const R = G.SQUAD_ORDERS.rush; u.rushed = true;
+        G.Combat.damage(u, t, u.def.atk * R.hitMul * G.U.rand(0.9, 1.1), { knock: R.knock });
+      } else G.Combat.damage(u, t, u.def.atk * G.U.rand(0.8, 1.2), { knock: u.def.mounted ? 6 : 3 });
     }
   }
 
@@ -145,6 +166,13 @@ G.AI = (() => {
       move(u, e.x - s * lx - c * back, e.y + c * lx - s * back, sq, 1.5);
       if (!u.moving) u.face = e.face;
     });
+  }
+
+  /** 固守時遠程兵站著射射程內最近的敵人 */
+  function shootInPlace(u, sq) {
+    if (u.cd > 0) return;
+    const t = G.Battle.nearestFoe(u.team, u.x, u.y, sq.range);
+    if (t) { u.face = Math.atan2(t.y - u.y, t.x - u.x); u.cd = u.def.atkCd * G.U.rand(0.85, 1.2); u.play('Attack'); G.Combat.arrow(u, t); }
   }
 
   /** 架槍、盾牆時原地攻擊正前方 */
@@ -168,7 +196,8 @@ G.AI = (() => {
       G.FX.hit(u.x, u.y - 14, '#ffffff', 8);
       return;
     }
-    const mul = C().chargeMul * (sq.fm.chargeMul || 1) * sq.mod('chargeMul', 1) * (sq.fx.charge > 0 ? G.UNIT_SKILLS.charge.chargeMul : 1);
+    const mul = C().chargeMul * (sq.fm.chargeMul || 1) * sq.mod('chargeMul', 1) * (sq.fx.charge > 0 ? G.UNIT_SKILLS.charge.chargeMul : 1)
+      * (t.squad && t.squad.fx.stand > 0 && G.Combat.isFront(u, t) ? G.SQUAD_ORDERS.stand.chargeTakenMul : 1);   // 撞上固守的兵團：傷害減半
     const a = Math.atan2(t.y - u.y, t.x - u.x);
     G.Battle.forEachFoe(u.team, u.x + Math.cos(a) * 10, u.y + Math.sin(a) * 10, 16, o =>
       G.Combat.damage(u, o, u.def.atk * mul, { knock: C().chargeKnockback, launch: 50, big: true }));
@@ -192,6 +221,7 @@ G.AI = (() => {
   /* ---------- 電腦指揮 ---------- */
   function think(sq) {
     if (!sq.alive.length || sq.crew) return;   // 操作器械中：交給 G.Siege
+    if (sq.focus || sq.fx.rush > 0 || sq.fx.stand > 0) return;   // 玩家下了集火、衝鋒、固守：照玩家的指令
     const c = sq.center, castle = G.Map.castle;
     // 友軍在附近開打時一起支援
     const alert = G.Battle.squadsOf(sq.team).some(o => o !== sq && o.cmd === 'attack' && o.alive.length && G.U.dist(o.center, c) < 600);

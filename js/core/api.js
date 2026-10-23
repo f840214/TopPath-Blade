@@ -32,5 +32,14 @@ G.Api = (() => {
     world: () => call('GET', '/api/world'),
     saveCity: (id, name, art) => call('POST', '/api/world/city', { id, name, art }),
     collect: () => call('POST', '/api/world/collect'),
+    changePassword: (old, password) => call('POST', '/api/password', { old, password }),
+    // 好友、家族、市集、採集（server/src/social.js）
+    social: () => call('GET', '/api/social'),
+    friends: body => call('POST', '/api/friends', body),
+    guild: body => call('POST', '/api/guild', body),
+    market: () => call('GET', '/api/market'),
+    marketOp: body => call('POST', '/api/market', body),
+    gather: node => call('POST', '/api/gather', { node }),
+    requisition: i => call('POST', '/api/requisition', { i }),
   };
 })();
