@@ -1,0 +1,6 @@
+# HTTPS 反向代理（compose.yaml 的 caddy 服務，docker compose --profile https up -d）
+# DOMAIN 換成你的網域（要先把網域的 DNS 指到這台主機，80、443 port 要對外開）；Caddy 會自動申請、更新 Let's Encrypt 憑證
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy toppath-blade:8765
+}

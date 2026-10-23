@@ -17,7 +17,10 @@ export async function openDb(rootDir) {
     const dir = process.env.PGLITE_DIR || path.join(rootDir, 'data', 'pglite');
     await mkdir(dir, { recursive: true });   // 第一次跑時 data/ 還不存在，PGlite 不會建上層資料夾
     const lite = await PGlite.create(dir);
-    db = { kind: `pglite (${dir})`, query: (sql, params) => lite.query(sql, params), exec: sql => lite.exec(sql), close: () => lite.close() };
+    // rowCount：跟 pg 一樣（PGlite 叫 affectedRows），UPDATE / DELETE 用來判斷有沒有改到
+    db = { kind: `pglite (${dir})`, query: async (sql, params) => { const r = await lite.query(sql, params); if (r.rowCount === undefined) r.rowCount = r.affectedRows ?? r.rows.length; return r; }, exec: sql => lite.exec(sql), close: () => lite.close(),
+      /** 整個資料庫打包成 .tar.gz（伺服器開著也可以，備份用，見 backup.js） */
+      dump: async () => Buffer.from(await (await lite.dumpDataDir('gzip')).arrayBuffer()) };
   }
   // 建表（IF NOT EXISTS，可以重複執行）
   await db.exec(await readFile(new URL('./schema.sql', import.meta.url), 'utf8'));

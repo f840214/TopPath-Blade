@@ -6,11 +6,29 @@ services:
     ports:
       - "8899:8765"
     volumes:
-      - ./data:/app/data          # 帳號與存檔（PGlite）存在主機的 data/ 資料夾，重建容器也不會不見
+      - ./data:/app/data          # 帳號與存檔（PGlite）、每天的備份（data/backups）存在主機的 data/ 資料夾，重建容器也不會不見
     environment:
       PORT: "8765"                 # 容器內的 port（對外是上面的 8899）
-      # 架在 HTTPS 後面（反向代理）時打開，登入 cookie 只走加密連線
-      # COOKIE_SECURE: "1"
+      # 架在 HTTPS 後面時一定要打開（用下面的 caddy 就設 "1"），登入 cookie 只走加密連線
+      COOKIE_SECURE: "${COOKIE_SECURE:-0}"
+      BACKUP_HOURS: "24"           # 幾小時備份一次資料庫（data/backups，只留最新 14 份）
       # 之後玩家多了要換成獨立的 PostgreSQL：設定連線字串即可，程式不用改
       # DATABASE_URL: postgres://user:password@db:5432/toppath
+    restart: unless-stopped
+
+  # HTTPS（選用）：DOMAIN=game.example.com COOKIE_SECURE=1 docker compose --profile https up -d
+  # 架好之後玩家連 https://你的網域；8899 只給自己測試用（可以把上面的 ports 拿掉）
+  caddy:
+    image: caddy:2.8-alpine
+    profiles: ["https"]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: "${DOMAIN:-localhost}"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data/caddy:/data          # 憑證
+    depends_on:
+      - toppath-blade
     restart: unless-stopped

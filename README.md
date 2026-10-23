@@ -16,8 +16,14 @@ docker compose up -d --build
 ```
 
 開 http://<主機>:8899/ 就能玩。改版後在主機上 `git pull` 再執行同一行重新建置即可。
-- 帳號與存檔在主機的 `data/`（掛進容器），重建容器不會不見；**要備份就備份這個資料夾**。
-- 架在 HTTPS 後面時，在 `compose.yaml` 打開 `COOKIE_SECURE`；玩家多了要換獨立 PostgreSQL，設定 `DATABASE_URL` 即可。
+- 帳號與存檔在主機的 `data/`（掛進容器），重建容器不會不見。
+- **備份**：伺服器每 24 小時自動把資料庫打包到 `data/backups/pglite-<時間>.tar.gz`（只留最新 14 份，`BACKUP_HOURS`、`BACKUP_KEEP` 可以改）。建議再定期把 `data/backups` 複製到別台機器。
+  還原：停掉伺服器 → `node server/src/restore-backup.js data/backups/<檔名>`（原本的資料庫會改名留著）。
+- **HTTPS（公開上線前一定要做，不然密碼是明文）**：網域的 DNS 指到主機、開 80／443 port，然後
+  `DOMAIN=game.example.com COOKIE_SECURE=1 docker compose --profile https up -d --build`
+  （Caddy 自動申請憑證，設定在 `deploy/Caddyfile`）。玩家連 `https://game.example.com`。
+- **忘記密碼**：沒有 email，由管理員重設：停掉伺服器 → `node server/src/reset-password.js <帳號> <新密碼>`（Docker：`docker compose run --rm toppath-blade node server/src/reset-password.js …`）。玩家自己可以在選單「說明」裡改密碼。
+- 玩家多了要換獨立 PostgreSQL，設定 `DATABASE_URL` 即可（這時備份請用 pg_dump）。
 - 映像只包含 `index.html`、`sw.js`、`css/`、`js/`、`lib/`、`assets/` 和 `server/`；伺服器也只對外開放這些遊戲路徑。
 - **service worker（`sw.js`）只在 HTTPS 或 localhost 上有效**：用 `http://<區網 IP>:8899/` 開時瀏覽器不會啟用，遊戲照樣能玩，只是每次都向伺服器拿檔案。
 
@@ -27,6 +33,7 @@ docker compose up -d --build
 |---|---|
 | `POST /api/register`、`/api/login` | 帳號 2～16 字、密碼 1～128 字；密碼用 scrypt 加鹽雜湊；同一 IP 每分鐘最多 10 次 |
 | `POST /api/logout`、`GET /api/me` | 登入狀態放在 httpOnly cookie（30 天） |
+| `POST /api/password` | 改密碼 { old, password }：要輸入舊密碼，改完其他裝置都登出 |
 | `GET`／`PUT /api/profile` | 讀寫存檔（名冊、金幣、等級、選單設定、大地圖、旗幟）；伺服器會擋明顯不合理的數值 |
 | `GET /assets-manifest.json` | 遊戲檔案清單（每個檔案的大小＋修改時間），開場預先載入和 service worker 同步用 |
 
